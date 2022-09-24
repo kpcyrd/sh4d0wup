@@ -1,0 +1,39 @@
+---
+
+upstreams:
+  archlinux:
+    url: https://geo.mirror.pkgbuild.com/
+    #keep_headers: false
+
+routes:
+  - path: "/core/os/x86_64/core.db"
+    type: patch-pacman-db
+    args:
+      upstream: archlinux
+      #path: /core.db
+      patch:
+        - name: coreutils
+          set:
+            "%VERSION%":
+              - 9.1-777
+            "%FILENAME%":
+              - "coreutils-9.1-777-x86_64.pkg.tar.zst"
+      exclude:
+        - name: amd-ucode
+  - path: "/community/os/x86_64/community.db"
+    type: patch-pacman-db
+    args:
+      upstream: archlinux
+  - path: "/robots.txt"
+    type: static
+    args:
+      data: "me0w :3\n"
+      content_type: "text/plain; charset=utf-8"
+  - path: "/index.html"
+    type: static
+    args:
+      data: "<h1>me0w :3<script>console.log(/hai/)</script>\n"
+      content_type: "text/html; charset=utf-8"
+  - type: proxy
+    args:
+      upstream: archlinux

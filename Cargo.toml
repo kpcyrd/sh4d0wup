@@ -1,0 +1,29 @@
+[package]
+name = "sh4d0wup"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.63"
+bzip2 = "0.4.3"
+clap = { version = "3.2.20", features = ["derive", "env"] }
+env_logger = "0.9.0"
+flate2 = "1.0.24"
+http = "0.2.8"
+indexmap = "1.9.1"
+log = "0.4.17"
+once_cell = "1.15.0"
+reqwest = "0.11.12"
+rust-lzma = "0.5.1"
+serde = { version = "1.0.144", features = ["derive"] }
+serde_yaml = "0.9.13"
+tar = "0.4.38"
+tokio = { version = "1.21.0", features = ["macros", "rt-multi-thread"] }
+tree_magic_mini = "3.0.3"
+url = { version = "2.3.1", features = ["serde"] }
+warp = "0.3.2"
+warp-reverse-proxy = "0.5.0"
+xz = "0.1.0"
+zstd = { version = "0.11.2", features = ["pkg-config"] }

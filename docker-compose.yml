@@ -1,0 +1,9 @@
+---
+version: "3.9"
+services:
+  daemon:
+    build: .
+    ports:
+    - 127.0.0.1:8080:8080
+    command: ["bait"]
+    init: true

@@ -1,9 +1,11 @@
 use clap::Parser;
 use env_logger::Env;
-use sh4d0wup::args::{Args, SubCommand};
+use sh4d0wup::args::{Args, Infect, SubCommand};
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
+use sh4d0wup::infect;
 use sh4d0wup::plot::Plot;
+use std::fs;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,6 +25,11 @@ async fn main() -> Result<()> {
             let plot = Plot::load_from_path(&bait.plot)?;
             trace!("Loaded plot: {:?}", plot);
             httpd::run(bait.bind, plot).await?;
+        }
+        SubCommand::Infect(Infect::Pacman(infect)) => {
+            let pkg = fs::read(&infect.path)?;
+            let infected = infect::pacman::infect(&infect, &pkg)?;
+            fs::write(infect.out, &infected)?;
         }
     }
 

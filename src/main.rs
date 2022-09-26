@@ -31,6 +31,11 @@ async fn main() -> Result<()> {
             let infected = infect::pacman::infect(&infect, &pkg)?;
             fs::write(infect.out, &infected)?;
         }
+        SubCommand::Infect(Infect::Deb(infect)) => {
+            let pkg = fs::read(&infect.path)?;
+            let infected = infect::deb::infect(&infect, &pkg)?;
+            fs::write(infect.out, &infected)?;
+        }
     }
 
     Ok(())

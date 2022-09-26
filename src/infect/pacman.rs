@@ -155,10 +155,11 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
                         .context("Failed to patch install script")?;
                     debug!("Patched install script: {:?}", script);
 
+                    let script = script.as_bytes();
                     header.set_size(script.len() as u64);
                     header.set_cksum();
 
-                    builder.append(&header, &mut script.as_bytes())?;
+                    builder.append(&header, &mut &script[..])?;
                 }
                 Some(".PKGINFO") => {
                     if pkginfo_overrides.is_empty() {
@@ -179,10 +180,11 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
 
                         let buf = pkginfo.to_string();
                         debug!("Generated new pkginfo: {:?}", buf);
+                        let buf = buf.as_bytes();
                         header.set_size(buf.len() as u64);
                         header.set_cksum();
 
-                        builder.append(&header, &mut buf.as_bytes())?;
+                        builder.append(&header, &mut &buf[..])?;
                     }
                 }
                 _ => {

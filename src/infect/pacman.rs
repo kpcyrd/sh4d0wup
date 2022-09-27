@@ -89,15 +89,38 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     {
         let mut builder = tar::Builder::new(&mut out);
+        let mut has_install_hook = false;
 
         debug!("Walking through original archive...");
         for entry in archive.entries()? {
             let mut entry = entry?;
             let mut header = entry.header().clone();
             debug!("Found entry in tar: {:?}", header.path());
-            match header.path()?.to_str() {
-                Some(".INSTALL") => {
-                    debug!("Package already has install script, patching...");
+            let path = header.path()?;
+            let filename = path.to_str().with_context(|| {
+                anyhow!("Package contains paths with invalid encoding: {:?}", path)
+            })?;
+
+            if !has_install_hook && filename > ".INSTALL" {
+                info!("This package has no install hook, adding one from scratch...");
+                has_install_hook = true;
+                let script = patch_install_script(None, &args.payload)
+                    .context("Failed to generate install script")?;
+                debug!("Generated install script: {:?}", script);
+
+                let script = script.as_bytes();
+                let mut header = header.clone();
+                header.set_path(".INSTALL")?;
+                header.set_size(script.len() as u64);
+                header.set_cksum();
+
+                builder.append(&header, &mut &script[..])?;
+            }
+
+            match filename {
+                ".INSTALL" => {
+                    info!("Package already has install script, patching...");
+                    has_install_hook = true;
                     let mut script = String::new();
                     entry.read_to_string(&mut script)?;
                     debug!("Found existing install script: {:?}", script);
@@ -111,7 +134,7 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
 
                     builder.append(&header, &mut &script[..])?;
                 }
-                Some(".PKGINFO") => {
+                ".PKGINFO" => {
                     if pkginfo_overrides.is_empty() {
                         debug!("Passing through pkginfo unparsed");
                         builder.append(&header, &mut entry)?;

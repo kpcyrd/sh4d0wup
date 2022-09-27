@@ -1,15 +1,12 @@
 use crate::args;
 use crate::compression;
 use crate::errors::*;
-use blake2::{Blake2b512, Digest};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::io::prelude::*;
-use std::rc::Rc;
 use std::str::FromStr;
 use tar::Archive;
-use yash_syntax::syntax;
 
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct PkgInfo {
@@ -58,62 +55,15 @@ impl ToString for PkgInfo {
     }
 }
 
-fn hash_script(script: &str) -> String {
-    let mut hasher = Blake2b512::new();
-    hasher.update(script.as_bytes());
-    let res = hasher.finalize();
-    hex::encode(&res[..6])
-}
-
-fn fn_name(name: &str) -> Result<syntax::Word> {
-    name.parse::<syntax::Word>()
-        .map_err(|err| anyhow!("Failed to create function name: {:#?}", err))
-}
-
 pub fn patch_install_script(script: Option<&str>, payload: &str) -> Result<String> {
     if let Some(script) = &script {
-        let hash = hash_script(script);
-        let mut parsed: syntax::List = script
-            .parse()
-            .map_err(|err| anyhow!("Failed to parse input as shell script: {:#?}", err))?;
-
-        for item in &mut parsed.0 {
-            if let Some(and_or) = Rc::get_mut(&mut item.and_or) {
-                for cmd in &mut and_or.first.commands {
-                    if let Some(syntax::Command::Function(fun)) = Rc::get_mut(cmd) {
-                        let name = fun.name.to_string();
-                        let word = fn_name(&format!("{}_{}", name, hash))?;
-                        debug!("Found function {:?}: {:?}", name, fun.body.to_string());
-                        fun.name = word;
-                    }
-                }
-            }
-        }
-
-        let mut out = String::new();
-        writeln!(
-            out,
-            "pwn_{hash}() {{ test -n \"$pwned_{hash}\" && return; pwned_{hash}=1; {}; }}",
-            payload,
-            hash = hash
-        )?;
-        writeln!(
-            out,
-            "post_install() {{ pwn_{hash}; post_install_{hash} \"$1\"; }}",
-            hash = hash
-        )?;
-        writeln!(
-            out,
-            "post_upgrade() {{ pwn_{hash}; post_upgrade_{hash} \"$1\"; }}",
-            hash = hash
-        )?;
-        write!(out, "{}", parsed)?;
-        Ok(out)
+        let script = format!("{}\n{}", payload, script);
+        Ok(script)
     } else {
         let mut out = String::new();
-        writeln!(out, "pwn() {{ {}; }}", payload)?;
-        writeln!(out, "post_install() {{ pwn; }}")?;
-        writeln!(out, "post_upgrade() {{ pwn; }}")?;
+        writeln!(out, "{}", payload)?;
+        writeln!(out, "post_install() {{ :; }}")?;
+        writeln!(out, "post_upgrade() {{ :; }}")?;
         Ok(out)
     }
 }
@@ -210,9 +160,9 @@ mod tests {
         assert_eq!(
             script,
             "\
-pwn() { id; }
-post_install() { pwn; }
-post_upgrade() { pwn; }
+id
+post_install() { :; }
+post_upgrade() { :; }
 "
         );
         Ok(())
@@ -231,11 +181,20 @@ post_upgrade() {
 # vim:set ts=2 sw=2 et:
 "#;
         let script = patch_install_script(Some(data), "id")?;
-        assert_eq!(script, "\
-pwn_cc6b4ff7816d() { test -n \"$pwned_cc6b4ff7816d\" && return; pwned_cc6b4ff7816d=1; id; }
-post_install() { pwn_cc6b4ff7816d; post_install_cc6b4ff7816d \"$1\"; }
-post_upgrade() { pwn_cc6b4ff7816d; post_upgrade_cc6b4ff7816d \"$1\"; }
-post_install_cc6b4ff7816d() { setcap cap_sys_chroot=ep usr/bin/sn0int 2>/dev/null; }; post_upgrade_cc6b4ff7816d() { post_install \"$1\"; }");
+        assert_eq!(
+            script,
+            r#"id
+post_install() {
+      setcap cap_sys_chroot=ep usr/bin/sn0int 2> /dev/null
+}
+
+post_upgrade() {
+      post_install "$1"
+}
+
+# vim:set ts=2 sw=2 et:
+"#
+        );
         Ok(())
     }
 

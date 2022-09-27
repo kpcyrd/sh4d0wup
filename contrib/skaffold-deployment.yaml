@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sh4d0wup
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sh4d0wup-config
+  namespace: sh4d0wup
+data:
+  plot.yaml: |
+    routes:
+      - path: "/robots.txt"
+        type: static
+        args:
+          content_type: "text/plain; charset=utf-8"
+          data: "User-agent: *\nDisallow: /\n"
+      - path: "/assets/script.js"
+        type: static
+        args:
+          content_type: "application/javascript; charset=utf-8"
+          headers:
+            server: nginx/1.33.7
+          data: |
+            console.log(/hai/);
+      - path: "/"
+        type: static
+        args:
+          content_type: "text/html; charset=utf-8"
+          headers:
+            server: nginx/1.33.7
+          data: |
+            <!DOCTYPE html>
+            <h1>me0w :3</h1>
+            <script src="/assets/script.js"></script>
+
+      - type: static
+        args:
+          status: 404
+          content_type: "text/html; charset=utf-8"
+          headers:
+            server: nginx/1.33.7
+          data: |
+            <html>
+            <head><title>404 Not Found</title></head>
+            <body bgcolor="white">
+            <center><h1>404 Not Found</h1></center>
+            <hr><center>nginx/1.33.7</center>
+            </body>
+            </html>
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sh4d0wup
+  namespace: sh4d0wup
+  labels:
+    app: sh4d0wup
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+  clusterIP: None
+  selector:
+    app: sh4d0wup
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sh4d0wup
+  namespace: sh4d0wup
+  labels:
+    app: sh4d0wup
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sh4d0wup
+  template:
+    metadata:
+      labels:
+        app: sh4d0wup
+    spec:
+      containers:
+      - name: sh4d0wup
+        image: sh4d0wup
+        args: ["bait", "/config/plot.yaml"]
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config/plot.yaml
+          subPath: plot.yaml
+      terminationGracePeriodSeconds: 1
+      volumes:
+      - name: config-volume
+        configMap:
+          name: sh4d0wup-config
+      restartPolicy: "Always"

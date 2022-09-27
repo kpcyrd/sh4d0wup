@@ -1,0 +1,22 @@
+apiVersion: skaffold/v2beta29
+kind: Config
+metadata:
+  name: sh-d-wup
+build:
+  artifacts:
+  - image: sh4d0wup
+    docker:
+      dockerfile: Dockerfile
+    sync:
+      manual:
+        - src: contrib/*.yaml
+          dest: /contrib
+deploy:
+  kubectl:
+    manifests:
+    - contrib/skaffold-deployment.yaml
+portForward:
+- resourceType: service
+  resourceName: sh4d0wup
+  namespace: sh4d0wup
+  port: 8080

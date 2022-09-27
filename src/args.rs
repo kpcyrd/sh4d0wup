@@ -41,6 +41,7 @@ pub struct Bait {
 pub enum Infect {
     Pacman(InfectPacmanPkg),
     Deb(InfectDebPkg),
+    Oci(InfectOci),
 }
 
 /// Infect a pacman package
@@ -68,6 +69,18 @@ pub struct InfectDebPkg {
     /// Update a key in ./control
     #[clap(long)]
     pub set: Vec<String>,
+    /// The command to inject into the package that's executed once during install
+    #[clap(short = 'c', long)]
+    pub payload: String,
+}
+
+/// Infect an OCI container image .tar
+#[derive(Debug, Clone, Parser)]
+pub struct InfectOci {
+    /// The input package to use as a base
+    pub path: PathBuf,
+    /// Where to write the modified package to
+    pub out: PathBuf,
     /// The command to inject into the package that's executed once during install
     #[clap(short = 'c', long)]
     pub payload: String,

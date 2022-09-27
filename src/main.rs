@@ -15,6 +15,7 @@ async fn main() -> Result<()> {
         0 => "sh4d0wup=info",
         1 => "info,sh4d0wup=debug",
         2 => "debug",
+        3 => "debug,sh4d0wup=trace",
         _ => "trace",
     };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
@@ -34,6 +35,11 @@ async fn main() -> Result<()> {
         SubCommand::Infect(Infect::Deb(infect)) => {
             let pkg = fs::read(&infect.path)?;
             let infected = infect::deb::infect(&infect, &pkg)?;
+            fs::write(infect.out, &infected)?;
+        }
+        SubCommand::Infect(Infect::Oci(infect)) => {
+            let pkg = fs::read(&infect.path)?;
+            let infected = infect::oci::infect(&infect, &pkg)?;
             fs::write(infect.out, &infected)?;
         }
     }

@@ -3,9 +3,20 @@
 upstreams:
   registry:
     url: http://127.0.0.1:5001
-    #keep_headers: false
 
 routes:
+  - path: "/v2/foo/bar/manifests/latest"
+    type: oci-registry-manifest
+    args:
+      name: foo/bar
+      tag: latest
+      architecture: amd64
+      content_digest: "sha256:c5e654f04302f2f88bdc5fe9644b7a096405205432a3738fc2ca6d4b766b6037"
+      fs_layers:
+        - sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
+        - sha256:e80285ff599e329e689e4689be05885456823b7f6233486aa419541ae8e98c62
+      signatures:
+        - { "header": { "jwk": { "crv": "P-256", "kid": "W24L:XRCI:GTAK:3G7A:OXWJ:5BS3:3KPH:PQK3:462N:CFGK:MR2X:3OHV", "kty": "EC", "x": "AI8fD8X-3kB3Ui_tfcB6Afj0n8NmYLDIu80Od59gIDY", "y": "cyI4ypOkIEZRcIMAzrkyAmqcZZtdfX0-e_g-H5i6hlw" }, "alg": "ES256" }, "signature": "blqs2XIJBNfMQv6rHdB4E3F3O8nod2Fu8IvvQDBTpf3xP-zH-tq8j-uXq5O_zelaOnxWTSnYBujaFjF5gghpiA", "protected": "eyJmb3JtYXRMZW5ndGgiOjMyNjcsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAyMi0wOS0yN1QyMTowNDoyNloifQ" }
   - type: proxy
     args:
       upstream: registry

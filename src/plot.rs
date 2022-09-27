@@ -66,6 +66,8 @@ pub enum RouteAction {
     Static(StaticRoute),
     #[serde(rename = "patch-pacman-db")]
     PatchPacmanDbRoute(PatchPacmanDbRoute),
+    #[serde(rename = "oci-registry-manifest")]
+    OciRegistryManifest(OciRegistryManifest),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,4 +143,16 @@ impl PatchPacmanDbRoute {
         }
         None
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OciRegistryManifest {
+    pub name: String,
+    pub tag: String,
+    pub architecture: String,
+    pub content_digest: String,
+    #[serde(default)]
+    pub fs_layers: Vec<String>,
+    #[serde(default)]
+    pub signatures: Vec<serde_json::Value>,
 }

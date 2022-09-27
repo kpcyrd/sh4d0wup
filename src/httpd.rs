@@ -1,9 +1,12 @@
 use crate::errors::*;
 use crate::pacman;
-use crate::plot::{PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute};
+use crate::plot::{
+    OciRegistryManifest, PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
+};
 use crate::upstream;
 use http::Method;
 use http::{HeaderMap, HeaderValue};
+use serde::Serialize;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use warp::path::FullPath;
@@ -155,8 +158,6 @@ async fn patch_pacman_db_response(
         .context("Reference to undefined upstream")
         .map_err(http_error)?;
 
-    // debug!("upstream={:?}", upstream);
-    // debug!("args={:?}", args);
     let path = args.path.as_deref().unwrap_or(uri.as_str());
 
     let url = upstream
@@ -170,13 +171,62 @@ async fn patch_pacman_db_response(
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
-    // debug!("bytes: {:?}", bytes);
 
     let response = pacman::modify_response(args, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
         .body(response)
+        .unwrap())
+}
+
+#[derive(Debug, Serialize)]
+pub struct OciFsLayer {
+    #[serde(rename = "blobSum")]
+    pub blob_sum: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OciRegistryManifestResponse {
+    #[serde(rename = "schemaVersion")]
+    schema_version: u32,
+    name: String,
+    tag: String,
+    architecture: String,
+    #[serde(rename = "fsLayers")]
+    fs_layers: Vec<OciFsLayer>,
+    signatures: Vec<serde_json::Value>,
+}
+
+async fn generate_oci_registry_manifest_response(
+    args: &OciRegistryManifest,
+) -> std::result::Result<http::Response<Bytes>, Rejection> {
+    let response = OciRegistryManifestResponse {
+        schema_version: 1,
+        name: args.name.clone(),
+        tag: args.tag.clone(),
+        architecture: args.architecture.clone(),
+        fs_layers: args
+            .fs_layers
+            .iter()
+            .cloned()
+            .map(|blob_sum| OciFsLayer { blob_sum })
+            .collect(),
+        signatures: args.signatures.clone(),
+    };
+
+    let buf = serde_json::to_vec(&response).map_err(http_error)?;
+    Ok(http::Response::builder()
+        .status(200)
+        .header(
+            "content-type",
+            "application/vnd.docker.distribution.manifest.v2+json",
+        )
+        .header("docker-content-digest", &args.content_digest)
+        .header("docker-distribution-api-version", "registry/2.0")
+        .header("etag", format!("\"{}\"", args.content_digest))
+        .header("x-content-type-options", "nosniff")
+        .body(Bytes::from(buf))
         .unwrap())
 }
 
@@ -202,6 +252,9 @@ async fn serve_request(
         }
         RouteAction::Static(args) => generate_static_response(args).await?,
         RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &plot, uri).await?,
+        RouteAction::OciRegistryManifest(args) => {
+            generate_oci_registry_manifest_response(args).await?
+        }
     };
 
     Ok((path, response))

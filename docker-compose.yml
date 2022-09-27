@@ -5,5 +5,7 @@ services:
     build: .
     ports:
     - 127.0.0.1:8080:8080
-    command: ["bait"]
+    volumes:
+    - ./contrib:/contrib:ro
+    command: ["bait", "/contrib/plot-hello-world.yaml"]
     init: true

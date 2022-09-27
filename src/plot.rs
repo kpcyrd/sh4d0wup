@@ -2,10 +2,12 @@ use crate::errors::*;
 use crate::pacman;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plot {
+    #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
     pub routes: Vec<Route>,
 }
@@ -44,7 +46,6 @@ impl Plot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Upstream {
     pub url: url::Url,
-    // pub url: String,
     #[serde(default)]
     pub keep_headers: bool,
 }
@@ -74,8 +75,11 @@ pub struct ProxyRoute {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticRoute {
+    pub status: Option<u16>,
     pub content_type: Option<String>,
     pub data: String,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

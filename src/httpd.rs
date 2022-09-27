@@ -126,13 +126,17 @@ async fn proxy_forward_request(
 }
 
 async fn generate_static_response(
-    // response: reqwest::Response,
     args: &StaticRoute,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
-    let mut builder = http::Response::builder().status(200);
+    let status = args.status.unwrap_or(200);
+    let mut builder = http::Response::builder().status(status);
 
     if let Some(value) = &args.content_type {
         builder = builder.header("Content-Type", value);
+    }
+
+    for (key, value) in &args.headers {
+        builder = builder.header(key, value);
     }
 
     Ok(builder

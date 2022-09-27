@@ -1,0 +1,41 @@
+---
+
+routes:
+  - path: "/robots.txt"
+    type: static
+    args:
+      content_type: "text/plain; charset=utf-8"
+      data: "User-agent: *\nDisallow: /\n"
+  - path: "/assets/script.js"
+    type: static
+    args:
+      content_type: "application/javascript; charset=utf-8"
+      headers:
+        server: nginx/1.33.7
+      data: |
+        console.log(/hai/);
+  - path: "/"
+    type: static
+    args:
+      content_type: "text/html; charset=utf-8"
+      headers:
+        server: nginx/1.33.7
+      data: |
+        <!DOCTYPE html>
+        <h1>me0w :3</h1>
+        <script src="/assets/script.js"></script>
+
+  - type: static
+    args:
+      status: 404
+      content_type: "text/html; charset=utf-8"
+      headers:
+        server: nginx/1.33.7
+      data: |
+        <html>
+        <head><title>404 Not Found</title></head>
+        <body bgcolor="white">
+        <center><h1>404 Not Found</h1></center>
+        <hr><center>nginx/1.33.7</center>
+        </body>
+        </html>

@@ -1,5 +1,6 @@
 use crate::args;
 use crate::errors::*;
+use blake2::Blake2b512;
 use oci_spec::image::Config as ImageConfig;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -83,6 +84,7 @@ pub fn generate_entrypoint_hook(payload: &str, entrypoint: Option<&[String]>) ->
 }
 
 pub fn generate_layer_fs_data(
+    path: &str,
     payload: &str,
     entrypoint: Option<&[String]>,
 ) -> Result<(String, Vec<u8>)> {
@@ -94,7 +96,7 @@ pub fn generate_layer_fs_data(
         let mut builder = tar::Builder::new(&mut layer_data);
         let mut header = tar::Header::new_ustar();
         header.set_mode(0o755);
-        header.set_path("hax")?; // TODO
+        header.set_path(path)?;
         header.set_size(buf.len() as u64);
         header.set_cksum();
         builder.append(&header, &mut &buf[..])?;
@@ -121,6 +123,25 @@ pub fn write_tar_entry<W: Write>(
     header.set_cksum();
     builder.append(header, &mut &buf[..])?;
     Ok(())
+}
+
+// this gives us a filename in a way that's guaranteed to not conflict
+pub fn hash_rootfs(args: &args::InfectOci, layer: &LayerConfig) -> Result<String> {
+    let rootfs = layer
+        .rootfs
+        .as_ref()
+        .context("Layer config has no rootfs we can hash")?;
+
+    let mut hasher = Blake2b512::new();
+    for id in &rootfs.diff_ids {
+        hasher.update(id.as_bytes());
+        hasher.update(b"\n");
+    }
+
+    let res = hasher.finalize();
+    let mut id = hex::encode(&res[..]);
+    id.truncate(args.entrypoint_hash_len);
+    Ok(id)
 }
 
 pub fn write_patch_layer<W: Write>(
@@ -151,7 +172,16 @@ pub fn write_patch_layer<W: Write>(
         header.set_cksum();
         builder.append(&header, &mut io::empty())?;
 
-        let (rootfs_hash, layer_data) = generate_layer_fs_data(payload, config.entrypoint())?;
+        let entrypoint_name = if let Some(entrypoint) = &args.entrypoint {
+            entrypoint
+                .strip_prefix('/')
+                .unwrap_or(entrypoint)
+                .to_string()
+        } else {
+            hash_rootfs(args, &config)?
+        };
+        let (rootfs_hash, layer_data) =
+            generate_layer_fs_data(&entrypoint_name, payload, config.entrypoint())?;
 
         let buf = "1.0";
         debug!("Adding version to layer: {:?}", buf);
@@ -159,7 +189,7 @@ pub fn write_patch_layer<W: Write>(
         write_tar_entry(builder, &mut header, &id, "VERSION", buf.as_bytes())?;
 
         debug!("Generating metadata...");
-        config.set_entrypoint(vec!["/hax".to_string()]);
+        config.set_entrypoint(vec![format!("/{}", entrypoint_name)]);
         config.add_rootfs_diff(rootfs_hash);
         let buf = serde_json::to_string(&config)?;
         debug!("Adding metadata to layer: {:?}", buf);

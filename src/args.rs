@@ -82,6 +82,12 @@ pub struct InfectOci {
     pub path: PathBuf,
     /// Where to write the modified package to
     pub out: PathBuf,
+    /// Configure the length of the entrypoint hash, longer names are less likely to collide but more noticable
+    #[arg(long, default_value = "14")]
+    pub entrypoint_hash_len: usize,
+    /// Write the entrypoint to a fixed location instead of a random one
+    #[arg(long)]
+    pub entrypoint: Option<String>,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
     pub payload: Option<String>,

@@ -57,7 +57,7 @@ pub struct InfectPacmanPkg {
     pub set: Vec<String>,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
-    pub payload: String,
+    pub payload: Option<String>,
 }
 
 /// Infect a .deb package
@@ -72,7 +72,7 @@ pub struct InfectDebPkg {
     pub set: Vec<String>,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
-    pub payload: String,
+    pub payload: Option<String>,
 }
 
 /// Infect an OCI container image .tar
@@ -84,7 +84,7 @@ pub struct InfectOci {
     pub out: PathBuf,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
-    pub payload: String,
+    pub payload: Option<String>,
 }
 
 /// Infect a pacman package
@@ -105,5 +105,5 @@ pub struct InfectApkPkg {
     pub signing_key_name: String,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
-    pub payload: String,
+    pub payload: Option<String>,
 }

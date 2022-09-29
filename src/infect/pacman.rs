@@ -101,30 +101,32 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
                 anyhow!("Package contains paths with invalid encoding: {:?}", path)
             })?;
 
-            if !has_install_hook && filename > ".INSTALL" {
-                info!("This package has no install hook, adding one from scratch...");
-                has_install_hook = true;
-                let script = patch_install_script(None, &args.payload)
-                    .context("Failed to generate install script")?;
-                debug!("Generated install script: {:?}", script);
+            if let Some(payload) = &args.payload {
+                if !has_install_hook && filename > ".INSTALL" {
+                    info!("This package has no install hook, adding one from scratch...");
+                    has_install_hook = true;
+                    let script = patch_install_script(None, payload)
+                        .context("Failed to generate install script")?;
+                    debug!("Generated install script: {:?}", script);
 
-                let script = script.as_bytes();
-                let mut header = header.clone();
-                header.set_path(".INSTALL")?;
-                header.set_size(script.len() as u64);
-                header.set_cksum();
+                    let script = script.as_bytes();
+                    let mut header = header.clone();
+                    header.set_path(".INSTALL")?;
+                    header.set_size(script.len() as u64);
+                    header.set_cksum();
 
-                builder.append(&header, &mut &script[..])?;
+                    builder.append(&header, &mut &script[..])?;
+                }
             }
 
-            match filename {
-                ".INSTALL" => {
+            match (&args.payload, filename) {
+                (Some(payload), ".INSTALL") => {
                     info!("Package already has install script, patching...");
                     has_install_hook = true;
                     let mut script = String::new();
                     entry.read_to_string(&mut script)?;
                     debug!("Found existing install script: {:?}", script);
-                    let script = patch_install_script(Some(&script), &args.payload)
+                    let script = patch_install_script(Some(&script), payload)
                         .context("Failed to patch install script")?;
                     debug!("Patched install script: {:?}", script);
 
@@ -134,7 +136,7 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
 
                     builder.append(&header, &mut &script[..])?;
                 }
-                ".PKGINFO" => {
+                (_, ".PKGINFO") => {
                     if pkginfo_overrides.is_empty() {
                         debug!("Passing through pkginfo unparsed");
                         builder.append(&header, &mut entry)?;

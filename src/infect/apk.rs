@@ -101,18 +101,19 @@ pub fn patch_metadata_buf(args: &args::InfectApkPkg, buf: &[u8]) -> Result<Vec<u
             .to_str()
             .with_context(|| anyhow!("Package contains paths with invalid encoding: {:?}", path))?;
 
-        match filename {
-            ".post-install" | ".post-upgrade" => {
+        match (&args.payload, filename) {
+            (Some(payload), ".post-install" | ".post-upgrade") => {
                 let mut script = String::new();
                 entry.read_to_string(&mut script)?;
                 debug!("Found existing hook for {:?}: {:?}", filename, script);
 
-                let script = shell::inject_into_script(&script, &args.payload)
+                let script = shell::inject_into_script(&script, payload)
                     .context("Failed to inject into package hook")?;
 
                 let buf = script.as_bytes();
                 header.set_size(buf.len() as u64);
                 header.set_cksum();
+
                 builder.append(&header, &mut &buf[..])?;
             }
             _ => {

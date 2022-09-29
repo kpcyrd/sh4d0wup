@@ -83,16 +83,13 @@ pub fn generate_entrypoint_hook(payload: &str, entrypoint: Option<&[String]>) ->
 }
 
 pub fn generate_layer_fs_data(
-    args: &args::InfectOci,
+    payload: &str,
     entrypoint: Option<&[String]>,
 ) -> Result<(String, Vec<u8>)> {
-    info!(
-        "Generating filesystem layer for payload: {:?}",
-        args.payload
-    );
+    info!("Generating filesystem layer for payload: {:?}", payload);
     let mut layer_data = Vec::new();
     {
-        let buf = generate_entrypoint_hook(&args.payload, entrypoint);
+        let buf = generate_entrypoint_hook(payload, entrypoint);
         let buf = buf.as_bytes();
         let mut builder = tar::Builder::new(&mut layer_data);
         let mut header = tar::Header::new_ustar();
@@ -131,7 +128,7 @@ pub fn write_patch_layer<W: Write>(
     args: &args::InfectOci,
     mut config: LayerConfig,
     parent: &str,
-) -> Result<String> {
+) -> Result<(String, Option<String>)> {
     let id = "patched".to_string();
 
     if let Some(user) = &config.user() {
@@ -145,32 +142,47 @@ pub fn write_patch_layer<W: Write>(
     }
 
     info!("Creating new layer in image: {:?}", id);
-    let mut header = tar::Header::new_ustar();
-    header.set_mode(0o755);
-    header.set_path(format!("{}/", id))?;
-    header.set_cksum();
-    builder.append(&header, &mut io::empty())?;
-
-    let (rootfs_hash, layer_data) = generate_layer_fs_data(args, config.entrypoint())?;
-
-    let buf = "1.0";
-    debug!("Adding version to layer: {:?}", buf);
-    header.set_mode(0o644);
-    write_tar_entry(builder, &mut header, &id, "VERSION", buf.as_bytes())?;
-
-    debug!("Generating metadata...");
     config.set_id(id.to_string());
     config.set_parent(parent.to_string());
-    config.set_entrypoint(vec!["/hax".to_string()]);
-    config.add_rootfs_diff(rootfs_hash);
-    let buf = serde_json::to_string(&config)?;
-    debug!("Adding metadata to layer: {:?}", buf);
-    write_tar_entry(builder, &mut header, &id, "json", buf.as_bytes())?;
+    if let Some(payload) = &args.payload {
+        let mut header = tar::Header::new_ustar();
+        header.set_mode(0o755);
+        header.set_path(format!("{}/", id))?;
+        header.set_cksum();
+        builder.append(&header, &mut io::empty())?;
 
-    debug!("Adding fs data to layer");
-    write_tar_entry(builder, &mut header, &id, "layer.tar", &layer_data)?;
+        let (rootfs_hash, layer_data) = generate_layer_fs_data(payload, config.entrypoint())?;
 
-    Ok(id)
+        let buf = "1.0";
+        debug!("Adding version to layer: {:?}", buf);
+        header.set_mode(0o644);
+        write_tar_entry(builder, &mut header, &id, "VERSION", buf.as_bytes())?;
+
+        debug!("Generating metadata...");
+        config.set_entrypoint(vec!["/hax".to_string()]);
+        config.add_rootfs_diff(rootfs_hash);
+        let buf = serde_json::to_string(&config)?;
+        debug!("Adding metadata to layer: {:?}", buf);
+        write_tar_entry(builder, &mut header, &id, "json", buf.as_bytes())?;
+
+        debug!("Adding fs data to layer");
+        write_tar_entry(builder, &mut header, &id, "layer.tar", &layer_data)?;
+        Ok((format!("{}/json", id), Some(format!("{}/layer.tar", id))))
+    } else {
+        let buf = serde_json::to_string(&config)?;
+        debug!("Adding metadata to layer: {:?}", buf);
+        let buf = buf.as_bytes();
+
+        let path = format!("{}.json", id);
+        let mut header = tar::Header::new_ustar();
+        header.set_mode(0o644);
+        header.set_path(&path)?;
+        header.set_size(buf.len() as u64);
+        header.set_cksum();
+        builder.append(&header, &mut &buf[..])?;
+
+        Ok((path, None))
+    }
 }
 
 pub fn infect(args: &args::InfectOci, pkg: &[u8]) -> Result<Vec<u8>> {
@@ -218,12 +230,15 @@ pub fn infect(args: &args::InfectOci, pkg: &[u8]) -> Result<Vec<u8>> {
                         .strip_suffix("/layer.tar")
                         .context("Can't detect id of parent layer")?;
 
-                    let id = write_patch_layer(&mut builder, args, config, parent)
-                        .context("Failed to add patch layer")?;
+                    let (config_path, layer_path) =
+                        write_patch_layer(&mut builder, args, config, parent)
+                            .context("Failed to add patch layer")?;
 
                     info!("Writing modified manifest...");
-                    manifest.config = format!("{}/json", id);
-                    manifest.layers.push(format!("{}/layer.tar", id));
+                    manifest.config = config_path;
+                    if let Some(layer_path) = layer_path {
+                        manifest.layers.push(layer_path);
+                    }
                     let buf = serde_json::to_string(&[&manifest])?;
                     debug!("Modified manifest: {:?}", buf);
                     let buf = buf.as_bytes();

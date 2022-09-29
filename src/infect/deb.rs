@@ -77,14 +77,18 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
             let mut entry = entry?;
             let mut header = entry.header().clone();
             debug!("Found entry in control tar: {:?}", header.path());
+            let path = header.path()?;
+            let filename = path.to_str().with_context(|| {
+                anyhow!("Package contains paths with invalid encoding: {:?}", path)
+            })?;
 
-            match header.path()?.to_str() {
-                Some("./postinst") => {
+            match (&args.payload, filename) {
+                (Some(payload), "./postinst") => {
                     let mut script = String::new();
                     entry.read_to_string(&mut script)?;
                     debug!("Found existing postinst script: {:?}", script);
 
-                    let script = shell::inject_into_script(&script, &args.payload)
+                    let script = shell::inject_into_script(&script, payload)
                         .context("Failed to inject into postinst script")?;
 
                     let script = script.as_bytes();
@@ -93,7 +97,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
 
                     builder.append(&header, &mut &script[..])?;
                 }
-                Some("./control") => {
+                (_, "./control") => {
                     if control_overrides.is_empty() {
                         debug!("Passing through control unparsed");
                         builder.append(&header, &mut entry)?;

@@ -7,9 +7,7 @@ pub fn supports_injection(header: &str) -> bool {
         return false;
     };
 
-    let prog = header.split_once(' ')
-        .map(|x| x.0)
-        .unwrap_or(header);
+    let prog = header.split_once(' ').map(|x| x.0).unwrap_or(header);
 
     ["/bin/sh", "/bin/bash"].contains(&prog)
 }

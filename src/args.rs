@@ -97,6 +97,12 @@ pub struct InfectApkPkg {
     /// Update a key in .PKGINFO (a key can be set multiple times)
     #[arg(long)]
     pub set: Vec<String>,
+    /// Path to the key to sign the package with
+    #[arg(short = 'S', long)]
+    pub signing_key: String,
+    /// The name of the signing key (eg. alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub)
+    #[arg(short = 'N', long)]
+    pub signing_key_name: String,
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
     pub payload: String,

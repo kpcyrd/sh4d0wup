@@ -33,13 +33,18 @@ pub fn write_compressed<R: Read, W: Write>(r: &mut R, w: &mut W) -> Result<()> {
     Ok(())
 }
 
-pub fn patch_signature_buf(signature_buf: &[u8], pkg: &[u8]) -> Result<Vec<u8>> {
+pub fn patch_signature_buf(
+    args: &args::InfectApkPkg,
+    signature_buf: &[u8],
+    pkg: &[u8],
+) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     let mut builder = tar::Builder::new(&mut out);
     let mut archive = Archive::new(signature_buf);
 
     // Load signing key
-    let buf = std::fs::read("alpine.sec").context("Failed to read signing key")?;
+    let buf = std::fs::read(&args.signing_key)
+        .with_context(|| anyhow!("Failed to read signing key from {:?}", args.signing_key))?;
     let keypair = PKey::private_key_from_pem(&buf).context("Failed to load signing key")?;
     let key_algo_id = match keypair.id() {
         pkey::Id::RSA => "RSA",
@@ -67,7 +72,7 @@ pub fn patch_signature_buf(signature_buf: &[u8], pkg: &[u8]) -> Result<Vec<u8>> 
         entry.read_to_end(&mut buf)?;
 
         debug!("Replacing signature ({} bytes): {:?}", buf.len(), buf);
-        let name = format!(".SIGN.{}.{}", key_algo_id, "hax.pub");
+        let name = format!(".SIGN.{}.{}", key_algo_id, args.signing_key_name);
         debug!("Changing entry name from {:?} to {:?}", entry.path(), name);
         header.set_path(name)?;
         header.set_size(signature.len() as u64);
@@ -138,7 +143,7 @@ pub fn infect(args: &args::InfectApkPkg, pkg: &[u8]) -> Result<Vec<u8>> {
     write_compressed(&mut &metadata_buf[..], &mut pkg)?;
 
     debug!("Patching signature...");
-    let signature_buf = patch_signature_buf(&signature_buf, &pkg)?;
+    let signature_buf = patch_signature_buf(args, &signature_buf, &pkg)?;
 
     debug!("Streaming remaining package contents...");
     let n = io::copy(&mut reader, &mut pkg)?;

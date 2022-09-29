@@ -42,6 +42,7 @@ pub enum Infect {
     Pacman(InfectPacmanPkg),
     Deb(InfectDebPkg),
     Oci(InfectOci),
+    Apk(InfectApkPkg),
 }
 
 /// Infect a pacman package
@@ -81,6 +82,21 @@ pub struct InfectOci {
     pub path: PathBuf,
     /// Where to write the modified package to
     pub out: PathBuf,
+    /// The command to inject into the package that's executed once during install
+    #[clap(short = 'c', long)]
+    pub payload: String,
+}
+
+/// Infect a pacman package
+#[derive(Debug, Clone, Parser)]
+pub struct InfectApkPkg {
+    /// The input package to use as a base
+    pub path: PathBuf,
+    /// Where to write the modified package to
+    pub out: PathBuf,
+    /// Update a key in .PKGINFO (a key can be set multiple times)
+    #[clap(long)]
+    pub set: Vec<String>,
     /// The command to inject into the package that's executed once during install
     #[clap(short = 'c', long)]
     pub payload: String,

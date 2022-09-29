@@ -42,6 +42,11 @@ async fn main() -> Result<()> {
             let infected = infect::oci::infect(&infect, &pkg)?;
             fs::write(infect.out, &infected)?;
         }
+        SubCommand::Infect(Infect::Apk(infect)) => {
+            let pkg = fs::read(&infect.path)?;
+            let infected = infect::apk::infect(&infect, &pkg)?;
+            fs::write(infect.out, &infected)?;
+        }
     }
 
     Ok(())

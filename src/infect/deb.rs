@@ -1,6 +1,7 @@
 use crate::args;
 use crate::compression;
 use crate::errors::*;
+use crate::shell;
 use ar::{Archive, Builder};
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -83,12 +84,9 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                     entry.read_to_string(&mut script)?;
                     debug!("Found existing postinst script: {:?}", script);
 
-                    if !script.starts_with("#!/bin/sh") {
-                        bail!("Can't infect this type of post install script");
-                    }
+                    let script = shell::inject_into_script(&script, &args.payload)
+                        .context("Failed to inject into postinst script")?;
 
-                    let script = format!("#!/bin/sh\n{}\n{}", args.payload, script);
-                    debug!("Modified postinst script: {:?}", script);
                     let script = script.as_bytes();
                     header.set_size(script.len() as u64);
                     header.set_cksum();

@@ -5,4 +5,5 @@ pub mod httpd;
 pub mod infect;
 pub mod pacman;
 pub mod plot;
+pub mod shell;
 pub mod upstream;

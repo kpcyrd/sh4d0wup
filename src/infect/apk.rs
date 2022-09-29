@@ -1,5 +1,6 @@
 use crate::args;
 use crate::errors::*;
+use crate::shell;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::GzBuilder;
@@ -106,11 +107,8 @@ pub fn patch_metadata_buf(args: &args::InfectApkPkg, buf: &[u8]) -> Result<Vec<u
                 entry.read_to_string(&mut script)?;
                 debug!("Found existing hook for {:?}: {:?}", filename, script);
 
-                if !script.starts_with("#!/bin/sh") {
-                    bail!("Can't infect this type of post install script");
-                }
-
-                let script = format!("#!/bin/sh\n{}\n{}", args.payload, script);
+                let script = shell::inject_into_script(&script, &args.payload)
+                    .context("Failed to inject into package hook")?;
 
                 let buf = script.as_bytes();
                 header.set_size(buf.len() as u64);

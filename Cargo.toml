@@ -10,7 +10,7 @@ anyhow = "1.0.63"
 ar = "0.9.0"
 blake2 = "0.10.4"
 bzip2 = "0.4.3"
-clap = { version = "3.2.20", features = ["derive", "env"] }
+clap = { version = "4", features = ["derive", "env"] }
 env_logger = "0.9.0"
 flate2 = "1.0.24"
 hex = "0.4.3"

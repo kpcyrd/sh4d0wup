@@ -2,10 +2,9 @@ use crate::args;
 use crate::compression;
 use crate::errors::*;
 use crate::shell;
-use ar::{Archive, Builder};
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::io::prelude::*;
 use std::str::FromStr;
 
@@ -135,38 +134,36 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
     Ok(out)
 }
 
-pub fn infect(args: &args::InfectDebPkg, pkg: &[u8]) -> Result<Vec<u8>> {
-    let mut out = Vec::new();
-    {
-        let mut archive = Archive::new(pkg);
-        let mut builder = Builder::new(&mut out);
-        while let Some(entry) = archive.next_entry() {
-            let mut entry = entry?;
-            let name = String::from_utf8(entry.header().identifier().to_vec())?;
-            debug!(
-                "Found entry in unix archive: {:?} => {:?}",
-                name,
-                entry.header()
-            );
+pub fn infect<W: Write>(args: &args::InfectDebPkg, pkg: &[u8], out: &mut W) -> Result<()> {
+    let mut archive = ar::Archive::new(pkg);
+    let mut builder = ar::Builder::new(out);
+    while let Some(entry) = archive.next_entry() {
+        let mut entry = entry?;
+        let name = String::from_utf8(entry.header().identifier().to_vec())?;
+        debug!(
+            "Found entry in unix archive: {:?} => {:?}",
+            name,
+            entry.header()
+        );
 
-            if name == "control.tar.xz" {
-                info!("Patching {:?}", name);
-                let mut buf = Vec::new();
-                entry.read_to_end(&mut buf)?;
-                let buf = patch_control_tar(args, &buf)?;
+        if name == "control.tar.xz" {
+            info!("Patching {:?}", name);
+            let mut buf = Vec::new();
+            entry.read_to_end(&mut buf)?;
+            let buf = patch_control_tar(args, &buf)?;
 
-                let mut header = entry.header().clone();
-                header.set_size(buf.len() as u64);
+            let mut header = entry.header().clone();
+            header.set_size(buf.len() as u64);
 
-                builder.append(&header, &mut &buf[..])?;
-            } else {
-                debug!("Passing through into .deb");
-                let header = entry.header().clone();
-                builder.append(&header, &mut entry)?;
-            }
+            builder.append(&header, &mut &buf[..])?;
+        } else {
+            debug!("Passing through into .deb");
+            let header = entry.header().clone();
+            builder.append(&header, &mut entry)?;
         }
     }
-    Ok(out)
+
+    Ok(())
 }
 
 #[cfg(test)]

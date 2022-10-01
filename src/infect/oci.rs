@@ -215,94 +215,91 @@ pub fn write_patch_layer<W: Write>(
     }
 }
 
-pub fn infect(args: &args::InfectOci, pkg: &[u8]) -> Result<Vec<u8>> {
+pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut archive = Archive::new(pkg);
+    let mut builder = tar::Builder::new(out);
 
-    let mut out = Vec::new();
-    {
-        let mut builder = tar::Builder::new(&mut out);
+    let mut config_map = HashMap::new();
 
-        let mut config_map = HashMap::new();
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let mut header = entry.header().clone();
+        debug!("Found entry in tar: {:?}", header.path());
 
-        for entry in archive.entries()? {
-            let mut entry = entry?;
-            let mut header = entry.header().clone();
-            debug!("Found entry in tar: {:?}", header.path());
+        match header.path()?.to_str() {
+            Some("manifest.json") => {
+                let mut buf = String::new();
+                entry.read_to_string(&mut buf)?;
+                trace!("Read manifest from image: {:?}", buf);
 
-            match header.path()?.to_str() {
-                Some("manifest.json") => {
+                let mut manifests = serde_json::from_str::<Vec<Manifest>>(&buf)
+                    .context("Failed to parse image layer json")?;
+                debug!("Parsed image manifests: {:?}", manifests);
+
+                let mut manifest = manifests.pop().context("Image has no manifest items")?;
+                if !manifests.is_empty() {
+                    bail!("Image has more than one manifest item");
+                }
+
+                let config = config_map
+                    .remove(&manifest.config)
+                    .context("Manifest is referencing a config we don't know about")?;
+
+                info!(
+                    "Original image is referencing config {:?}: {:?}",
+                    &manifest.config, config
+                );
+
+                let parent = manifest
+                    .layers
+                    .last()
+                    .context("Image manifest has no layers")?
+                    .strip_suffix("/layer.tar")
+                    .context("Can't detect id of parent layer")?;
+
+                let (config_path, layer_path) =
+                    write_patch_layer(&mut builder, args, config, parent)
+                        .context("Failed to add patch layer")?;
+
+                info!("Writing modified manifest...");
+                manifest.config = config_path;
+                if let Some(layer_path) = layer_path {
+                    manifest.layers.push(layer_path);
+                }
+                let buf = serde_json::to_string(&[&manifest])?;
+                debug!("Modified manifest: {:?}", buf);
+                let buf = buf.as_bytes();
+                header.set_size(buf.len() as u64);
+                header.set_cksum();
+                builder.append(&header, &mut &buf[..])?;
+            }
+            Some("repositories") => {
+                builder.append(&header, &mut entry)?;
+            }
+            None => bail!("Invalid filename encoding in image"),
+            Some(name) => {
+                if name.ends_with("json") {
                     let mut buf = String::new();
                     entry.read_to_string(&mut buf)?;
-                    trace!("Read manifest from image: {:?}", buf);
+                    trace!("Read json from layer: {:?}", buf);
 
-                    let mut manifests = serde_json::from_str::<Vec<Manifest>>(&buf)
+                    let layer = serde_json::from_str::<LayerConfig>(&buf)
                         .context("Failed to parse image layer json")?;
-                    debug!("Parsed image manifests: {:?}", manifests);
+                    debug!("Parsed layer metadata: {:?}", layer);
 
-                    let mut manifest = manifests.pop().context("Image has no manifest items")?;
-                    if !manifests.is_empty() {
-                        bail!("Image has more than one manifest item");
-                    }
+                    config_map.insert(name.to_string(), layer);
 
-                    let config = config_map
-                        .remove(&manifest.config)
-                        .context("Manifest is referencing a config we don't know about")?;
-
-                    info!(
-                        "Original image is referencing config {:?}: {:?}",
-                        &manifest.config, config
-                    );
-
-                    let parent = manifest
-                        .layers
-                        .last()
-                        .context("Image manifest has no layers")?
-                        .strip_suffix("/layer.tar")
-                        .context("Can't detect id of parent layer")?;
-
-                    let (config_path, layer_path) =
-                        write_patch_layer(&mut builder, args, config, parent)
-                            .context("Failed to add patch layer")?;
-
-                    info!("Writing modified manifest...");
-                    manifest.config = config_path;
-                    if let Some(layer_path) = layer_path {
-                        manifest.layers.push(layer_path);
-                    }
-                    let buf = serde_json::to_string(&[&manifest])?;
-                    debug!("Modified manifest: {:?}", buf);
-                    let buf = buf.as_bytes();
-                    header.set_size(buf.len() as u64);
-                    header.set_cksum();
-                    builder.append(&header, &mut &buf[..])?;
-                }
-                Some("repositories") => {
+                    builder.append(&header, &mut buf.as_bytes())?;
+                } else {
                     builder.append(&header, &mut entry)?;
-                }
-                None => bail!("Invalid filename encoding in image"),
-                Some(name) => {
-                    if name.ends_with("json") {
-                        let mut buf = String::new();
-                        entry.read_to_string(&mut buf)?;
-                        trace!("Read json from layer: {:?}", buf);
-
-                        let layer = serde_json::from_str::<LayerConfig>(&buf)
-                            .context("Failed to parse image layer json")?;
-                        debug!("Parsed layer metadata: {:?}", layer);
-
-                        config_map.insert(name.to_string(), layer);
-
-                        builder.append(&header, &mut buf.as_bytes())?;
-                    } else {
-                        builder.append(&header, &mut entry)?;
-                    }
                 }
             }
         }
-
-        builder.finish()?;
     }
-    Ok(out)
+
+    builder.finish()?;
+
+    Ok(())
 }
 
 #[cfg(test)]

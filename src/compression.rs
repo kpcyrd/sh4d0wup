@@ -3,7 +3,8 @@ use bzip2::read::BzDecoder;
 use bzip2::write::BzEncoder;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use std::io::Read;
+use std::io;
+use std::io::prelude::*;
 use xz::read::XzDecoder;
 use xz::write::XzEncoder;
 
@@ -43,9 +44,77 @@ pub fn stream_decompress<'a>(comp: CompressedWith, bytes: &'a [u8]) -> Result<Bo
     }
 }
 
-pub fn compress(comp: CompressedWith, bytes: &[u8]) -> Result<Vec<u8>> {
-    use std::io::Write;
+pub enum Compressor<'a, W: Write> {
+    Gzip(GzEncoder<W>),
+    Bzip2(BzEncoder<W>),
+    Xz(XzEncoder<W>),
+    Zstd(zstd::Encoder<'a, W>),
+    Passthru(W),
+}
 
+impl<W: Write> Compressor<'_, W> {
+    pub fn finish(self) -> Result<()> {
+        match self {
+            Compressor::Gzip(w) => {
+                w.finish()?;
+            }
+            Compressor::Bzip2(w) => {
+                w.finish()?;
+            }
+            Compressor::Xz(w) => {
+                w.finish()?;
+            }
+            Compressor::Zstd(w) => {
+                w.finish()?;
+            }
+            Compressor::Passthru(_) => (),
+        }
+        Ok(())
+    }
+}
+
+impl<W: Write> Write for Compressor<'_, W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match self {
+            Compressor::Gzip(w) => w.write(buf),
+            Compressor::Bzip2(w) => w.write(buf),
+            Compressor::Xz(w) => w.write(buf),
+            Compressor::Zstd(w) => w.write(buf),
+            Compressor::Passthru(w) => w.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self {
+            Compressor::Gzip(w) => w.flush(),
+            Compressor::Bzip2(w) => w.flush(),
+            Compressor::Xz(w) => w.flush(),
+            Compressor::Zstd(w) => w.flush(),
+            Compressor::Passthru(w) => w.flush(),
+        }
+    }
+}
+
+pub fn stream_compress<W: Write>(comp: CompressedWith, w: W) -> Result<Compressor<'static, W>> {
+    match comp {
+        CompressedWith::Gzip => Ok(Compressor::Gzip(GzEncoder::new(
+            w,
+            flate2::Compression::default(),
+        ))),
+        CompressedWith::Bzip2 => Ok(Compressor::Bzip2(BzEncoder::new(
+            w,
+            bzip2::Compression::default(),
+        ))),
+        CompressedWith::Xz => Ok(Compressor::Xz(XzEncoder::new(w, 6))),
+        CompressedWith::Zstd => Ok(Compressor::Zstd(zstd::Encoder::new(
+            w,
+            zstd::DEFAULT_COMPRESSION_LEVEL,
+        )?)),
+        CompressedWith::Unknown => Ok(Compressor::Passthru(w)),
+    }
+}
+
+pub fn compress(comp: CompressedWith, bytes: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
 
     match comp {

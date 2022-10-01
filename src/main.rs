@@ -6,6 +6,7 @@ use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::plot::Plot;
 use std::fs;
+use std::fs::File;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,23 +30,23 @@ async fn main() -> Result<()> {
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;
-            let infected = infect::pacman::infect(&infect, &pkg)?;
-            fs::write(infect.out, &infected)?;
+            let mut out = File::create(&infect.out)?;
+            infect::pacman::infect(&infect, &pkg, &mut out)?;
         }
         SubCommand::Infect(Infect::Deb(infect)) => {
             let pkg = fs::read(&infect.path)?;
-            let infected = infect::deb::infect(&infect, &pkg)?;
-            fs::write(infect.out, &infected)?;
+            let mut out = File::create(&infect.out)?;
+            infect::deb::infect(&infect, &pkg, &mut out)?;
         }
         SubCommand::Infect(Infect::Oci(infect)) => {
             let pkg = fs::read(&infect.path)?;
-            let infected = infect::oci::infect(&infect, &pkg)?;
-            fs::write(infect.out, &infected)?;
+            let mut out = File::create(&infect.out)?;
+            infect::oci::infect(&infect, &pkg, &mut out)?;
         }
         SubCommand::Infect(Infect::Apk(infect)) => {
             let pkg = fs::read(&infect.path)?;
-            let infected = infect::apk::infect(&infect, &pkg)?;
-            fs::write(infect.out, &infected)?;
+            let mut out = File::create(&infect.out)?;
+            infect::apk::infect(&infect, &pkg, &mut out)?;
         }
     }
 

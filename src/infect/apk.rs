@@ -11,7 +11,6 @@ use openssl::sign::Signer;
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::io::Read;
 use tar::Archive;
 
 pub fn read_gzip_to_end<R: BufRead>(reader: &mut R) -> Result<Vec<u8>> {
@@ -129,7 +128,7 @@ pub fn patch_metadata_buf(args: &args::InfectApkPkg, buf: &[u8]) -> Result<Vec<u
     Ok(out)
 }
 
-pub fn infect(args: &args::InfectApkPkg, pkg: &[u8]) -> Result<Vec<u8>> {
+pub fn infect<W: Write>(args: &args::InfectApkPkg, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut reader = BufReader::new(pkg);
 
     debug!("Reading compressed signature buffer...");
@@ -148,9 +147,8 @@ pub fn infect(args: &args::InfectApkPkg, pkg: &[u8]) -> Result<Vec<u8>> {
     let n = io::copy(&mut reader, &mut pkg)?;
     debug!("Forwarded {} bytes", n);
 
-    let mut out = Vec::new();
-    write_compressed(&mut &signature_buf[..], &mut out)?;
-    io::copy(&mut &pkg[..], &mut out)?;
+    write_compressed(&mut &signature_buf[..], out)?;
+    io::copy(&mut &pkg[..], out)?;
 
-    Ok(out)
+    Ok(())
 }

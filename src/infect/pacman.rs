@@ -3,7 +3,7 @@ use crate::compression;
 use crate::errors::*;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::io::prelude::*;
 use std::str::FromStr;
 use tar::Archive;
@@ -68,7 +68,7 @@ pub fn patch_install_script(script: Option<&str>, payload: &str) -> Result<Strin
     }
 }
 
-pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
+pub fn infect<W: Write>(args: &args::InfectPacmanPkg, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut pkginfo_overrides = HashMap::<_, Vec<_>>::new();
     for set in &args.set {
         let (a, b) = set
@@ -83,96 +83,94 @@ pub fn infect(args: &args::InfectPacmanPkg, pkg: &[u8]) -> Result<Vec<u8>> {
 
     let comp = compression::detect_compression(pkg);
 
+    let mut out = compression::stream_compress(comp, out)?;
     let tar = compression::stream_decompress(comp, pkg)?;
     let mut archive = Archive::new(tar);
 
-    let mut out = Vec::new();
-    {
-        let mut builder = tar::Builder::new(&mut out);
-        let mut has_install_hook = false;
+    let mut builder = tar::Builder::new(&mut out);
+    let mut has_install_hook = false;
 
-        debug!("Walking through original archive...");
-        for entry in archive.entries()? {
-            let mut entry = entry?;
-            let mut header = entry.header().clone();
-            debug!("Found entry in tar: {:?}", header.path());
-            let path = header.path()?;
-            let filename = path.to_str().with_context(|| {
-                anyhow!("Package contains paths with invalid encoding: {:?}", path)
-            })?;
+    debug!("Walking through original archive...");
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let mut header = entry.header().clone();
+        debug!("Found entry in tar: {:?}", header.path());
+        let path = header.path()?;
+        let filename = path
+            .to_str()
+            .with_context(|| anyhow!("Package contains paths with invalid encoding: {:?}", path))?;
 
-            if let Some(payload) = &args.payload {
-                if !has_install_hook && filename > ".INSTALL" {
-                    info!("This package has no install hook, adding one from scratch...");
-                    has_install_hook = true;
-                    let script = patch_install_script(None, payload)
-                        .context("Failed to generate install script")?;
-                    debug!("Generated install script: {:?}", script);
+        if let Some(payload) = &args.payload {
+            if !has_install_hook && filename > ".INSTALL" {
+                info!("This package has no install hook, adding one from scratch...");
+                has_install_hook = true;
+                let script = patch_install_script(None, payload)
+                    .context("Failed to generate install script")?;
+                debug!("Generated install script: {:?}", script);
 
-                    let script = script.as_bytes();
-                    let mut header = header.clone();
-                    header.set_path(".INSTALL")?;
-                    header.set_size(script.len() as u64);
-                    header.set_cksum();
+                let script = script.as_bytes();
+                let mut header = header.clone();
+                header.set_path(".INSTALL")?;
+                header.set_size(script.len() as u64);
+                header.set_cksum();
 
-                    builder.append(&header, &mut &script[..])?;
-                }
-            }
-
-            match (&args.payload, filename) {
-                (Some(payload), ".INSTALL") => {
-                    info!("Package already has install script, patching...");
-                    has_install_hook = true;
-                    let mut script = String::new();
-                    entry.read_to_string(&mut script)?;
-                    debug!("Found existing install script: {:?}", script);
-                    let script = patch_install_script(Some(&script), payload)
-                        .context("Failed to patch install script")?;
-                    debug!("Patched install script: {:?}", script);
-
-                    let script = script.as_bytes();
-                    header.set_size(script.len() as u64);
-                    header.set_cksum();
-
-                    builder.append(&header, &mut &script[..])?;
-                }
-                (_, ".PKGINFO") => {
-                    if pkginfo_overrides.is_empty() {
-                        debug!("Passing through pkginfo unparsed");
-                        builder.append(&header, &mut entry)?;
-                    } else {
-                        let mut pkginfo = String::new();
-                        entry.read_to_string(&mut pkginfo)?;
-                        let mut pkginfo = pkginfo
-                            .parse::<PkgInfo>()
-                            .context("Failed to parse pkginfo")?;
-                        debug!("Found pkginfo: {:?}", pkginfo);
-
-                        for (key, value) in &pkginfo_overrides {
-                            let old = pkginfo.map.insert(key.clone(), value.clone());
-                            debug!("Updated pkginfo {:?}: {:?} -> {:?}", key, old, value);
-                        }
-
-                        let buf = pkginfo.to_string();
-                        debug!("Generated new pkginfo: {:?}", buf);
-                        let buf = buf.as_bytes();
-                        header.set_size(buf.len() as u64);
-                        header.set_cksum();
-
-                        builder.append(&header, &mut &buf[..])?;
-                    }
-                }
-                _ => {
-                    builder.append(&header, &mut entry)?;
-                }
+                builder.append(&header, &mut &script[..])?;
             }
         }
 
-        builder.finish()?;
+        match (&args.payload, filename) {
+            (Some(payload), ".INSTALL") => {
+                info!("Package already has install script, patching...");
+                has_install_hook = true;
+                let mut script = String::new();
+                entry.read_to_string(&mut script)?;
+                debug!("Found existing install script: {:?}", script);
+                let script = patch_install_script(Some(&script), payload)
+                    .context("Failed to patch install script")?;
+                debug!("Patched install script: {:?}", script);
+
+                let script = script.as_bytes();
+                header.set_size(script.len() as u64);
+                header.set_cksum();
+
+                builder.append(&header, &mut &script[..])?;
+            }
+            (_, ".PKGINFO") => {
+                if pkginfo_overrides.is_empty() {
+                    debug!("Passing through pkginfo unparsed");
+                    builder.append(&header, &mut entry)?;
+                } else {
+                    let mut pkginfo = String::new();
+                    entry.read_to_string(&mut pkginfo)?;
+                    let mut pkginfo = pkginfo
+                        .parse::<PkgInfo>()
+                        .context("Failed to parse pkginfo")?;
+                    debug!("Found pkginfo: {:?}", pkginfo);
+
+                    for (key, value) in &pkginfo_overrides {
+                        let old = pkginfo.map.insert(key.clone(), value.clone());
+                        debug!("Updated pkginfo {:?}: {:?} -> {:?}", key, old, value);
+                    }
+
+                    let buf = pkginfo.to_string();
+                    debug!("Generated new pkginfo: {:?}", buf);
+                    let buf = buf.as_bytes();
+                    header.set_size(buf.len() as u64);
+                    header.set_cksum();
+
+                    builder.append(&header, &mut &buf[..])?;
+                }
+            }
+            _ => {
+                builder.append(&header, &mut entry)?;
+            }
+        }
     }
-    // TODO: this copies multiple times
-    let out = compression::compress(comp, &out)?;
-    Ok(out)
+
+    builder.into_inner()?;
+    out.finish()?;
+
+    Ok(())
 }
 
 #[cfg(test)]

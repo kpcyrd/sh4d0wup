@@ -1,7 +1,9 @@
+use crate::args;
 use crate::compression;
 use crate::errors::*;
-use crate::plot::PatchPacmanDbRoute;
+use crate::plot::{PatchPacmanDbRoute, PkgFilter, PkgPatch};
 use indexmap::IndexMap;
+use std::collections::BTreeMap;
 use std::io;
 use std::io::prelude::*;
 use tar::{Archive, EntryType};
@@ -127,79 +129,142 @@ impl ToString for Pkg {
     }
 }
 
-pub fn modify_response(args: &PatchPacmanDbRoute, bytes: &[u8]) -> Result<Bytes> {
-    let comp = compression::detect_compression(bytes);
+#[derive(Debug)]
+pub struct PacmanPatchConfig {
+    pub patch: Vec<PkgPatch>,
+    pub exclude: Vec<PkgFilter>,
+}
 
-    let tar = compression::stream_decompress(comp, bytes)?;
-    let mut archive = Archive::new(tar);
+impl PacmanPatchConfig {
+    pub fn from_args(args: args::TamperIdxPacman) -> Result<Self> {
+        let mut patch = Vec::new();
 
-    let mut out = Vec::new();
-    {
-        let mut builder = tar::Builder::new(&mut out);
-        let mut dir_header = Option::<ArchiveFolder>::None;
+        if args.filter.len() != args.set.len() {
+            bail!(
+                "Number of --filter and --set differ, {} vs {}",
+                args.filter.len(),
+                args.set.len()
+            );
+        }
 
-        for entry in archive.entries()? {
-            let mut entry = entry?;
-            trace!("tar entry: {:?}", entry.header());
-            match entry.header().entry_type() {
-                EntryType::Regular => {
-                    let mut buf = Vec::new();
-                    entry.read_to_end(&mut buf)?;
-                    let mut header = entry.header().to_owned();
+        for (filter, set) in args.filter.into_iter().zip(args.set) {
+            patch.push(PkgPatch { filter, set });
+        }
 
-                    let mut pkg = Pkg::parse(&buf)?;
-                    trace!("Found pkg: {:?}", pkg);
+        Ok(PacmanPatchConfig {
+            patch,
+            exclude: args.exclude,
+        })
+    }
 
-                    if args.is_excluded(&pkg) {
-                        debug!("Filtering package: {:?}", pkg.name());
-                        continue;
-                    }
-
-                    if let Some(patch) = args.is_patched(&pkg) {
-                        debug!("Patching package: {:?}", pkg.name());
-                        for (key, value) in patch {
-                            pkg.set_key(key.to_string(), value.clone())
-                                .context("Failed to patch package")?;
-                        }
-
-                        // regenerate pkg metdata
-                        buf = pkg.to_string().into_bytes();
-
-                        // regenerate db entry
-                        let name = pkg.name();
-                        let version = pkg.version();
-                        // TODO: update size
-                        header.set_path(format!("{}-{}/desc", name, version))?;
-                        header.set_size(buf.len() as u64);
-                        header.set_cksum();
-
-                        if let Some(folder) = dir_header.as_mut() {
-                            folder
-                                .update_from_pkg(&pkg)
-                                .context("Failed to patch folder in pacman db")?;
-                        }
-                    }
-
-                    if let Some(folder) = dir_header.take() {
-                        builder.append(&folder.header, &mut io::empty())?;
-                    }
-
-                    builder.append(&header, &mut &buf[..])?;
-                }
-                EntryType::Directory => {
-                    dir_header = Some(ArchiveFolder {
-                        header: entry.header().to_owned(),
-                    });
-                }
-                _ => (),
+    pub fn is_excluded(&self, pkg: &Pkg) -> bool {
+        for filter in &self.exclude {
+            if filter.matches_pacman_pkg(pkg) {
+                return true;
             }
         }
 
-        builder.finish()?;
+        false
     }
 
-    // TODO: this copies multiple times
-    let out = compression::compress(comp, &out)?;
+    pub fn is_patched(&self, pkg: &Pkg) -> Option<&BTreeMap<String, Vec<String>>> {
+        for rule in &self.patch {
+            if !rule.filter.matches_pacman_pkg(pkg) {
+                continue;
+            }
+            return Some(&rule.set.values);
+        }
+        None
+    }
+}
+
+pub fn patch_database<W: Write>(
+    config: &PacmanPatchConfig,
+    bytes: &[u8],
+    out: &mut W,
+) -> Result<()> {
+    let comp = compression::detect_compression(bytes);
+
+    let mut out = compression::stream_compress(comp, out)?;
+    let tar = compression::stream_decompress(comp, bytes)?;
+    let mut archive = Archive::new(tar);
+
+    let mut builder = tar::Builder::new(&mut out);
+    let mut dir_header = Option::<ArchiveFolder>::None;
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        trace!("tar entry: {:?}", entry.header());
+        match entry.header().entry_type() {
+            EntryType::Regular => {
+                let mut buf = Vec::new();
+                entry.read_to_end(&mut buf)?;
+                let mut header = entry.header().to_owned();
+
+                let mut pkg = Pkg::parse(&buf)?;
+                trace!("Found pkg: {:?}", pkg);
+
+                if config.is_excluded(&pkg) {
+                    debug!("Filtering package: {:?}", pkg.name());
+                    continue;
+                }
+
+                if let Some(patch) = config.is_patched(&pkg) {
+                    debug!("Patching package: {:?}", pkg.name());
+                    for (key, value) in patch {
+                        pkg.set_key(key.to_string(), value.clone())
+                            .context("Failed to patch package")?;
+                    }
+
+                    // regenerate pkg metdata
+                    buf = pkg.to_string().into_bytes();
+
+                    // regenerate db entry
+                    let name = pkg.name();
+                    let version = pkg.version();
+
+                    header.set_path(format!("{}-{}/desc", name, version))?;
+                    header.set_size(buf.len() as u64);
+                    header.set_cksum();
+
+                    if let Some(folder) = dir_header.as_mut() {
+                        folder
+                            .update_from_pkg(&pkg)
+                            .context("Failed to patch folder in pacman db")?;
+                    }
+                }
+
+                if let Some(folder) = dir_header.take() {
+                    builder.append(&folder.header, &mut io::empty())?;
+                }
+
+                builder.append(&header, &mut &buf[..])?;
+            }
+            EntryType::Directory => {
+                dir_header = Some(ArchiveFolder {
+                    header: entry.header().to_owned(),
+                });
+            }
+            _ => (),
+        }
+    }
+
+    builder.into_inner()?;
+    out.finish()?;
+
+    Ok(())
+}
+
+pub fn modify_response(args: &PatchPacmanDbRoute, bytes: &[u8]) -> Result<Bytes> {
+    let mut out = Vec::new();
+    patch_database(
+        &PacmanPatchConfig {
+            patch: args.patch.clone(),
+            exclude: args.exclude.clone(),
+        },
+        bytes,
+        &mut out,
+    )?;
     Ok(Bytes::from(out))
 }
 

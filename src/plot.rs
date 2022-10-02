@@ -1,9 +1,10 @@
 use crate::errors::*;
-use crate::pacman;
+use crate::tamper_idx::pacman;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plot {
@@ -84,7 +85,7 @@ pub struct StaticRoute {
     pub headers: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct PkgFilter {
     pub name: String,
     pub version: Option<String>,
@@ -106,11 +107,80 @@ impl PkgFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl FromStr for PkgFilter {
+    type Err = Error;
+
+    fn from_str(mut s: &str) -> Result<Self> {
+        let mut name = None;
+        let mut version = None;
+
+        while !s.is_empty() {
+            let idx = s.find('=').context("Filter key but no value")?;
+            let key = &s[..idx];
+            s = &s[idx + 1..];
+            let idx = s.find(',').unwrap_or(s.len());
+            let value = &s[..idx];
+            s = &s[idx..];
+
+            // skip the comma if there was one
+            if !s.is_empty() {
+                s = &s[1..];
+            }
+
+            match key {
+                "name" => name = Some(value.to_string()),
+                "version" => version = Some(value.to_string()),
+                _ => bail!("Invalid key: {:?}", key),
+            }
+        }
+
+        Ok(PkgFilter {
+            name: name.context("Missing name")?,
+            version,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct PkgPatchValues {
+    #[serde(flatten)]
+    pub values: BTreeMap<String, Vec<String>>,
+}
+
+impl FromStr for PkgPatchValues {
+    type Err = Error;
+
+    fn from_str(mut s: &str) -> Result<Self> {
+        let mut values = BTreeMap::<_, Vec<_>>::new();
+
+        while !s.is_empty() {
+            let idx = s.find('=').context("PkgPatch key but no value")?;
+            let key = &s[..idx];
+            s = &s[idx + 1..];
+            let idx = s.find(',').unwrap_or(s.len());
+            let value = &s[..idx];
+            s = &s[idx..];
+
+            // skip the comma if there was one
+            if !s.is_empty() {
+                s = &s[1..];
+            }
+
+            values
+                .entry(key.to_string())
+                .or_default()
+                .push(value.to_string());
+        }
+
+        Ok(PkgPatchValues { values })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct PkgPatch {
     #[serde(flatten)]
     pub filter: PkgFilter,
-    pub set: BTreeMap<String, Vec<String>>,
+    pub set: PkgPatchValues,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,28 +193,6 @@ pub struct PatchPacmanDbRoute {
     pub exclude: Vec<PkgFilter>,
 }
 
-impl PatchPacmanDbRoute {
-    pub fn is_excluded(&self, pkg: &pacman::Pkg) -> bool {
-        for filter in &self.exclude {
-            if filter.matches_pacman_pkg(pkg) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn is_patched(&self, pkg: &pacman::Pkg) -> Option<&BTreeMap<String, Vec<String>>> {
-        for rule in &self.patch {
-            if !rule.filter.matches_pacman_pkg(pkg) {
-                continue;
-            }
-            return Some(&rule.set);
-        }
-        None
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OciRegistryManifest {
     pub name: String,
@@ -155,4 +203,51 @@ pub struct OciRegistryManifest {
     pub fs_layers: Vec<String>,
     #[serde(default)]
     pub signatures: Vec<serde_json::Value>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_pkg_filter_name() {
+        let filter = "name=foo".parse::<PkgFilter>().unwrap();
+        assert_eq!(
+            filter,
+            PkgFilter {
+                name: "foo".to_string(),
+                version: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_pkg_filter_name_version() {
+        let filter = "name=foo,version=1.33.7".parse::<PkgFilter>().unwrap();
+        assert_eq!(
+            filter,
+            PkgFilter {
+                name: "foo".to_string(),
+                version: Some("1.33.7".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_pkg_filter_version_only() {
+        let res = "version=1.33.7".parse::<PkgFilter>();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_pkg_filter_invalid() {
+        let res = "abc=xyz".parse::<PkgFilter>();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_pkg_filter_empty() {
+        let res = "".parse::<PkgFilter>();
+        assert!(res.is_err());
+    }
 }

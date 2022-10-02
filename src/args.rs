@@ -1,3 +1,4 @@
+use crate::plot::{PkgFilter, PkgPatchValues};
 use clap::{ArgAction, Parser, Subcommand};
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -16,6 +17,8 @@ pub enum SubCommand {
     Bait(Bait),
     #[command(subcommand)]
     Infect(Infect),
+    #[command(subcommand)]
+    TamperIdx(TamperIdx),
 }
 
 /// Start a malicious update server
@@ -112,4 +115,25 @@ pub struct InfectApkPkg {
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
     pub payload: Option<String>,
+}
+
+/// Patch a package database to add malicious packages, cause updates or influence dependency resolution
+#[derive(Debug, Subcommand)]
+pub enum TamperIdx {
+    Pacman(TamperIdxPacman),
+}
+
+/// Patch a pacman database
+#[derive(Debug, Clone, Parser)]
+pub struct TamperIdxPacman {
+    /// The input database to modify
+    pub path: String,
+    /// Path to write the patched database to
+    pub out: String,
+    #[arg(long)]
+    pub filter: Vec<PkgFilter>,
+    #[arg(long)]
+    pub set: Vec<PkgPatchValues>,
+    #[arg(long)]
+    pub exclude: Vec<PkgFilter>,
 }

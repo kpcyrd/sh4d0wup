@@ -1,8 +1,8 @@
 use crate::errors::*;
-use crate::pacman;
 use crate::plot::{
     OciRegistryManifest, PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
 };
+use crate::tamper_idx::pacman;
 use crate::upstream;
 use http::Method;
 use http::{HeaderMap, HeaderValue};

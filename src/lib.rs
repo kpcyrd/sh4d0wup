@@ -3,7 +3,7 @@ pub mod compression;
 pub mod errors;
 pub mod httpd;
 pub mod infect;
-pub mod pacman;
 pub mod plot;
 pub mod shell;
+pub mod tamper_idx;
 pub mod upstream;

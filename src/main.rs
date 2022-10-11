@@ -1,6 +1,7 @@
 use clap::Parser;
 use env_logger::Env;
 use sh4d0wup::args::{Args, Infect, SubCommand, TamperIdx};
+use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
@@ -55,6 +56,12 @@ async fn main() -> Result<()> {
 
             let config = tamper_idx::pacman::PacmanPatchConfig::from_args(tamper_idx)?;
             tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
+        }
+        SubCommand::Check(check) => {
+            info!("Loading plot from {:?}...", check.plot);
+            let plot = Plot::load_from_path(&check.plot)?;
+            trace!("Loaded plot: {:?}", plot);
+            check::spawn(check, plot).await?;
         }
     }
 

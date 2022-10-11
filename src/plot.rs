@@ -11,6 +11,7 @@ pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
     pub routes: Vec<Route>,
+    pub check: Option<Check>,
 }
 
 impl Plot {
@@ -203,6 +204,20 @@ pub struct OciRegistryManifest {
     pub fs_layers: Vec<String>,
     #[serde(default)]
     pub signatures: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Check {
+    pub image: String,
+    pub cmds: Vec<Cmd>,
+    pub init: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Cmd {
+    Shell(String),
+    Exec(Vec<String>),
 }
 
 #[cfg(test)]

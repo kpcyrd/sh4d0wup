@@ -5,6 +5,12 @@ upstreams:
     url: https://geo.mirror.pkgbuild.com/
     #keep_headers: false
 
+check:
+  image: archlinux
+  cmds:
+    - 'echo "Server = http://${SH4D0WUP_BOUND_ADDR}/\$repo/os/\$arch" | tee /etc/pacman.d/mirrorlist'
+    - ["pacman", "-Suy", "--noconfirm"]
+
 routes:
   - path: "/core/os/x86_64/core.db"
     type: patch-pacman-db

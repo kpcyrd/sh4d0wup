@@ -19,6 +19,7 @@ pub enum SubCommand {
     Infect(Infect),
     #[command(subcommand)]
     TamperIdx(TamperIdx),
+    Check(Check),
 }
 
 /// Start a malicious update server
@@ -96,7 +97,7 @@ pub struct InfectOci {
     pub payload: Option<String>,
 }
 
-/// Infect a pacman package
+/// Infect a alpine package
 #[derive(Debug, Clone, Parser)]
 pub struct InfectApkPkg {
     /// The input package to use as a base
@@ -136,4 +137,17 @@ pub struct TamperIdxPacman {
     pub set: Vec<PkgPatchValues>,
     #[arg(long)]
     pub exclude: Vec<PkgFilter>,
+}
+
+/// Ensure a provided attack can still execute correctly
+#[derive(Debug, Clone, Parser)]
+pub struct Check {
+    /// Path to the plot to execute
+    pub plot: String,
+    /// Address to bind to
+    #[arg(short = 'B', long, env = "SH4D0WUP_BIND")]
+    pub bind: Option<SocketAddr>,
+    /// Pull the image even if it already exists locally
+    #[arg(long)]
+    pub pull: bool,
 }

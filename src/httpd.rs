@@ -1,6 +1,6 @@
 use crate::errors::*;
 use crate::plot::{
-    OciRegistryManifest, PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
+    self, OciRegistryManifest, PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper_idx::pacman;
 use crate::upstream;
@@ -264,6 +264,15 @@ async fn serve_request(
 pub struct Tls {
     pub cert: Vec<u8>,
     pub key: Vec<u8>,
+}
+
+impl From<plot::Tls> for Tls {
+    fn from(tls: plot::Tls) -> Self {
+        Tls {
+            cert: tls.cert.into_bytes(),
+            key: tls.key.into_bytes(),
+        }
+    }
 }
 
 pub async fn run(bind: SocketAddr, tls: Option<Tls>, plot: Plot) -> Result<()> {

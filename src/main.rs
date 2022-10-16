@@ -41,13 +41,8 @@ async fn main() -> Result<()> {
                 };
 
                 Some(httpd::Tls { cert, key })
-            } else if let Some(tls) = plot.tls.clone() {
-                Some(httpd::Tls {
-                    cert: tls.cert.into_bytes(),
-                    key: tls.key.into_bytes(),
-                })
             } else {
-                None
+                plot.tls.clone().map(httpd::Tls::from)
             };
 
             httpd::run(bait.bind, tls, plot).await?;

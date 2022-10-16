@@ -155,14 +155,15 @@ pub async fn run(addr: SocketAddr, check: args::Check, plot: plot::Plot) -> Resu
 }
 
 pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
-    let addr = if let Some(addr) = &check.bind {
-        *addr
+    let addr = if let Some(addr) = check.bind {
+        addr
     } else {
         let sock = TcpListener::bind("127.0.0.1:0").await?;
         sock.local_addr()?
     };
 
-    let httpd = httpd::run(addr, plot.clone());
+    let tls = None; // TODO: https
+    let httpd = httpd::run(addr, tls, plot.clone());
     let check = run(addr, check, plot);
 
     tokio::select! {

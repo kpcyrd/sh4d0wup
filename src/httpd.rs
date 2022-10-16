@@ -260,7 +260,13 @@ async fn serve_request(
     Ok((path, response))
 }
 
-pub async fn run(bind: SocketAddr, plot: Plot) -> Result<()> {
+#[derive(Debug)]
+pub struct Tls {
+    pub cert: Vec<u8>,
+    pub key: Vec<u8>,
+}
+
+pub async fn run(bind: SocketAddr, tls: Option<Tls>, plot: Plot) -> Result<()> {
     let request_filter = extract_request_data_filter();
 
     let app = warp::any()
@@ -278,8 +284,17 @@ pub async fn run(bind: SocketAddr, plot: Plot) -> Result<()> {
         .and_then(log::log_response);
 
     // spawn proxy server
+    let server = warp::serve(app);
     info!("Binding to {:?}...", bind);
-    warp::serve(app).run(bind).await;
+    if let Some(tls) = tls {
+        server
+            .tls()
+            .cert(tls.cert)
+            .key(tls.key)
+            .run(bind).await;
+    } else {
+        server.run(bind).await;
+    }
 
     Ok(())
 }

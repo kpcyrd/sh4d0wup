@@ -36,6 +36,12 @@ pub struct Bait {
     #[arg(short = 'K', long)]
     pub keep_headers: bool,
     */
+    /// Path to certificate file (enables https)
+    #[arg(long)]
+    pub tls_cert_path: Option<PathBuf>,
+    /// Path to certificate private key (if not bundled with the cert)
+    #[arg(long)]
+    pub tls_key_path: Option<PathBuf>,
     /// Path to the plot to execute
     pub plot: String,
 }

@@ -28,7 +28,26 @@ async fn main() -> Result<()> {
             info!("Loading plot from {:?}...", bait.plot);
             let plot = Plot::load_from_path(&bait.plot)?;
             trace!("Loaded plot: {:?}", plot);
-            httpd::run(bait.bind, plot).await?;
+            let tls = if let Some(path) = bait.tls_cert_path {
+                let cert = fs::read(&path)
+                    .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?;
+
+                let key = if let Some(path) = bait.tls_key_path {
+                    fs::read(&path)
+                        .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?
+                } else {
+                    cert.clone()
+                };
+
+                Some(httpd::Tls {
+                    cert,
+                    key,
+                })
+            } else {
+                None
+            };
+
+            httpd::run(bait.bind, tls, plot).await?;
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;

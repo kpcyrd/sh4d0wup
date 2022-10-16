@@ -33,16 +33,14 @@ async fn main() -> Result<()> {
                     .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?;
 
                 let key = if let Some(path) = bait.tls_key {
-                    fs::read(&path)
-                        .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?
+                    fs::read(&path).with_context(|| {
+                        anyhow!("Failed to read certificate from path: {:?}", path)
+                    })?
                 } else {
                     cert.clone()
                 };
 
-                Some(httpd::Tls {
-                    cert,
-                    key,
-                })
+                Some(httpd::Tls { cert, key })
             } else if let Some(tls) = plot.tls.clone() {
                 Some(httpd::Tls {
                     cert: tls.cert.into_bytes(),

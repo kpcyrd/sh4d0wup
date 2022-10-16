@@ -287,11 +287,7 @@ pub async fn run(bind: SocketAddr, tls: Option<Tls>, plot: Plot) -> Result<()> {
     let server = warp::serve(app);
     info!("Binding to {:?}...", bind);
     if let Some(tls) = tls {
-        server
-            .tls()
-            .cert(tls.cert)
-            .key(tls.key)
-            .run(bind).await;
+        server.tls().cert(tls.cert).key(tls.key).run(bind).await;
     } else {
         server.run(bind).await;
     }

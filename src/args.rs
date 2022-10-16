@@ -26,7 +26,12 @@ pub enum SubCommand {
 #[derive(Debug, Clone, Parser)]
 pub struct Bait {
     /// Address to bind to
-    #[arg(short = 'B', long, env = "SH4D0WUP_BIND", default_value = "0.0.0.0:1337")]
+    #[arg(
+        short = 'B',
+        long,
+        env = "SH4D0WUP_BIND",
+        default_value = "0.0.0.0:1337"
+    )]
     pub bind: SocketAddr,
     /*
     /// The upstream server to reverse proxy to

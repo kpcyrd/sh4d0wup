@@ -3,10 +3,13 @@ use crate::errors::*;
 use crate::httpd;
 use crate::plot;
 use crate::plot::Cmd;
+use nix::sched::CloneFlags;
+use nix::sys::wait::{WaitPidFlag, WaitStatus};
 use std::ffi::OsStr;
 use std::fmt;
 use std::net::SocketAddr;
 use std::process::Stdio;
+use tokio::fs;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::process::Command;
@@ -23,6 +26,45 @@ pub async fn wait_for_server(addr: &SocketAddr) -> Result<()> {
         }
     }
     bail!("Failed to connect to server");
+}
+
+pub fn test_userns_clone() -> Result<()> {
+    let cb = Box::new(|| 0);
+    let stack = &mut [0; 1024];
+    let flags = CloneFlags::CLONE_NEWNS | CloneFlags::CLONE_NEWUSER;
+
+    let pid =
+        nix::sched::clone(cb, stack, flags, None).context("Failed to create user namespace")?;
+    let status = nix::sys::wait::waitpid(pid, Some(WaitPidFlag::__WCLONE))
+        .context("Failed to reap child")?;
+
+    if status != WaitStatus::Exited(pid, 0) {
+        bail!("Unexpected wait result: {:?}", status);
+    }
+
+    Ok(())
+}
+
+pub async fn test_for_unprivileged_userns_clone() -> Result<()> {
+    debug!("Testing if user namespaces can be created");
+    if let Err(err) = test_userns_clone() {
+        match fs::read("/proc/sys/kernel/unprivileged_userns_clone").await {
+            Ok(buf) => {
+                if buf == b"0\n" {
+                    warn!("User namespaces are not enabled in /proc/sys/kernel/unprivileged_userns_clone")
+                }
+            }
+            Err(err) => warn!(
+                "Failed to check if unprivileged_userns_clone are allowed: {:#}",
+                err
+            ),
+        }
+
+        Err(err)
+    } else {
+        debug!("Successfully tested for user namespaces");
+        Ok(())
+    }
 }
 
 pub async fn podman<I, S>(args: I, capture_stdout: bool) -> Result<Vec<u8>>
@@ -155,6 +197,8 @@ pub async fn run(addr: SocketAddr, check: args::Check, plot: plot::Plot) -> Resu
 }
 
 pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
+    test_for_unprivileged_userns_clone().await?;
+
     let addr = if let Some(addr) = check.bind {
         addr
     } else {

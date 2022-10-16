@@ -28,11 +28,11 @@ async fn main() -> Result<()> {
             info!("Loading plot from {:?}...", bait.plot);
             let plot = Plot::load_from_path(&bait.plot)?;
             trace!("Loaded plot: {:?}", plot);
-            let tls = if let Some(path) = bait.tls_cert_path {
+            let tls = if let Some(path) = bait.tls_cert {
                 let cert = fs::read(&path)
                     .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?;
 
-                let key = if let Some(path) = bait.tls_key_path {
+                let key = if let Some(path) = bait.tls_key {
                     fs::read(&path)
                         .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?
                 } else {
@@ -42,6 +42,11 @@ async fn main() -> Result<()> {
                 Some(httpd::Tls {
                     cert,
                     key,
+                })
+            } else if let Some(tls) = plot.tls.clone() {
+                Some(httpd::Tls {
+                    cert: tls.cert.into_bytes(),
+                    key: tls.key.into_bytes(),
                 })
             } else {
                 None

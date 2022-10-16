@@ -38,10 +38,10 @@ pub struct Bait {
     */
     /// Path to certificate file (enables https)
     #[arg(long)]
-    pub tls_cert_path: Option<PathBuf>,
+    pub tls_cert: Option<PathBuf>,
     /// Path to certificate private key (if not bundled with the cert)
     #[arg(long)]
-    pub tls_key_path: Option<PathBuf>,
+    pub tls_key: Option<PathBuf>,
     /// Path to the plot to execute
     pub plot: String,
 }

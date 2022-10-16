@@ -10,6 +10,7 @@ use std::str::FromStr;
 pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
+    pub tls: Option<Tls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
 }
@@ -50,6 +51,12 @@ pub struct Upstream {
     pub url: url::Url,
     #[serde(default)]
     pub keep_headers: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tls {
+    pub cert: String,
+    pub key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

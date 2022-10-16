@@ -62,7 +62,7 @@ impl Container {
             "--detach",
             "--rm",
             "--network=host",
-            "-v=/usr/bin/catatonit:/usr/bin/catatonit:ro",
+            "-v=/usr/bin/catatonit:/__:ro",
             "--",
             image,
         ];
@@ -128,7 +128,7 @@ pub async fn run(addr: SocketAddr, check: args::Check, plot: plot::Plot) -> Resu
     let init = check_config
         .init
         .clone()
-        .unwrap_or_else(|| vec!["catatonit".to_string(), "-P".to_string()]);
+        .unwrap_or_else(|| vec!["/__".to_string(), "-P".to_string()]);
 
     if check.pull
         || podman(&["image", "exists", "--", image], false)

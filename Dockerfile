@@ -13,5 +13,4 @@ RUN strip sh4d0wup
 FROM alpine:3.16
 RUN apk add --no-cache libgcc openssl shared-mime-info xz zstd-libs
 COPY --from=0 /app/sh4d0wup /usr/bin
-ENV SH4D0WUP_BIND=0.0.0.0:8080
 ENTRYPOINT ["sh4d0wup"]

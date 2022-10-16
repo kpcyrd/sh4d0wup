@@ -4,7 +4,7 @@ services:
   daemon:
     build: .
     ports:
-    - 127.0.0.1:8080:8080
+    - 127.0.0.1:1337:1337
     volumes:
     - ./contrib:/contrib:ro
     command: ["bait", "/contrib/plot-hello-world.yaml"]

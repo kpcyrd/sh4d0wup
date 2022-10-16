@@ -4,6 +4,13 @@ upstreams:
   registry:
     url: http://127.0.0.1:5001
 
+check:
+  image: alpine
+  cmds:
+    - ["apk", "add", "podman"]
+    - 'printf "[[registry]]\nlocation = \"${SH4D0WUP_BOUND_ADDR}\"\ninsecure = true\n" >> /etc/containers/registries.conf'
+    - 'podman pull ${SH4D0WUP_BOUND_ADDR}/foo/bar'
+
 routes:
   - path: "/v2/foo/bar/manifests/latest"
     type: oci-registry-manifest

@@ -1,0 +1,17 @@
+---
+
+upstreams:
+  alpine:
+    url: https://dl-cdn.alpinelinux.org/
+
+check:
+  image: alpine:edge
+  cmds:
+    - 'echo "http://${SH4D0WUP_BOUND_ADDR}/alpine/edge/main" | tee /etc/apk/repositories'
+    - 'echo "http://${SH4D0WUP_BOUND_ADDR}/alpine/edge/community" | tee -a /etc/apk/repositories'
+    - ["apk", "upgrade"]
+
+routes:
+  - type: proxy
+    args:
+      upstream: alpine

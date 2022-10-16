@@ -1,0 +1,19 @@
+---
+
+upstreams:
+  debian:
+    url: https://deb.debian.org/
+
+check:
+  image: debian:stable
+  cmds:
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable main" | tee /etc/apt/sources.list'
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian-security stable-security main" | tee -a /etc/apt/sources.list'
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable-updates main" | tee -a /etc/apt/sources.list'
+    - ["apt-get", "update"]
+    - ["apt-get", "upgrade"]
+
+routes:
+  - type: proxy
+    args:
+      upstream: debian

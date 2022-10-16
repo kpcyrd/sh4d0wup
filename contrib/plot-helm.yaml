@@ -1,0 +1,17 @@
+---
+
+upstreams:
+  repo:
+    url: https://charts.min.io/
+
+check:
+  image: archlinux
+  cmds:
+    - ["pacman", "-Suy", "--noconfirm", "helm"]
+    - 'helm repo add minio http://${SH4D0WUP_BOUND_ADDR}/'
+    - ["helm", "pull", "minio/minio"]
+
+routes:
+  - type: proxy
+    args:
+      upstream: repo

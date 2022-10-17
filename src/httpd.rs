@@ -147,26 +147,27 @@ async fn generate_static_response(
         .unwrap())
 }
 
+async fn fetch_upstream(proxy: &ProxyRoute, plot: &Plot, uri: FullPath) -> Result<reqwest::Response> {
+    let upstream = plot
+        .upstreams
+        .get(&proxy.upstream)
+        .context("Reference to undefined upstream")?;
+
+    let path = proxy.path.as_deref().unwrap_or(uri.as_str());
+
+    let url = upstream.url.join(path).context("Failed to join urls")?;
+
+    let response = upstream::send_req(Method::GET, url).await?;
+
+    Ok(response)
+}
+
 async fn patch_pacman_db_response(
     args: &PatchPacmanDbRoute,
     plot: &Plot,
     uri: FullPath,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
-    let upstream = plot
-        .upstreams
-        .get(&args.upstream)
-        .context("Reference to undefined upstream")
-        .map_err(http_error)?;
-
-    let path = args.path.as_deref().unwrap_or(uri.as_str());
-
-    let url = upstream
-        .url
-        .join(path)
-        .context("Failed to join urls")
-        .map_err(http_error)?;
-
-    let response = upstream::send_req(Method::GET, url)
+    let response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
 
@@ -230,6 +231,28 @@ async fn generate_oci_registry_manifest_response(
         .unwrap())
 }
 
+async fn append_response(
+    args: &plot::Append,
+    plot: &Plot,
+    uri: FullPath,
+) -> std::result::Result<http::Response<Bytes>, Rejection> {
+    let mut response = fetch_upstream(&args.proxy, plot, uri)
+        .await
+        .map_err(http_error)?;
+
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(http_error)? {
+        body.extend(&chunk);
+    }
+    body.extend(args.data.as_bytes());
+    let body = Bytes::from(body);
+
+    Ok(http::Response::builder()
+        .status(response.status())
+        .body(body)
+        .unwrap())
+}
+
 async fn serve_request(
     plot: Plot,
     uri: FullPath,
@@ -255,6 +278,7 @@ async fn serve_request(
         RouteAction::OciRegistryManifest(args) => {
             generate_oci_registry_manifest_response(args).await?
         }
+        RouteAction::Append(args) => append_response(args, &plot, uri).await?,
     };
 
     Ok((path, response))

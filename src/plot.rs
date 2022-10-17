@@ -77,11 +77,14 @@ pub enum RouteAction {
     PatchPacmanDbRoute(PatchPacmanDbRoute),
     #[serde(rename = "oci-registry-manifest")]
     OciRegistryManifest(OciRegistryManifest),
+    #[serde(rename = "append")]
+    Append(Append),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyRoute {
     pub upstream: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,8 +196,8 @@ pub struct PkgPatch {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatchPacmanDbRoute {
-    pub upstream: String,
-    pub path: Option<String>,
+    #[serde(flatten)]
+    pub proxy: ProxyRoute,
     #[serde(default)]
     pub patch: Vec<PkgPatch>,
     #[serde(default)]
@@ -211,6 +214,13 @@ pub struct OciRegistryManifest {
     pub fs_layers: Vec<String>,
     #[serde(default)]
     pub signatures: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Append {
+    #[serde(flatten)]
+    pub proxy: ProxyRoute,
+    pub data: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

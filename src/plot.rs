@@ -24,7 +24,20 @@ impl Plot {
     pub fn load_from_path(path: &str) -> Result<Self> {
         let s = fs::read_to_string(&path)
             .with_context(|| anyhow!("Failed to read file: {:?}", path))?;
-        Plot::load_from_str(&s)
+        let plot = Plot::load_from_str(&s).context("Failed to deserialize plot")?;
+        plot.validate().context("Plot failed to validate")?;
+        Ok(plot)
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        for route in &self.routes {
+            if let Some(upstream) = route.action.upstream() {
+                if !self.upstreams.contains_key(upstream) {
+                    bail!("Reference to undefined upstream: {:?}", upstream);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn select_route(&self, request_path: &str) -> Result<&RouteAction> {
@@ -79,6 +92,18 @@ pub enum RouteAction {
     OciRegistryManifest(OciRegistryManifest),
     #[serde(rename = "append")]
     Append(Append),
+}
+
+impl RouteAction {
+    pub fn upstream(&self) -> Option<&String> {
+        match self {
+            Self::Proxy(action) => Some(&action.upstream),
+            Self::Static(_) => None,
+            Self::PatchPacmanDbRoute(action) => Some(&action.proxy.upstream),
+            Self::OciRegistryManifest(_) => None,
+            Self::Append(action) => Some(&action.proxy.upstream),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

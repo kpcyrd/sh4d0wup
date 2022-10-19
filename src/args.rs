@@ -19,6 +19,7 @@ pub enum SubCommand {
     Infect(Infect),
     #[command(subcommand)]
     TamperIdx(TamperIdx),
+    GenCert(GenCert),
     Check(Check),
 }
 
@@ -148,6 +149,12 @@ pub struct TamperIdxPacman {
     pub set: Vec<PkgPatchValues>,
     #[arg(long)]
     pub exclude: Vec<PkgFilter>,
+}
+
+/// Generate a self-signed certificate with the given parameters
+#[derive(Debug, Clone, Parser)]
+pub struct GenCert {
+    pub names: Vec<String>,
 }
 
 /// Ensure a provided attack can still execute correctly

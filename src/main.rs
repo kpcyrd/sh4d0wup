@@ -1,6 +1,7 @@
 use clap::Parser;
 use env_logger::Env;
 use sh4d0wup::args::{Args, Infect, SubCommand, TamperIdx};
+use sh4d0wup::certs;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
@@ -41,8 +42,10 @@ async fn main() -> Result<()> {
                 };
 
                 Some(httpd::Tls { cert, key })
+            } else if let Some(tls) = plot.tls.clone() {
+                Some(httpd::Tls::try_from(tls)?)
             } else {
-                plot.tls.clone().map(httpd::Tls::from)
+                None
             };
 
             httpd::run(bait.bind, tls, plot).await?;
@@ -79,6 +82,11 @@ async fn main() -> Result<()> {
             let plot = Plot::load_from_path(&check.plot)?;
             trace!("Loaded plot: {:?}", plot);
             check::spawn(check, plot).await?;
+        }
+        SubCommand::GenCert(gen_cert) => {
+            let tls = certs::generate(gen_cert.into())?;
+            print!("{}", tls.cert);
+            print!("{}", tls.key);
         }
     }
 

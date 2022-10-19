@@ -1,3 +1,4 @@
+use crate::certs::Tls;
 use crate::errors::*;
 use crate::tamper_idx::pacman;
 use serde::{Deserialize, Serialize};
@@ -64,12 +65,6 @@ pub struct Upstream {
     pub url: url::Url,
     #[serde(default)]
     pub keep_headers: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tls {
-    pub cert: String,
-    pub key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

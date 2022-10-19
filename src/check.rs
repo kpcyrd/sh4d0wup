@@ -219,7 +219,11 @@ pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
         sock.local_addr()?
     };
 
-    let tls = plot.tls.clone().map(httpd::Tls::from);
+    let tls = if let Some(tls) = plot.tls.clone() {
+        Some(httpd::Tls::try_from(tls)?)
+    } else {
+        None
+    };
     let httpd = httpd::run(addr, tls, plot.clone());
     let check = run(addr, check, plot);
 

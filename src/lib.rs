@@ -1,4 +1,5 @@
 pub mod args;
+pub mod certs;
 pub mod check;
 pub mod compression;
 pub mod errors;

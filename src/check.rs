@@ -98,18 +98,23 @@ pub struct Container {
 
 impl Container {
     pub async fn create(image: &str, init: &[String]) -> Result<Container> {
-        let mut args = vec![
+        let bin = init.first()
+            .context("Command for container can't be empty")?;
+        let cmd_args = &init[1..];
+        let entrypoint = format!("--entrypoint={}", bin);
+        let mut podman_args = vec![
             "container",
             "run",
             "--detach",
             "--rm",
             "--network=host",
             "-v=/usr/bin/catatonit:/__:ro",
+            &entrypoint,
             "--",
             image,
         ];
-        args.extend(init.iter().map(|s| s.as_str()));
-        let mut out = podman(&args, true).await?;
+        podman_args.extend(cmd_args.iter().map(|s| s.as_str()));
+        let mut out = podman(&podman_args, true).await?;
         if let Some(idx) = memchr::memchr(b'\n', &out) {
             out.truncate(idx);
         }

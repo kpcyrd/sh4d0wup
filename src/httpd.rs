@@ -147,7 +147,11 @@ async fn generate_static_response(
         .unwrap())
 }
 
-async fn fetch_upstream(proxy: &ProxyRoute, plot: &Plot, uri: FullPath) -> Result<reqwest::Response> {
+async fn fetch_upstream(
+    proxy: &ProxyRoute,
+    plot: &Plot,
+    uri: FullPath,
+) -> Result<reqwest::Response> {
     let upstream = plot
         .upstreams
         .get(&proxy.upstream)

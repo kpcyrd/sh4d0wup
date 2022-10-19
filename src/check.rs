@@ -98,7 +98,8 @@ pub struct Container {
 
 impl Container {
     pub async fn create(image: &str, init: &[String]) -> Result<Container> {
-        let bin = init.first()
+        let bin = init
+            .first()
             .context("Command for container can't be empty")?;
         let cmd_args = &init[1..];
         let entrypoint = format!("--entrypoint={}", bin);
@@ -154,13 +155,20 @@ impl Container {
                 Cmd::Exec(cmd) => cmd.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             };
             info!("Executing check: {:?}", args);
-            self.exec(&args, &[format!("SH4D0WUP_BOUND_ADDR={}", addr)])
-                .await
-                .map_err(|err| {
-                    error!("Command failed: {:#}", err);
-                    err
-                })
-                .context("Test failed")?;
+            self.exec(
+                &args,
+                &[
+                    format!("SH4D0WUP_BOUND_ADDR={}", addr),
+                    format!("SH4D0WUP_BOUND_IP={}", addr.ip()),
+                    format!("SH4D0WUP_BOUND_PORT={}", addr.port()),
+                ],
+            )
+            .await
+            .map_err(|err| {
+                error!("Command failed: {:#}", err);
+                err
+            })
+            .context("Test failed")?;
         }
         info!("Test completed successfully");
         Ok(())

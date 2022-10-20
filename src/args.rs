@@ -59,6 +59,7 @@ pub enum Infect {
     Deb(InfectDebPkg),
     Oci(InfectOci),
     Apk(InfectApkPkg),
+    Elf(InfectElf),
 }
 
 /// Infect a pacman package
@@ -109,7 +110,7 @@ pub struct InfectOci {
     pub payload: Option<String>,
 }
 
-/// Infect a alpine package
+/// Infect an alpine package
 #[derive(Debug, Clone, Parser)]
 pub struct InfectApkPkg {
     /// The input package to use as a base
@@ -128,6 +129,18 @@ pub struct InfectApkPkg {
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
     pub payload: Option<String>,
+}
+
+/// Infect an elf executable
+#[derive(Debug, Clone, Parser)]
+pub struct InfectElf {
+    /// The input executable to bind to
+    pub path: PathBuf,
+    /// Where to write the modified executable to
+    pub out: PathBuf,
+    /// The command to inject into the binary
+    #[arg(short = 'c', long)]
+    pub payload: String,
 }
 
 /// Patch a package database to add malicious packages, cause updates or influence dependency resolution

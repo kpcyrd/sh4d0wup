@@ -70,6 +70,10 @@ async fn main() -> Result<()> {
             let mut out = File::create(&infect.out)?;
             infect::apk::infect(&infect, &pkg, &mut out)?;
         }
+        SubCommand::Infect(Infect::Elf(infect)) => {
+            let elf = fs::read(&infect.path)?;
+            infect::elf::infect(&infect, &elf, &infect.out).await?;
+        }
         SubCommand::TamperIdx(TamperIdx::Pacman(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;

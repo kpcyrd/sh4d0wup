@@ -247,6 +247,8 @@ pub struct Append {
 pub struct Check {
     pub image: String,
     pub install_certs: Option<Cmd>,
+    #[serde(default)]
+    pub register_hosts: Vec<String>,
     pub cmds: Vec<Cmd>,
     pub init: Option<Vec<String>>,
 }

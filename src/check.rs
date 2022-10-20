@@ -201,6 +201,12 @@ impl Container {
                 .await
                 .context("Failed to install certificates")?;
         }
+        for host in &config.register_hosts {
+            info!("Installing /etc/hosts entry, {:?} => {}", host, self.addr.ip());
+            let cmd = format!("echo \"{} {}\" >> /etc/hosts", self.addr.ip(), host);
+            self.exec_cmd(&Cmd::Shell(cmd)).await
+                .context("Failed to register /etc/hosts entry")?;
+        }
 
         info!("Starting test...");
         for cmd in &config.cmds {

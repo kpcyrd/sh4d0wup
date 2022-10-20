@@ -1,0 +1,30 @@
+---
+
+upstreams:
+  registry:
+    url: https://registry.terraform.io/
+
+check:
+  image: docker.io/hashicorp/terraform
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    - registry.terraform.io
+  cmds:
+    - |
+      echo '
+      terraform {
+        required_providers {
+          test = {
+            source = "registry.terraform.io:'${SH4D0WUP_BOUND_PORT}'/hashicorp/kubernetes"
+          }
+        }
+      }' > main.tf
+    - ["terraform", "init"]
+
+tls:
+  names: ["registry.terraform.io"]
+
+routes:
+  - type: proxy
+    args:
+      upstream: registry

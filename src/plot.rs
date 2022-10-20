@@ -246,6 +246,7 @@ pub struct Append {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Check {
     pub image: String,
+    pub install_certs: Option<Cmd>,
     pub cmds: Vec<Cmd>,
     pub init: Option<Vec<String>>,
 }

@@ -289,7 +289,7 @@ async fn serve_request(
     Ok((path, response))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tls {
     pub cert: Vec<u8>,
     pub key: Vec<u8>,

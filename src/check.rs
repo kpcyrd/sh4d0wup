@@ -10,6 +10,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::process::Stdio;
 use tokio::fs;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::process::Command;
@@ -67,7 +68,7 @@ pub async fn test_for_unprivileged_userns_clone() -> Result<()> {
     }
 }
 
-pub async fn podman<I, S>(args: I, capture_stdout: bool) -> Result<Vec<u8>>
+pub async fn podman<I, S>(args: I, capture_stdout: bool, stdin: Option<&[u8]>) -> Result<Vec<u8>>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr> + fmt::Debug,
@@ -75,12 +76,24 @@ where
     let mut cmd = Command::new("podman");
     let args = args.into_iter().collect::<Vec<_>>();
     cmd.args(&args);
+    if stdin.is_some() {
+        cmd.stdin(Stdio::piped());
+    }
     if capture_stdout {
         cmd.stdout(Stdio::piped());
     }
     debug!("Spawning child process: podman {:?}", args);
-    let child = cmd.spawn()?;
+    let mut child = cmd.spawn()?;
+
+    if let Some(data) = stdin {
+        debug!("Sending {} bytes to child process...", data.len());
+        let mut stdin = child.stdin.take().unwrap();
+        stdin.write_all(data).await?;
+        stdin.flush().await?;
+    }
+
     let out = child.wait_with_output().await?;
+    debug!("Podman command exited: {:?}", out.status);
     if !out.status.success() {
         bail!(
             "Podman command ({:?}) failed to execute: {:?}",
@@ -94,10 +107,11 @@ where
 #[derive(Debug)]
 pub struct Container {
     id: String,
+    addr: SocketAddr,
 }
 
 impl Container {
-    pub async fn create(image: &str, init: &[String]) -> Result<Container> {
+    pub async fn create(image: &str, init: &[String], addr: SocketAddr) -> Result<Container> {
         let bin = init
             .first()
             .context("Command for container can't be empty")?;
@@ -115,67 +129,94 @@ impl Container {
             image,
         ];
         podman_args.extend(cmd_args.iter().map(|s| s.as_str()));
-        let mut out = podman(&podman_args, true).await?;
+        let mut out = podman(&podman_args, true, None).await?;
         if let Some(idx) = memchr::memchr(b'\n', &out) {
             out.truncate(idx);
         }
         let id = String::from_utf8(out)?;
-        Ok(Container { id })
+        Ok(Container { id, addr })
     }
 
-    pub async fn exec<I, S>(&self, args: I, env: &[String]) -> Result<()>
+    pub async fn exec<I, S>(&self, args: I, stdin: Option<&[u8]>, env: &[String]) -> Result<()>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str> + fmt::Debug + Clone,
     {
         let args = args.into_iter().collect::<Vec<_>>();
         let mut a = vec!["container".to_string(), "exec".to_string()];
+        if stdin.is_some() {
+            a.push("-i".to_string());
+        }
         for env in env {
             a.push(format!("-e={}", env));
         }
         a.extend(["--".to_string(), self.id.to_string()]);
         a.extend(args.iter().map(|x| x.as_ref().to_string()));
-        podman(&a, false)
+        podman(&a, false, stdin)
             .await
-            .with_context(|| anyhow!("Failed to execute {:?}", args))?;
+            .with_context(|| anyhow!("Failed to execute in container: {:?}", args))?;
         Ok(())
     }
 
     pub async fn kill(self) -> Result<()> {
-        podman(&["container", "kill", &self.id], true)
+        podman(&["container", "kill", &self.id], true, None)
             .await
             .context("Failed to remove container")?;
         Ok(())
     }
 
-    pub async fn run_check(&self, addr: &SocketAddr, config: &plot::Check) -> Result<()> {
+    pub async fn exec_cmd_stdin(&self, cmd: &Cmd, stdin: Option<&[u8]>) -> Result<()> {
+        let args = match cmd {
+            Cmd::Shell(cmd) => vec!["sh", "-c", cmd],
+            Cmd::Exec(cmd) => cmd.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        };
+        info!("Executing process in container: {:?}", args);
+        self.exec(
+            &args,
+            stdin,
+            &[
+                format!("SH4D0WUP_BOUND_ADDR={}", self.addr),
+                format!("SH4D0WUP_BOUND_IP={}", self.addr.ip()),
+                format!("SH4D0WUP_BOUND_PORT={}", self.addr.port()),
+            ],
+        )
+        .await
+        .map_err(|err| {
+            error!("Command failed: {:#}", err);
+            err
+        })
+        .context("Command failed")?;
+        Ok(())
+    }
+
+    pub async fn exec_cmd(&self, cmd: &Cmd) -> Result<()> {
+        self.exec_cmd_stdin(cmd, None).await
+    }
+
+    pub async fn run_check(&self, config: &plot::Check, tls: Option<&httpd::Tls>) -> Result<()> {
+        info!("Finishing setup in container...");
+        if let (Some(tls), Some(cmd)) = (tls, &config.install_certs) {
+            info!("Installing certificates...");
+            self.exec_cmd_stdin(cmd, Some(&tls.cert))
+                .await
+                .context("Failed to install certificates")?;
+        }
+
+        info!("Starting test...");
         for cmd in &config.cmds {
-            let args = match &cmd {
-                Cmd::Shell(cmd) => vec!["sh", "-c", cmd],
-                Cmd::Exec(cmd) => cmd.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            };
-            info!("Executing check: {:?}", args);
-            self.exec(
-                &args,
-                &[
-                    format!("SH4D0WUP_BOUND_ADDR={}", addr),
-                    format!("SH4D0WUP_BOUND_IP={}", addr.ip()),
-                    format!("SH4D0WUP_BOUND_PORT={}", addr.port()),
-                ],
-            )
-            .await
-            .map_err(|err| {
-                error!("Command failed: {:#}", err);
-                err
-            })
-            .context("Test failed")?;
+            self.exec_cmd(cmd).await.context("Test failed")?;
         }
         info!("Test completed successfully");
         Ok(())
     }
 }
 
-pub async fn run(addr: SocketAddr, check: args::Check, plot: plot::Plot) -> Result<()> {
+pub async fn run(
+    addr: SocketAddr,
+    check: args::Check,
+    tls: Option<&httpd::Tls>,
+    plot: plot::Plot,
+) -> Result<()> {
     let check_config = plot.check.context("No test configured in this plot")?;
     wait_for_server(&addr).await?;
 
@@ -186,19 +227,19 @@ pub async fn run(addr: SocketAddr, check: args::Check, plot: plot::Plot) -> Resu
         .unwrap_or_else(|| vec!["/__".to_string(), "-P".to_string()]);
 
     if check.pull
-        || podman(&["image", "exists", "--", image], false)
+        || podman(&["image", "exists", "--", image], false, None)
             .await
             .is_err()
     {
         info!("Pulling container image...");
-        podman(&["image", "pull", "--", image], false).await?;
+        podman(&["image", "pull", "--", image], false, None).await?;
     }
 
     info!("Creating container...");
-    let container = Container::create(image, &init).await?;
+    let container = Container::create(image, &init, addr).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
-        result = container.run_check(&addr, &check_config) => result,
+        result = container.run_check(&check_config, tls) => result,
         _ = signal::ctrl_c() => Err(anyhow!("Ctrl-c received")),
     };
     info!("Removing container...");
@@ -224,8 +265,8 @@ pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
     } else {
         None
     };
-    let httpd = httpd::run(addr, tls, plot.clone());
-    let check = run(addr, check, plot);
+    let httpd = httpd::run(addr, tls.clone(), plot.clone());
+    let check = run(addr, check, tls.as_ref(), plot);
 
     tokio::select! {
         httpd = httpd => httpd.context("httpd thread terminated")?,

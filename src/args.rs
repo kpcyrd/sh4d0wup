@@ -147,6 +147,18 @@ pub struct InfectElf {
 #[derive(Debug, Subcommand)]
 pub enum TamperIdx {
     Pacman(TamperIdxPacman),
+    AptRelease(TamperIdxAptRelease),
+    AptPackageList(TamperIdxAptPackageList),
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct TamperIdxPackageDatabaseConfig {
+    #[arg(long)]
+    pub filter: Vec<PkgFilter>,
+    #[arg(long)]
+    pub set: Vec<PkgPatchValues>,
+    #[arg(long)]
+    pub exclude: Vec<PkgFilter>,
 }
 
 /// Patch a pacman database
@@ -156,12 +168,23 @@ pub struct TamperIdxPacman {
     pub path: String,
     /// Path to write the patched database to
     pub out: String,
-    #[arg(long)]
-    pub filter: Vec<PkgFilter>,
-    #[arg(long)]
-    pub set: Vec<PkgPatchValues>,
-    #[arg(long)]
-    pub exclude: Vec<PkgFilter>,
+    #[clap(flatten)]
+    pub config: TamperIdxPackageDatabaseConfig,
+}
+
+/// Patch an apt `InRelease` file
+#[derive(Debug, Clone, Parser)]
+pub struct TamperIdxAptRelease {}
+
+/// Patch an apt `Packages` file
+#[derive(Debug, Clone, Parser)]
+pub struct TamperIdxAptPackageList {
+    /// The input database to modify
+    pub path: String,
+    /// Path to write the patched database to
+    pub out: String,
+    #[clap(flatten)]
+    pub config: TamperIdxPackageDatabaseConfig,
 }
 
 /// Generate a self-signed certificate with the given parameters

@@ -1,6 +1,6 @@
+use crate::args;
 use crate::certs::Tls;
 use crate::errors::*;
-use crate::tamper_idx::pacman;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -82,7 +82,11 @@ pub enum RouteAction {
     #[serde(rename = "static")]
     Static(StaticRoute),
     #[serde(rename = "patch-pacman-db")]
-    PatchPacmanDbRoute(PatchPacmanDbRoute),
+    PatchPacmanDbRoute(PatchPkgDatabaseRoute),
+    #[serde(rename = "patch-apt-release")]
+    PatchAptRelease(PatchAptRelease),
+    #[serde(rename = "patch-apt-package-list")]
+    PatchAptPackageList(PatchPkgDatabaseRoute),
     #[serde(rename = "oci-registry-manifest")]
     OciRegistryManifest(OciRegistryManifest),
     #[serde(rename = "append")]
@@ -95,6 +99,8 @@ impl RouteAction {
             Self::Proxy(action) => Some(&action.upstream),
             Self::Static(_) => None,
             Self::PatchPacmanDbRoute(action) => Some(&action.proxy.upstream),
+            Self::PatchAptRelease(action) => Some(&action.proxy.upstream),
+            Self::PatchAptPackageList(action) => Some(&action.proxy.upstream),
             Self::OciRegistryManifest(_) => None,
             Self::Append(action) => Some(&action.proxy.upstream),
         }
@@ -116,6 +122,12 @@ pub struct StaticRoute {
     pub headers: HashMap<String, String>,
 }
 
+pub trait PkgRef {
+    fn name(&self) -> &str;
+
+    fn version(&self) -> &str;
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct PkgFilter {
     pub name: String,
@@ -123,7 +135,7 @@ pub struct PkgFilter {
 }
 
 impl PkgFilter {
-    pub fn matches_pacman_pkg(&self, pkg: &pacman::Pkg) -> bool {
+    pub fn matches_pkg<P: PkgRef>(&self, pkg: &P) -> bool {
         if pkg.name() != self.name {
             return false;
         }
@@ -215,13 +227,74 @@ pub struct PkgPatch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PatchPacmanDbRoute {
+pub struct PatchPkgDatabaseRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
+    #[serde(flatten)]
+    pub config: PatchPkgDatabaseConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchPkgDatabaseConfig {
     #[serde(default)]
     pub patch: Vec<PkgPatch>,
     #[serde(default)]
     pub exclude: Vec<PkgFilter>,
+}
+
+impl PatchPkgDatabaseConfig {
+    pub fn from_args(args: args::TamperIdxPackageDatabaseConfig) -> Result<Self> {
+        let mut patch = Vec::new();
+
+        if args.filter.len() != args.set.len() {
+            bail!(
+                "Number of --filter and --set differ, {} vs {}",
+                args.filter.len(),
+                args.set.len()
+            );
+        }
+
+        for (filter, set) in args.filter.into_iter().zip(args.set) {
+            patch.push(PkgPatch { filter, set });
+        }
+
+        Ok(Self {
+            patch,
+            exclude: args.exclude,
+        })
+    }
+
+    pub fn is_excluded<P: PkgRef>(&self, pkg: &P) -> bool {
+        for filter in &self.exclude {
+            if filter.matches_pkg(pkg) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn is_patched<P: PkgRef>(&self, pkg: &P) -> Option<&BTreeMap<String, Vec<String>>> {
+        for rule in &self.patch {
+            if !rule.filter.matches_pkg(pkg) {
+                continue;
+            }
+            return Some(&rule.set.values);
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchAptRelease {
+    #[serde(flatten)]
+    pub proxy: ProxyRoute,
+    /*
+    #[serde(default)]
+    pub patch: Vec<PkgPatch>,
+    #[serde(default)]
+    pub exclude: Vec<PkgFilter>,
+    */
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -11,9 +11,25 @@ check:
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian-security stable-security main" | tee -a /etc/apt/sources.list'
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable-updates main" | tee -a /etc/apt/sources.list'
     - ["apt-get", "update"]
-    - ["apt-get", "upgrade"]
+    - ["apt-get", "upgrade", "-y"]
 
 routes:
+  - path: /debian/dists/stable/InRelease
+    type: patch-apt-release
+    args:
+      upstream: debian
+  # /debian/dists/stable/main/binary-amd64/Packages.xz
+  - path: /debian/dists/stable/main/binary-amd64/by-hash/SHA256/c21a4111128e3f286b5a0b9543641c86bc111d4e2d0a41b0bb8db1ea4845ff68
+    type: patch-apt-package-list
+    args:
+      upstream: debian
+      patch:
+        - name: lsb-base
+          set:
+            Version:
+              - 99.1.0
+            Filename:
+              - pool/main/l/lsb/lsb-base_99.1.0_all.deb
   - type: proxy
     args:
       upstream: debian

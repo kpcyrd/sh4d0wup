@@ -1,9 +1,7 @@
-use crate::args;
 use crate::compression;
 use crate::errors::*;
-use crate::plot::{PatchPacmanDbRoute, PkgFilter, PkgPatch};
+use crate::plot::{PatchPkgDatabaseConfig, PkgRef};
 use indexmap::IndexMap;
-use std::collections::BTreeMap;
 use std::io;
 use std::io::prelude::*;
 use tar::{Archive, EntryType};
@@ -30,17 +28,19 @@ pub struct Pkg {
     map: IndexMap<String, Vec<String>>,
 }
 
-impl Pkg {
-    fn from_map<'a>(map: &'a IndexMap<String, Vec<String>>, key: &str) -> Option<&'a str> {
-        map.get(key)?.first().map(String::as_str)
-    }
-
-    pub fn name(&self) -> &str {
+impl PkgRef for Pkg {
+    fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn version(&self) -> &str {
+    fn version(&self) -> &str {
         &self.version
+    }
+}
+
+impl Pkg {
+    fn from_map<'a>(map: &'a IndexMap<String, Vec<String>>, key: &str) -> Option<&'a str> {
+        map.get(key)?.first().map(String::as_str)
     }
 
     pub fn parse(s: &[u8]) -> Result<Pkg> {
@@ -129,57 +129,8 @@ impl ToString for Pkg {
     }
 }
 
-#[derive(Debug)]
-pub struct PacmanPatchConfig {
-    pub patch: Vec<PkgPatch>,
-    pub exclude: Vec<PkgFilter>,
-}
-
-impl PacmanPatchConfig {
-    pub fn from_args(args: args::TamperIdxPacman) -> Result<Self> {
-        let mut patch = Vec::new();
-
-        if args.filter.len() != args.set.len() {
-            bail!(
-                "Number of --filter and --set differ, {} vs {}",
-                args.filter.len(),
-                args.set.len()
-            );
-        }
-
-        for (filter, set) in args.filter.into_iter().zip(args.set) {
-            patch.push(PkgPatch { filter, set });
-        }
-
-        Ok(PacmanPatchConfig {
-            patch,
-            exclude: args.exclude,
-        })
-    }
-
-    pub fn is_excluded(&self, pkg: &Pkg) -> bool {
-        for filter in &self.exclude {
-            if filter.matches_pacman_pkg(pkg) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn is_patched(&self, pkg: &Pkg) -> Option<&BTreeMap<String, Vec<String>>> {
-        for rule in &self.patch {
-            if !rule.filter.matches_pacman_pkg(pkg) {
-                continue;
-            }
-            return Some(&rule.set.values);
-        }
-        None
-    }
-}
-
 pub fn patch_database<W: Write>(
-    config: &PacmanPatchConfig,
+    config: &PatchPkgDatabaseConfig,
     bytes: &[u8],
     out: &mut W,
 ) -> Result<()> {
@@ -255,16 +206,9 @@ pub fn patch_database<W: Write>(
     Ok(())
 }
 
-pub fn modify_response(args: &PatchPacmanDbRoute, bytes: &[u8]) -> Result<Bytes> {
+pub fn modify_response(config: &PatchPkgDatabaseConfig, bytes: &[u8]) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch_database(
-        &PacmanPatchConfig {
-            patch: args.patch.clone(),
-            exclude: args.exclude.clone(),
-        },
-        bytes,
-        &mut out,
-    )?;
+    patch_database(config, bytes, &mut out)?;
     Ok(Bytes::from(out))
 }
 

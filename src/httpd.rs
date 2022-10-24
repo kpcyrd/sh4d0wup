@@ -1,9 +1,10 @@
 use crate::certs;
 use crate::errors::*;
 use crate::plot::{
-    self, OciRegistryManifest, PatchPacmanDbRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
+    self, OciRegistryManifest, PatchAptRelease, PatchPkgDatabaseRoute, Plot, ProxyRoute,
+    RouteAction, StaticRoute,
 };
-use crate::tamper_idx::pacman;
+use crate::tamper_idx::{apt_package_list, apt_release, pacman};
 use crate::upstream;
 use http::Method;
 use http::{HeaderMap, HeaderValue};
@@ -168,7 +169,43 @@ async fn fetch_upstream(
 }
 
 async fn patch_pacman_db_response(
-    args: &PatchPacmanDbRoute,
+    args: &PatchPkgDatabaseRoute,
+    plot: &Plot,
+    uri: FullPath,
+) -> std::result::Result<http::Response<Bytes>, Rejection> {
+    let response = fetch_upstream(&args.proxy, plot, uri)
+        .await
+        .map_err(http_error)?;
+
+    let bytes = response.bytes().await.map_err(http_error)?;
+    let response = pacman::modify_response(&args.config, &bytes).map_err(http_error)?;
+
+    Ok(http::Response::builder()
+        .status(200)
+        .body(response)
+        .unwrap())
+}
+
+async fn patch_apt_release_response(
+    args: &PatchAptRelease,
+    plot: &Plot,
+    uri: FullPath,
+) -> std::result::Result<http::Response<Bytes>, Rejection> {
+    let response = fetch_upstream(&args.proxy, plot, uri)
+        .await
+        .map_err(http_error)?;
+
+    let bytes = response.bytes().await.map_err(http_error)?;
+    let response = apt_release::modify_response(&(), &bytes).map_err(http_error)?;
+
+    Ok(http::Response::builder()
+        .status(200)
+        .body(response)
+        .unwrap())
+}
+
+async fn patch_apt_package_list_response(
+    args: &PatchPkgDatabaseRoute,
     plot: &Plot,
     uri: FullPath,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
@@ -178,7 +215,7 @@ async fn patch_pacman_db_response(
 
     let bytes = response.bytes().await.map_err(http_error)?;
 
-    let response = pacman::modify_response(args, &bytes).map_err(http_error)?;
+    let response = apt_package_list::modify_response(&args.config, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -280,6 +317,10 @@ async fn serve_request(
         }
         RouteAction::Static(args) => generate_static_response(args).await?,
         RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &plot, uri).await?,
+        RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &plot, uri).await?,
+        RouteAction::PatchAptPackageList(args) => {
+            patch_apt_package_list_response(args, &plot, uri).await?
+        }
         RouteAction::OciRegistryManifest(args) => {
             generate_oci_registry_manifest_response(args).await?
         }

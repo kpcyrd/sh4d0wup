@@ -6,7 +6,7 @@ use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
-use sh4d0wup::plot::Plot;
+use sh4d0wup::plot::{PatchPkgDatabaseConfig, Plot};
 use sh4d0wup::tamper_idx;
 use std::fs;
 use std::fs::File;
@@ -78,8 +78,18 @@ async fn main() -> Result<()> {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
-            let config = tamper_idx::pacman::PacmanPatchConfig::from_args(tamper_idx)?;
+            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
             tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
+        }
+        SubCommand::TamperIdx(TamperIdx::AptRelease(_tamper_idx)) => {
+            todo!()
+        }
+        SubCommand::TamperIdx(TamperIdx::AptPackageList(tamper_idx)) => {
+            let db = fs::read(&tamper_idx.path)?;
+            let mut out = File::create(&tamper_idx.out)?;
+
+            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            tamper_idx::apt_package_list::patch(&config, &db, &mut out)?;
         }
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);

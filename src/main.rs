@@ -1,6 +1,6 @@
 use clap::Parser;
 use env_logger::Env;
-use sh4d0wup::args::{Args, Infect, SubCommand, Tamper};
+use sh4d0wup::args::{self, Args, Infect, SubCommand, Tamper};
 use sh4d0wup::certs;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
@@ -118,6 +118,9 @@ async fn main() -> Result<()> {
             let tls = certs::generate(gen_cert.into())?;
             print!("{}", tls.cert);
             print!("{}", tls.key);
+        }
+        SubCommand::Completions(completions) => {
+            args::gen_completions(&completions)?;
         }
     }
 

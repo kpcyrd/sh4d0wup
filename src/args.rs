@@ -1,5 +1,8 @@
+use crate::errors::*;
 use crate::plot::{PkgFilter, PkgPatchValues};
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
+use std::io::stdout;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -21,6 +24,7 @@ pub enum SubCommand {
     Tamper(Tamper),
     GenCert(GenCert),
     Check(Check),
+    Completions(Completions),
 }
 
 /// Start a malicious update server
@@ -214,4 +218,16 @@ pub struct Check {
     /// Pull the image even if it already exists locally
     #[arg(long)]
     pub pull: bool,
+}
+
+/// Generate shell completions
+#[derive(Debug, Parser)]
+pub struct Completions {
+    // #[arg(value_parser=clap::builder::EnumValueParser::<Shell>::new())]
+    pub shell: Shell,
+}
+
+pub fn gen_completions(args: &Completions) -> Result<()> {
+    clap_complete::generate(args.shell, &mut Args::command(), "sh4d0wup", &mut stdout());
+    Ok(())
 }

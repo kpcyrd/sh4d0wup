@@ -156,7 +156,7 @@ pub struct TamperIdxPackageDatabaseConfig {
     #[arg(long)]
     pub filter: Vec<PkgFilter>,
     #[arg(long)]
-    pub set: Vec<PkgPatchValues>,
+    pub set: Vec<PkgPatchValues<Vec<String>>>,
     #[arg(long)]
     pub exclude: Vec<PkgFilter>,
 }

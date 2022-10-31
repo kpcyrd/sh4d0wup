@@ -184,13 +184,13 @@ impl FromStr for PkgFilter {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct PkgPatchValues {
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
+pub struct PkgPatchValues<T> {
     #[serde(flatten)]
-    pub values: BTreeMap<String, Vec<String>>,
+    pub values: BTreeMap<String, T>,
 }
 
-impl FromStr for PkgPatchValues {
+impl FromStr for PkgPatchValues<Vec<String>> {
     type Err = Error;
 
     fn from_str(mut s: &str) -> Result<Self> {
@@ -220,10 +220,10 @@ impl FromStr for PkgPatchValues {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct PkgPatch {
+pub struct PkgPatch<T> {
     #[serde(flatten)]
     pub filter: PkgFilter,
-    pub set: PkgPatchValues,
+    pub set: PkgPatchValues<T>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,18 +231,46 @@ pub struct PatchPkgDatabaseRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
     #[serde(flatten)]
-    pub config: PatchPkgDatabaseConfig,
+    pub config: PatchPkgDatabaseConfig<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PatchPkgDatabaseConfig {
+pub struct PatchPkgDatabaseConfig<T> {
     #[serde(default)]
-    pub patch: Vec<PkgPatch>,
+    pub patch: Vec<PkgPatch<T>>,
     #[serde(default)]
     pub exclude: Vec<PkgFilter>,
 }
 
-impl PatchPkgDatabaseConfig {
+impl<T> PatchPkgDatabaseConfig<T> {
+    pub fn is_excluded<P: PkgRef>(&self, pkg: &P) -> bool {
+        for filter in &self.exclude {
+            if filter.matches_pkg(pkg) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn get_patches<P: PkgRef>(&self, pkg: &P) -> Option<BTreeMap<&str, &T>> {
+        let mut patch = BTreeMap::new();
+        for rule in &self.patch {
+            if rule.filter.matches_pkg(pkg) {
+                for (key, value) in &rule.set.values {
+                    patch.insert(key.as_str(), value);
+                }
+            }
+        }
+        if patch.is_empty() {
+            None
+        } else {
+            Some(patch)
+        }
+    }
+}
+
+impl PatchPkgDatabaseConfig<Vec<String>> {
     pub fn from_args(args: args::TamperIdxPackageDatabaseConfig) -> Result<Self> {
         let mut patch = Vec::new();
 
@@ -263,32 +291,38 @@ impl PatchPkgDatabaseConfig {
             exclude: args.exclude,
         })
     }
+}
 
-    pub fn is_excluded<P: PkgRef>(&self, pkg: &P) -> bool {
-        for filter in &self.exclude {
-            if filter.matches_pkg(pkg) {
-                return true;
+impl PatchPkgDatabaseConfig<String> {
+    pub fn from_args(args: args::TamperIdxPackageDatabaseConfig) -> Result<Self> {
+        let mut patch = Vec::new();
+
+        if args.filter.len() != args.set.len() {
+            bail!(
+                "Number of --filter and --set differ, {} vs {}",
+                args.filter.len(),
+                args.set.len()
+            );
+        }
+
+        for (filter, set) in args.filter.into_iter().zip(args.set) {
+            let mut values = BTreeMap::new();
+            for (key, value) in set.values {
+                let value = value
+                    .into_iter()
+                    .next()
+                    .context("Values to set can't be empty")?;
+                values.insert(key, value);
             }
+
+            let set = PkgPatchValues { values };
+            patch.push(PkgPatch { filter, set });
         }
 
-        false
-    }
-
-    pub fn get_patches<P: PkgRef>(&self, pkg: &P) -> Option<BTreeMap<&str, Vec<&str>>> {
-        let mut patch = BTreeMap::new();
-        for rule in &self.patch {
-            if rule.filter.matches_pkg(pkg) {
-                for (key, value) in &rule.set.values {
-                    let value = value.iter().map(|s| s.as_str()).collect();
-                    patch.insert(key.as_str(), value);
-                }
-            }
-        }
-        if patch.is_empty() {
-            None
-        } else {
-            Some(patch)
-        }
+        Ok(Self {
+            patch,
+            exclude: args.exclude,
+        })
     }
 }
 
@@ -316,7 +350,7 @@ pub struct OciRegistryManifest {
 pub struct PatchAptReleaseConfig {
     pub fields: BTreeMap<String, String>,
     #[serde(flatten)]
-    pub checksums: PatchPkgDatabaseConfig,
+    pub checksums: PatchPkgDatabaseConfig<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

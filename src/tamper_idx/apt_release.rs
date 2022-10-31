@@ -162,13 +162,7 @@ pub fn patch<W: Write>(config: &PatchAptReleaseConfig, bytes: &[u8], out: &mut W
         for checksum in group {
             if let Some(patch) = config.checksums.get_patches(checksum) {
                 debug!("Patching checksum {:?} with {:?}", checksum, patch);
-                for (key, values) in patch {
-                    let value = values
-                        .first()
-                        .with_context(|| anyhow!("Missing value for {:?}", key))?;
-                    if values.len() > 1 {
-                        bail!("Only single values are allowed for apt InRelease checksum entries");
-                    }
+                for (key, value) in patch {
                     match key {
                         "hash" => checksum.hash = value.to_string(),
                         "size" => {

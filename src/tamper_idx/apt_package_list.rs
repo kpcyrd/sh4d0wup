@@ -1,11 +1,13 @@
 use crate::compression;
 use crate::errors::*;
-use crate::plot::{PatchPkgDatabaseConfig, PkgRef};
+use crate::plot::{self, PkgRef};
 use indexmap::IndexMap;
 use std::fmt;
 use std::io::prelude::*;
 use std::str;
 use warp::hyper::body::Bytes;
+
+type PatchPkgDatabaseConfig = plot::PatchPkgDatabaseConfig<Vec<String>>;
 
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct Pkg {
@@ -164,8 +166,7 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
         if let Some(patch) = config.get_patches(&pkg) {
             debug!("Patching package {:?} with {:?}", pkg.name(), patch);
             for (key, value) in patch {
-                let value = value.iter().map(|s| String::from(*s)).collect();
-                pkg.set_key(key.to_string(), value)
+                pkg.set_key(key.to_string(), value.clone())
                     .context("Failed to patch package")?;
             }
         }

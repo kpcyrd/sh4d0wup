@@ -79,14 +79,14 @@ async fn main() -> Result<()> {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
-            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper_idx.config)?;
             tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
         }
         SubCommand::TamperIdx(TamperIdx::AptRelease(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
-            let checksum_config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            let checksum_config = PatchPkgDatabaseConfig::<String>::from_args(tamper_idx.config)?;
 
             let mut release_fields = BTreeMap::new();
 
@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
-            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper_idx.config)?;
             tamper_idx::apt_package_list::patch(&config, &db, &mut out)?;
         }
         SubCommand::Check(check) => {

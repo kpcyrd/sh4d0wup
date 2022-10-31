@@ -1,8 +1,7 @@
 use crate::certs;
 use crate::errors::*;
 use crate::plot::{
-    self, OciRegistryManifest, PatchAptRelease, PatchPkgDatabaseRoute, Plot, ProxyRoute,
-    RouteAction, StaticRoute,
+    self, OciRegistryManifest, PatchPkgDatabaseRoute, Plot, ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper_idx::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -187,7 +186,7 @@ async fn patch_pacman_db_response(
 }
 
 async fn patch_apt_release_response(
-    args: &PatchAptRelease,
+    args: &PatchPkgDatabaseRoute,
     plot: &Plot,
     uri: FullPath,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
@@ -196,7 +195,7 @@ async fn patch_apt_release_response(
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
-    let response = apt_release::modify_response(&(), &bytes).map_err(http_error)?;
+    let response = apt_release::modify_response(&args.config, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)

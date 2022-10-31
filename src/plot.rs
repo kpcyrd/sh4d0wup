@@ -84,7 +84,7 @@ pub enum RouteAction {
     #[serde(rename = "patch-pacman-db")]
     PatchPacmanDbRoute(PatchPkgDatabaseRoute),
     #[serde(rename = "patch-apt-release")]
-    PatchAptRelease(PatchAptRelease),
+    PatchAptRelease(PatchPkgDatabaseRoute),
     #[serde(rename = "patch-apt-package-list")]
     PatchAptPackageList(PatchPkgDatabaseRoute),
     #[serde(rename = "oci-registry-manifest")]
@@ -274,27 +274,22 @@ impl PatchPkgDatabaseConfig {
         false
     }
 
-    pub fn is_patched<P: PkgRef>(&self, pkg: &P) -> Option<&BTreeMap<String, Vec<String>>> {
+    pub fn get_patches<P: PkgRef>(&self, pkg: &P) -> Option<BTreeMap<&str, Vec<&str>>> {
+        let mut patch = BTreeMap::new();
         for rule in &self.patch {
-            if !rule.filter.matches_pkg(pkg) {
-                continue;
+            if rule.filter.matches_pkg(pkg) {
+                for (key, value) in &rule.set.values {
+                    let value = value.iter().map(|s| s.as_str()).collect();
+                    patch.insert(key.as_str(), value);
+                }
             }
-            return Some(&rule.set.values);
         }
-        None
+        if patch.is_empty() {
+            None
+        } else {
+            Some(patch)
+        }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PatchAptRelease {
-    #[serde(flatten)]
-    pub proxy: ProxyRoute,
-    /*
-    #[serde(default)]
-    pub patch: Vec<PkgPatch>,
-    #[serde(default)]
-    pub exclude: Vec<PkgFilter>,
-    */
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

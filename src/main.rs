@@ -81,8 +81,12 @@ async fn main() -> Result<()> {
             let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
             tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
         }
-        SubCommand::TamperIdx(TamperIdx::AptRelease(_tamper_idx)) => {
-            todo!()
+        SubCommand::TamperIdx(TamperIdx::AptRelease(tamper_idx)) => {
+            let db = fs::read(&tamper_idx.path)?;
+            let mut out = File::create(&tamper_idx.out)?;
+
+            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            tamper_idx::apt_release::patch(&config, &db, &mut out)?;
         }
         SubCommand::TamperIdx(TamperIdx::AptPackageList(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;

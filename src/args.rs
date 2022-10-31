@@ -174,7 +174,14 @@ pub struct TamperIdxPacman {
 
 /// Patch an apt `InRelease` file
 #[derive(Debug, Clone, Parser)]
-pub struct TamperIdxAptRelease {}
+pub struct TamperIdxAptRelease {
+    /// The input database to modify
+    pub path: String,
+    /// Path to write the patched database to
+    pub out: String,
+    #[clap(flatten)]
+    pub config: TamperIdxPackageDatabaseConfig,
+}
 
 /// Patch an apt `Packages` file
 #[derive(Debug, Clone, Parser)]

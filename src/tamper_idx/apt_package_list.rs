@@ -161,15 +161,16 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
             continue;
         }
 
-        if let Some(patch) = config.is_patched(&pkg) {
-            debug!("Patching package: {:?}", pkg.name());
+        if let Some(patch) = config.get_patches(&pkg) {
+            debug!("Patching package {:?} with {:?}", pkg.name(), patch);
             for (key, value) in patch {
-                pkg.set_key(key.to_string(), value.clone())
+                let value = value.iter().map(|s| String::from(*s)).collect();
+                pkg.set_key(key.to_string(), value)
                     .context("Failed to patch package")?;
             }
         }
 
-        writeln!(out, "{}", pkg.to_string())?;
+        writeln!(out, "{}", pkg)?;
     }
 
     Ok(())

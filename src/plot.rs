@@ -84,7 +84,7 @@ pub enum RouteAction {
     #[serde(rename = "patch-pacman-db")]
     PatchPacmanDbRoute(PatchPkgDatabaseRoute),
     #[serde(rename = "patch-apt-release")]
-    PatchAptRelease(PatchPkgDatabaseRoute),
+    PatchAptRelease(PatchAptReleaseRoute),
     #[serde(rename = "patch-apt-package-list")]
     PatchAptPackageList(PatchPkgDatabaseRoute),
     #[serde(rename = "oci-registry-manifest")]
@@ -293,6 +293,14 @@ impl PatchPkgDatabaseConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchAptReleaseRoute {
+    #[serde(flatten)]
+    pub proxy: ProxyRoute,
+    #[serde(flatten)]
+    pub config: PatchAptReleaseConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OciRegistryManifest {
     pub name: String,
     pub tag: String,
@@ -302,6 +310,13 @@ pub struct OciRegistryManifest {
     pub fs_layers: Vec<String>,
     #[serde(default)]
     pub signatures: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchAptReleaseConfig {
+    pub fields: BTreeMap<String, String>,
+    #[serde(flatten)]
+    pub checksums: PatchPkgDatabaseConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

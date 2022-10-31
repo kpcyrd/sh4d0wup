@@ -6,8 +6,9 @@ use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
-use sh4d0wup::plot::{PatchPkgDatabaseConfig, Plot};
+use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
 use sh4d0wup::tamper_idx;
+use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
 
@@ -85,7 +86,19 @@ async fn main() -> Result<()> {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
-            let config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+            let checksum_config = PatchPkgDatabaseConfig::from_args(tamper_idx.config)?;
+
+            let mut release_fields = BTreeMap::new();
+
+            for s in &tamper_idx.release_set {
+                let (key, value) = s.split_once('=').context("Argument is not an assignment")?;
+                release_fields.insert(key.to_string(), value.to_string());
+            }
+
+            let config = PatchAptReleaseConfig {
+                fields: release_fields,
+                checksums: checksum_config,
+            };
             tamper_idx::apt_release::patch(&config, &db, &mut out)?;
         }
         SubCommand::TamperIdx(TamperIdx::AptPackageList(tamper_idx)) => {

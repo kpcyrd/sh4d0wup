@@ -179,6 +179,9 @@ pub struct TamperIdxAptRelease {
     pub path: String,
     /// Path to write the patched database to
     pub out: String,
+    /// Patch a metadata field on the release instead of a checksum
+    #[arg(long)]
+    pub release_set: Vec<String>,
     #[clap(flatten)]
     pub config: TamperIdxPackageDatabaseConfig,
 }

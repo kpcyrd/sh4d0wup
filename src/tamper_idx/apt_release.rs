@@ -1,5 +1,5 @@
 use crate::errors::*;
-use crate::plot::{PatchPkgDatabaseConfig, PkgRef};
+use crate::plot::{PatchAptReleaseConfig, PkgRef};
 use indexmap::IndexMap;
 use std::fmt;
 use std::io::prelude::*;
@@ -138,16 +138,20 @@ impl ChecksumEntry {
     }
 }
 
-pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut W) -> Result<()> {
+pub fn patch<W: Write>(config: &PatchAptReleaseConfig, bytes: &[u8], out: &mut W) -> Result<()> {
     let mut release = Release::parse(bytes).context("Failed to parse release")?;
 
     debug!("Got release: {:?}", release.fields);
     trace!("Checksums in release: {:?}", release.checksums);
 
+    for (key, value) in &config.fields {
+        release.fields.insert(key.to_string(), value.to_string());
+    }
+
     for (key, group) in &mut release.checksums {
         debug!("Processing checksum section: {:?}", key);
         group.retain(|checksum| {
-            if config.is_excluded(checksum) {
+            if config.checksums.is_excluded(checksum) {
                 info!("Filtering {:?} checksum: {:?}", key, checksum.name());
                 false
             } else {
@@ -156,7 +160,7 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
         });
 
         for checksum in group {
-            if let Some(patch) = config.get_patches(checksum) {
+            if let Some(patch) = config.checksums.get_patches(checksum) {
                 debug!("Patching checksum {:?} with {:?}", checksum, patch);
                 for (key, values) in patch {
                     let value = values
@@ -192,7 +196,7 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
     Ok(())
 }
 
-pub fn modify_response(config: &PatchPkgDatabaseConfig, bytes: &[u8]) -> Result<Bytes> {
+pub fn modify_response(config: &PatchAptReleaseConfig, bytes: &[u8]) -> Result<Bytes> {
     let mut out = Vec::new();
     patch(config, bytes, &mut out)?;
     Ok(Bytes::from(out))

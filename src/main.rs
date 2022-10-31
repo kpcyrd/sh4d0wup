@@ -1,6 +1,6 @@
 use clap::Parser;
 use env_logger::Env;
-use sh4d0wup::args::{Args, Infect, SubCommand, TamperIdx};
+use sh4d0wup::args::{Args, Infect, SubCommand, Tamper};
 use sh4d0wup::certs;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
@@ -75,14 +75,14 @@ async fn main() -> Result<()> {
             let elf = fs::read(&infect.path)?;
             infect::elf::infect(&infect, &elf, &infect.out).await?;
         }
-        SubCommand::TamperIdx(TamperIdx::Pacman(tamper_idx)) => {
+        SubCommand::Tamper(Tamper::PacmanDb(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
             let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper_idx.config)?;
             tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
         }
-        SubCommand::TamperIdx(TamperIdx::AptRelease(tamper_idx)) => {
+        SubCommand::Tamper(Tamper::AptRelease(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 
@@ -101,7 +101,7 @@ async fn main() -> Result<()> {
             };
             tamper_idx::apt_release::patch(&config, &db, &mut out)?;
         }
-        SubCommand::TamperIdx(TamperIdx::AptPackageList(tamper_idx)) => {
+        SubCommand::Tamper(Tamper::AptPackageList(tamper_idx)) => {
             let db = fs::read(&tamper_idx.path)?;
             let mut out = File::create(&tamper_idx.out)?;
 

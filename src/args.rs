@@ -18,7 +18,7 @@ pub enum SubCommand {
     #[command(subcommand)]
     Infect(Infect),
     #[command(subcommand)]
-    TamperIdx(TamperIdx),
+    Tamper(Tamper),
     GenCert(GenCert),
     Check(Check),
 }
@@ -52,7 +52,7 @@ pub struct Bait {
     pub plot: String,
 }
 
-/// Inject additional commands into a package
+/// High level tampering, inject additional commands into a package
 #[derive(Debug, Subcommand)]
 pub enum Infect {
     Pacman(InfectPacmanPkg),
@@ -143,16 +143,16 @@ pub struct InfectElf {
     pub payload: String,
 }
 
-/// Patch a package database to add malicious packages, cause updates or influence dependency resolution
+/// Low level tampering, patch a package database to add malicious packages, cause updates or influence dependency resolution
 #[derive(Debug, Subcommand)]
-pub enum TamperIdx {
-    Pacman(TamperIdxPacman),
-    AptRelease(TamperIdxAptRelease),
-    AptPackageList(TamperIdxAptPackageList),
+pub enum Tamper {
+    PacmanDb(TamperPacman),
+    AptRelease(TamperAptRelease),
+    AptPackageList(TamperAptPackageList),
 }
 
 #[derive(Debug, Clone, Parser)]
-pub struct TamperIdxPackageDatabaseConfig {
+pub struct TamperPackageDatabaseConfig {
     #[arg(long)]
     pub filter: Vec<PkgFilter>,
     #[arg(long)]
@@ -163,18 +163,18 @@ pub struct TamperIdxPackageDatabaseConfig {
 
 /// Patch a pacman database
 #[derive(Debug, Clone, Parser)]
-pub struct TamperIdxPacman {
+pub struct TamperPacman {
     /// The input database to modify
     pub path: String,
     /// Path to write the patched database to
     pub out: String,
     #[clap(flatten)]
-    pub config: TamperIdxPackageDatabaseConfig,
+    pub config: TamperPackageDatabaseConfig,
 }
 
 /// Patch an apt `InRelease` file
 #[derive(Debug, Clone, Parser)]
-pub struct TamperIdxAptRelease {
+pub struct TamperAptRelease {
     /// The input database to modify
     pub path: String,
     /// Path to write the patched database to
@@ -183,18 +183,18 @@ pub struct TamperIdxAptRelease {
     #[arg(long)]
     pub release_set: Vec<String>,
     #[clap(flatten)]
-    pub config: TamperIdxPackageDatabaseConfig,
+    pub config: TamperPackageDatabaseConfig,
 }
 
 /// Patch an apt `Packages` file
 #[derive(Debug, Clone, Parser)]
-pub struct TamperIdxAptPackageList {
+pub struct TamperAptPackageList {
     /// The input database to modify
     pub path: String,
     /// Path to write the patched database to
     pub out: String,
     #[clap(flatten)]
-    pub config: TamperIdxPackageDatabaseConfig,
+    pub config: TamperPackageDatabaseConfig,
 }
 
 /// Generate a self-signed certificate with the given parameters

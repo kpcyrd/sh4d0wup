@@ -271,7 +271,7 @@ impl<T> PatchPkgDatabaseConfig<T> {
 }
 
 impl PatchPkgDatabaseConfig<Vec<String>> {
-    pub fn from_args(args: args::TamperIdxPackageDatabaseConfig) -> Result<Self> {
+    pub fn from_args(args: args::TamperPackageDatabaseConfig) -> Result<Self> {
         let mut patch = Vec::new();
 
         if args.filter.len() != args.set.len() {
@@ -294,7 +294,7 @@ impl PatchPkgDatabaseConfig<Vec<String>> {
 }
 
 impl PatchPkgDatabaseConfig<String> {
-    pub fn from_args(args: args::TamperIdxPackageDatabaseConfig) -> Result<Self> {
+    pub fn from_args(args: args::TamperPackageDatabaseConfig) -> Result<Self> {
         let mut patch = Vec::new();
 
         if args.filter.len() != args.set.len() {

@@ -21,8 +21,8 @@ pub struct TlsGenerate {
     pub names: Vec<String>,
 }
 
-impl From<args::GenCert> for TlsGenerate {
-    fn from(gen: args::GenCert) -> Self {
+impl From<args::Tls> for TlsGenerate {
+    fn from(gen: args::Tls) -> Self {
         Self { names: gen.names }
     }
 }

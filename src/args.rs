@@ -22,7 +22,8 @@ pub enum SubCommand {
     Infect(Infect),
     #[command(subcommand)]
     Tamper(Tamper),
-    GenCert(GenCert),
+    #[command(subcommand)]
+    Keygen(Keygen),
     Check(Check),
     Completions(Completions),
 }
@@ -201,9 +202,15 @@ pub struct TamperAptPackageList {
     pub config: TamperPackageDatabaseConfig,
 }
 
-/// Generate a self-signed certificate with the given parameters
+/// Generate signing keys with the given parameters
+#[derive(Debug, Subcommand)]
+pub enum Keygen {
+    Tls(Tls),
+}
+
+/// Generate a self-signed tls certificate
 #[derive(Debug, Clone, Parser)]
-pub struct GenCert {
+pub struct Tls {
     pub names: Vec<String>,
 }
 

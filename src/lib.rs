@@ -1,10 +1,10 @@
 pub mod args;
-pub mod certs;
 pub mod check;
 pub mod compression;
 pub mod errors;
 pub mod httpd;
 pub mod infect;
+pub mod keygen;
 pub mod plot;
 pub mod shell;
 pub mod tamper_idx;

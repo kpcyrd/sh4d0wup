@@ -1,6 +1,6 @@
 use crate::args;
-use crate::certs::Tls;
 use crate::errors::*;
+use crate::keygen::tls::Tls;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;

@@ -1,11 +1,11 @@
 use clap::Parser;
 use env_logger::Env;
-use sh4d0wup::args::{self, Args, Infect, SubCommand, Tamper};
-use sh4d0wup::certs;
+use sh4d0wup::args::{self, Args, Infect, Keygen, SubCommand, Tamper};
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
+use sh4d0wup::keygen;
 use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
 use sh4d0wup::tamper_idx;
 use std::collections::BTreeMap;
@@ -114,8 +114,8 @@ async fn main() -> Result<()> {
             trace!("Loaded plot: {:?}", plot);
             check::spawn(check, plot).await?;
         }
-        SubCommand::GenCert(gen_cert) => {
-            let tls = certs::generate(gen_cert.into())?;
+        SubCommand::Keygen(Keygen::Tls(gen_cert)) => {
+            let tls = keygen::tls::generate(gen_cert.into())?;
             print!("{}", tls.cert);
             print!("{}", tls.key);
         }

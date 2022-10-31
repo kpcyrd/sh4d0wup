@@ -1,5 +1,5 @@
-use crate::certs;
 use crate::errors::*;
+use crate::keygen::tls;
 use crate::plot::{
     self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, ProxyRoute,
     RouteAction, StaticRoute,
@@ -336,22 +336,22 @@ pub struct Tls {
     pub key: Vec<u8>,
 }
 
-impl TryFrom<certs::Tls> for Tls {
+impl TryFrom<tls::Tls> for Tls {
     type Error = Error;
 
-    fn try_from(tls: certs::Tls) -> Result<Self> {
+    fn try_from(tls: tls::Tls) -> Result<Self> {
         match tls {
-            certs::Tls::Embedded(embedded) => Ok(Self::from(embedded)),
-            certs::Tls::Generate(generate) => {
-                let tls = certs::generate(generate)?;
+            tls::Tls::Embedded(embedded) => Ok(Self::from(embedded)),
+            tls::Tls::Generate(generate) => {
+                let tls = tls::generate(generate)?;
                 Ok(tls.into())
             }
         }
     }
 }
 
-impl From<certs::TlsEmbedded> for Tls {
-    fn from(tls: certs::TlsEmbedded) -> Self {
+impl From<tls::TlsEmbedded> for Tls {
+    fn from(tls: tls::TlsEmbedded) -> Self {
         Tls {
             cert: tls.cert.into_bytes(),
             key: tls.key.into_bytes(),

@@ -26,6 +26,7 @@ openssl = "0.10.42"
 rcgen = "0.10.0"
 reqwest = { version = "0.11.12", features = ["stream"] }
 rust-lzma = "0.5.1"
+sequoia-openpgp = "1.10.0"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = "1.0.85"
 serde_yaml = "0.9.13"

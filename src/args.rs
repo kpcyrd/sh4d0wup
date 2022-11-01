@@ -206,12 +206,19 @@ pub struct TamperAptPackageList {
 #[derive(Debug, Subcommand)]
 pub enum Keygen {
     Tls(Tls),
+    Pgp(Pgp),
 }
 
 /// Generate a self-signed tls certificate
 #[derive(Debug, Clone, Parser)]
 pub struct Tls {
     pub names: Vec<String>,
+}
+
+/// Generate a pgp keypair
+#[derive(Debug, Clone, Parser)]
+pub struct Pgp {
+    pub uids: Vec<String>,
 }
 
 /// Ensure a provided attack can still execute correctly
@@ -230,7 +237,6 @@ pub struct Check {
 /// Generate shell completions
 #[derive(Debug, Parser)]
 pub struct Completions {
-    // #[arg(value_parser=clap::builder::EnumValueParser::<Shell>::new())]
     pub shell: Shell,
 }
 

@@ -114,10 +114,19 @@ async fn main() -> Result<()> {
             trace!("Loaded plot: {:?}", plot);
             check::spawn(check, plot).await?;
         }
-        SubCommand::Keygen(Keygen::Tls(gen_cert)) => {
-            let tls = keygen::tls::generate(gen_cert.into())?;
+        SubCommand::Keygen(Keygen::Tls(tls)) => {
+            let tls =
+                keygen::tls::generate(tls.into()).context("Failed to generate tls certificate")?;
             print!("{}", tls.cert);
             print!("{}", tls.key);
+        }
+        SubCommand::Keygen(Keygen::Pgp(pgp)) => {
+            let pgp = keygen::pgp::generate(pgp.into()).context("Failed to generate pgp key")?;
+            print!("{}", pgp.cert);
+            print!("{}", pgp.key);
+            if let Some(rev) = pgp.rev {
+                print!("{}", rev);
+            }
         }
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;

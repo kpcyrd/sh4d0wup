@@ -22,8 +22,8 @@ pub struct TlsGenerate {
 }
 
 impl From<args::Tls> for TlsGenerate {
-    fn from(gen: args::Tls) -> Self {
-        Self { names: gen.names }
+    fn from(tls: args::Tls) -> Self {
+        Self { names: tls.names }
     }
 }
 
@@ -42,4 +42,17 @@ pub fn generate(config: TlsGenerate) -> Result<TlsEmbedded> {
         cert: cert.serialize_pem()?,
         key: cert.serialize_private_key_pem(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_keygen() -> Result<()> {
+        generate(TlsGenerate {
+            names: vec!["example.com".to_string()],
+        })?;
+        Ok(())
+    }
 }

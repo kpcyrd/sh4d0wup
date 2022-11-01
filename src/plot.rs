@@ -1,6 +1,6 @@
 use crate::args;
 use crate::errors::*;
-use crate::keygen::tls::Tls;
+use crate::keygen::tls::KeygenTls;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::str::FromStr;
 pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
-    pub tls: Option<Tls>,
+    pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
 }

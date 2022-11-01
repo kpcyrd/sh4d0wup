@@ -24,6 +24,8 @@ pub enum SubCommand {
     Tamper(Tamper),
     #[command(subcommand)]
     Keygen(Keygen),
+    #[command(subcommand)]
+    Sign(Sign),
     Check(Check),
     Completions(Completions),
 }
@@ -205,20 +207,41 @@ pub struct TamperAptPackageList {
 /// Generate signing keys with the given parameters
 #[derive(Debug, Subcommand)]
 pub enum Keygen {
-    Tls(Tls),
-    Pgp(Pgp),
+    Tls(KeygenTls),
+    Pgp(KeygenPgp),
 }
 
 /// Generate a self-signed tls certificate
 #[derive(Debug, Clone, Parser)]
-pub struct Tls {
+pub struct KeygenTls {
     pub names: Vec<String>,
 }
 
 /// Generate a pgp keypair
 #[derive(Debug, Clone, Parser)]
-pub struct Pgp {
+pub struct KeygenPgp {
     pub uids: Vec<String>,
+}
+
+/// Use signing keys to generate signatures
+#[derive(Debug, Subcommand)]
+pub enum Sign {
+    /// Create a cleartext pgp signature
+    PgpCleartext(SignPgp),
+    /// Create a detached pgp signature
+    PgpDetached(SignPgp),
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct SignPgp {
+    /// Secret key to use for signing
+    #[arg(long)]
+    pub secret_key: PathBuf,
+    /// Don't use ascii armor
+    #[arg(long)]
+    pub binary: bool,
+    /// Path to data to sign
+    pub path: PathBuf,
 }
 
 /// Ensure a provided attack can still execute correctly

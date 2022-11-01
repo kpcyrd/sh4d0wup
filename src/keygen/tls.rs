@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Tls {
+pub enum KeygenTls {
     Embedded(TlsEmbedded),
     Generate(TlsGenerate),
 }
@@ -21,8 +21,8 @@ pub struct TlsGenerate {
     pub names: Vec<String>,
 }
 
-impl From<args::Tls> for TlsGenerate {
-    fn from(tls: args::Tls) -> Self {
+impl From<args::KeygenTls> for TlsGenerate {
+    fn from(tls: args::KeygenTls) -> Self {
         Self { names: tls.names }
     }
 }

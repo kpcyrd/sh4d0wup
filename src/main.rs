@@ -1,16 +1,20 @@
 use clap::Parser;
 use env_logger::Env;
-use sh4d0wup::args::{self, Args, Infect, Keygen, SubCommand, Tamper};
+use sh4d0wup::args::{self, Args, Infect, Keygen, Sign, SubCommand, Tamper};
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen;
+use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
+use sh4d0wup::sign;
 use sh4d0wup::tamper_idx;
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
+use std::io;
+use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -122,11 +126,34 @@ async fn main() -> Result<()> {
         }
         SubCommand::Keygen(Keygen::Pgp(pgp)) => {
             let pgp = keygen::pgp::generate(pgp.into()).context("Failed to generate pgp key")?;
-            print!("{}", pgp.cert);
+            if let Some(cert) = pgp.cert {
+                print!("{}", cert);
+            }
             print!("{}", pgp.key);
             if let Some(rev) = pgp.rev {
                 print!("{}", rev);
             }
+        }
+        SubCommand::Sign(Sign::PgpCleartext(pgp)) => {
+            if pgp.binary {
+                bail!("Binary output is not supported for cleartext signatures");
+            }
+            let secret_key = PgpEmbedded::read_from_disk(&pgp.secret_key)
+                .context("Failed to load secret key")?;
+            debug!("Reading data to sign...");
+            let data = fs::read(&pgp.path)
+                .with_context(|| anyhow!("Failed to read payload data from {:?}", pgp.path))?;
+            let sig = sign::pgp::sign_cleartext(&secret_key, &data)?;
+            io::stdout().write_all(&sig)?;
+        }
+        SubCommand::Sign(Sign::PgpDetached(pgp)) => {
+            let secret_key = PgpEmbedded::read_from_disk(&pgp.secret_key)
+                .context("Failed to load secret key")?;
+            debug!("Reading data to sign...");
+            let data = fs::read(&pgp.path)
+                .with_context(|| anyhow!("Failed to read payload data from {:?}", pgp.path))?;
+            let sig = sign::pgp::sign_detached(&secret_key, &data, pgp.binary)?;
+            io::stdout().write_all(&sig)?;
         }
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;

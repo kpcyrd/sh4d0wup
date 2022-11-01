@@ -6,6 +6,8 @@ use sequoia_openpgp::packet::prelude::*;
 use sequoia_openpgp::serialize::{Marshal, MarshalInto};
 use sequoia_openpgp::types::KeyFlags;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -16,9 +18,23 @@ pub enum Pgp {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PgpEmbedded {
-    pub cert: String,
+    pub cert: Option<String>,
     pub key: String,
     pub rev: Option<String>,
+}
+
+impl PgpEmbedded {
+    pub fn read_from_disk<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        debug!("Reading pgp key from path: {:?}", path);
+        let key = fs::read_to_string(&path)
+            .with_context(|| anyhow!("Failed to read from file {:?}", path))?;
+        Ok(PgpEmbedded {
+            cert: None,
+            key,
+            rev: None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,8 +42,8 @@ pub struct PgpGenerate {
     pub uids: Vec<String>,
 }
 
-impl From<args::Pgp> for PgpGenerate {
-    fn from(pgp: args::Pgp) -> Self {
+impl From<args::KeygenPgp> for PgpGenerate {
+    fn from(pgp: args::KeygenPgp) -> Self {
         Self { uids: pgp.uids }
     }
 }
@@ -68,7 +84,7 @@ pub fn generate(config: PgpGenerate) -> Result<PgpEmbedded> {
     };
 
     Ok(PgpEmbedded {
-        cert,
+        cert: Some(cert),
         key,
         rev: Some(rev),
     })

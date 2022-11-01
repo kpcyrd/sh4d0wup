@@ -336,13 +336,13 @@ pub struct Tls {
     pub key: Vec<u8>,
 }
 
-impl TryFrom<tls::Tls> for Tls {
+impl TryFrom<tls::KeygenTls> for Tls {
     type Error = Error;
 
-    fn try_from(tls: tls::Tls) -> Result<Self> {
+    fn try_from(tls: tls::KeygenTls) -> Result<Self> {
         match tls {
-            tls::Tls::Embedded(embedded) => Ok(Self::from(embedded)),
-            tls::Tls::Generate(generate) => {
+            tls::KeygenTls::Embedded(embedded) => Ok(Self::from(embedded)),
+            tls::KeygenTls::Generate(generate) => {
                 let tls = tls::generate(generate)?;
                 Ok(tls.into())
             }

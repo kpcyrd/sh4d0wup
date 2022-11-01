@@ -35,8 +35,10 @@ pub fn generate(config: TlsGenerate) -> Result<TlsEmbedded> {
         } else {
             SanType::DnsName(name)
         };
+        debug!("Adding subject alt name to certificate: {:?}", san);
         params.subject_alt_names.push(san);
     }
+    debug!("Generating certificate...");
     let cert = Certificate::from_params(params).context("Failed to generate certificate")?;
     Ok(TlsEmbedded {
         cert: cert.serialize_pem()?,

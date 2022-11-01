@@ -127,10 +127,16 @@ async fn main() -> Result<()> {
         SubCommand::Keygen(Keygen::Pgp(pgp)) => {
             let pgp = keygen::pgp::generate(pgp.into()).context("Failed to generate pgp key")?;
             if let Some(cert) = pgp.cert {
+                keygen::pgp::debug_inspect(cert.as_bytes())
+                    .context("Failed to inspect serialized pgp data")?;
                 print!("{}", cert);
             }
+            keygen::pgp::debug_inspect(pgp.key.as_bytes())
+                .context("Failed to inspect serialized pgp data")?;
             print!("{}", pgp.key);
             if let Some(rev) = pgp.rev {
+                keygen::pgp::debug_inspect(rev.as_bytes())
+                    .context("Failed to inspect serialized pgp data")?;
                 print!("{}", rev);
             }
         }

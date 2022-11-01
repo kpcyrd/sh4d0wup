@@ -3,6 +3,7 @@ use crate::errors::*;
 use sequoia_openpgp::armor;
 use sequoia_openpgp::cert::prelude::*;
 use sequoia_openpgp::packet::prelude::*;
+use sequoia_openpgp::parse::{PacketParser, PacketParserResult, Parse};
 use sequoia_openpgp::serialize::{Marshal, MarshalInto};
 use sequoia_openpgp::types::KeyFlags;
 use serde::{Deserialize, Serialize};
@@ -48,11 +49,26 @@ impl From<args::KeygenPgp> for PgpGenerate {
     }
 }
 
+pub fn debug_inspect(data: &[u8]) -> Result<()> {
+    if !log::log_enabled!(log::Level::Debug) {
+        return Ok(());
+    }
+    let mut ppr = PacketParser::from_bytes(data)?;
+    while let PacketParserResult::Some(pp) = ppr {
+        let (packet, next_ppr) = pp.recurse()?;
+        ppr = next_ppr;
+        debug!("Found packet in pgp data: {:?}", packet);
+    }
+    Ok(())
+}
+
 pub fn generate(config: PgpGenerate) -> Result<PgpEmbedded> {
     let mut builder = CertBuilder::new();
     for uid in &config.uids {
+        debug!("Adding uid to key: {:?}", uid);
         builder = builder.add_userid(uid.as_str());
     }
+    debug!("Generating keypair...");
     let (pgp, rev) = builder
         .add_signing_subkey()
         .add_transport_encryption_subkey()

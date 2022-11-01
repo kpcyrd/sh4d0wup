@@ -1803,6 +1803,7 @@ dependencies = [
  "sha2",
  "shell-escape",
  "tar",
+ "tempfile",
  "tokio",
  "tree_magic_mini",
  "url",

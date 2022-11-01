@@ -93,13 +93,85 @@ pub fn sign_detached(signer: &PgpEmbedded, data: &[u8], binary: bool) -> Result<
 mod tests {
     use super::*;
     use crate::keygen::pgp;
+    use std::fs;
+    use std::process::{Command, Stdio};
+    use tempfile::TempDir;
+
+    fn sq_verify(args: &[&str], data: &[u8]) -> Result<Vec<u8>> {
+        let mut child = Command::new("sq")
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        {
+            let mut stdin = child.stdin.take().unwrap();
+            stdin.write_all(data)?;
+        }
+        let output = child.wait_with_output()?;
+        if !output.status.success() {
+            let error = String::from_utf8_lossy(&output.stderr);
+            bail!("Command failed: {:?}, error={:?}", output.status, error);
+        }
+        Ok(output.stdout)
+    }
+
+    fn temp_put<B: AsRef<[u8]>>(dir: &TempDir, name: &str, data: B) -> Result<String> {
+        let path = dir.path().join(name);
+        let path = path.to_str().context("Path contains invalid utf8")?;
+        fs::write(&path, data)?;
+        Ok(path.to_string())
+    }
 
     #[test]
-    fn test_sign_detached() -> Result<()> {
+    fn test_sign_detached_ascii() -> Result<()> {
         let key = pgp::generate(pgp::PgpGenerate {
             uids: vec!["Alice".to_string()],
         })?;
-        let _sig = sign_detached(&key, b"ohai\n", false)?;
+        let data = b"ohai\n";
+        let sig = sign_detached(&key, data, false)?;
+
+        let dir = tempfile::tempdir()?;
+        let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
+        let sig_path = temp_put(&dir, "sig.txt", &sig)?;
+
+        let output = sq_verify(
+            &[
+                "verify",
+                "--signer-cert",
+                &cert_path,
+                "--detached",
+                &sig_path,
+            ],
+            data,
+        )?;
+        assert_eq!(output, b"");
+        Ok(())
+    }
+
+    #[test]
+    fn test_sign_detached_binary() -> Result<()> {
+        let key = pgp::generate(pgp::PgpGenerate {
+            uids: vec!["Alice".to_string()],
+        })?;
+        let data = b"ohai\n";
+        let sig = sign_detached(&key, data, true)?;
+
+        let dir = tempfile::tempdir()?;
+        let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
+        let sig_path = temp_put(&dir, "sig.txt", &sig)?;
+
+        let output = sq_verify(
+            &[
+                "verify",
+                "--signer-cert",
+                &cert_path,
+                "--detached",
+                &sig_path,
+            ],
+            data,
+        )?;
+        assert_eq!(output, b"");
         Ok(())
     }
 
@@ -108,7 +180,15 @@ mod tests {
         let key = pgp::generate(pgp::PgpGenerate {
             uids: vec!["Alice".to_string()],
         })?;
-        let _sig = sign_cleartext(&key, b"ohai\n")?;
+        let data = b"ohai\n";
+        let msg = sign_cleartext(&key, data)?;
+
+        let dir = tempfile::tempdir()?;
+        let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
+        let msg_path = temp_put(&dir, "msg.txt", &msg)?;
+
+        let output = sq_verify(&["verify", "--signer-cert", &cert_path, &msg_path], data)?;
+        assert_eq!(output, data);
         Ok(())
     }
 }

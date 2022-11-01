@@ -4,7 +4,7 @@ use crate::plot::{
     self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, ProxyRoute,
     RouteAction, StaticRoute,
 };
-use crate::tamper_idx::{apt_package_list, apt_release, pacman};
+use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
 use http::Method;
 use http::{HeaderMap, HeaderValue};

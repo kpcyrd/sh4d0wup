@@ -9,7 +9,7 @@ use sh4d0wup::keygen;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
 use sh4d0wup::sign;
-use sh4d0wup::tamper_idx;
+use sh4d0wup::tamper;
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
@@ -79,22 +79,22 @@ async fn main() -> Result<()> {
             let elf = fs::read(&infect.path)?;
             infect::elf::infect(&infect, &elf, &infect.out).await?;
         }
-        SubCommand::Tamper(Tamper::PacmanDb(tamper_idx)) => {
-            let db = fs::read(&tamper_idx.path)?;
-            let mut out = File::create(&tamper_idx.out)?;
+        SubCommand::Tamper(Tamper::PacmanDb(tamper)) => {
+            let db = fs::read(&tamper.path)?;
+            let mut out = File::create(&tamper.out)?;
 
-            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper_idx.config)?;
-            tamper_idx::pacman::patch_database(&config, &db, &mut out)?;
+            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
+            tamper::pacman::patch_database(&config, &db, &mut out)?;
         }
-        SubCommand::Tamper(Tamper::AptRelease(tamper_idx)) => {
-            let db = fs::read(&tamper_idx.path)?;
-            let mut out = File::create(&tamper_idx.out)?;
+        SubCommand::Tamper(Tamper::AptRelease(tamper)) => {
+            let db = fs::read(&tamper.path)?;
+            let mut out = File::create(&tamper.out)?;
 
-            let checksum_config = PatchPkgDatabaseConfig::<String>::from_args(tamper_idx.config)?;
+            let checksum_config = PatchPkgDatabaseConfig::<String>::from_args(tamper.config)?;
 
             let mut release_fields = BTreeMap::new();
 
-            for s in &tamper_idx.release_set {
+            for s in &tamper.release_set {
                 let (key, value) = s.split_once('=').context("Argument is not an assignment")?;
                 release_fields.insert(key.to_string(), value.to_string());
             }
@@ -103,14 +103,14 @@ async fn main() -> Result<()> {
                 fields: release_fields,
                 checksums: checksum_config,
             };
-            tamper_idx::apt_release::patch(&config, &db, &mut out)?;
+            tamper::apt_release::patch(&config, &db, &mut out)?;
         }
-        SubCommand::Tamper(Tamper::AptPackageList(tamper_idx)) => {
-            let db = fs::read(&tamper_idx.path)?;
-            let mut out = File::create(&tamper_idx.out)?;
+        SubCommand::Tamper(Tamper::AptPackageList(tamper)) => {
+            let db = fs::read(&tamper.path)?;
+            let mut out = File::create(&tamper.out)?;
 
-            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper_idx.config)?;
-            tamper_idx::apt_package_list::patch(&config, &db, &mut out)?;
+            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
+            tamper::apt_package_list::patch(&config, &db, &mut out)?;
         }
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);

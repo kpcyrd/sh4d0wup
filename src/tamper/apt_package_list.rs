@@ -242,7 +242,7 @@ SHA256: 406a3de1f6357554e1606f4dd7c7a8d1360d815cf1453d9e72cee36d92eba7c7
         )?;
 
         assert_eq!(pkg, expected);
-        assert_eq!(format!("{}\n", pkg.to_string()).as_bytes(), data);
+        assert_eq!(format!("{}\n", pkg).as_bytes(), data);
         Ok(())
     }
 
@@ -326,7 +326,7 @@ Section: misc
         expected.add_values("Section", &["misc"])?;
 
         assert_eq!(pkg, expected);
-        assert_eq!(format!("{}\n", pkg.to_string()).as_bytes(), data);
+        assert_eq!(format!("{}\n", pkg).as_bytes(), data);
         Ok(())
     }
 }

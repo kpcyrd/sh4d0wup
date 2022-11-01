@@ -8,5 +8,5 @@ pub mod keygen;
 pub mod plot;
 pub mod shell;
 pub mod sign;
-pub mod tamper_idx;
+pub mod tamper;
 pub mod upstream;

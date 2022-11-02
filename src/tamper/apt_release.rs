@@ -54,11 +54,12 @@ impl Release {
             }
 
             if let Some(line) = line.strip_prefix(' ') {
-                let (_, group) = release
+                let (namespace, group) = release
                     .checksums
                     .last_mut()
                     .context("Can't add checksums if no section has started yet")?;
-                let chksum = ChecksumEntry::parse(line).context("Failed to parse checksum line")?;
+                let chksum = ChecksumEntry::parse(namespace.to_string(), line)
+                    .context("Failed to parse checksum line")?;
                 group.push(chksum);
             } else if let Some((key, value)) = line.split_once(": ") {
                 release.fields.insert(key.to_string(), value.to_string());
@@ -75,6 +76,7 @@ impl Release {
 
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct ChecksumEntry {
+    pub namespace: String,
     pub hash: String,
     pub size: u64,
     pub size_width: usize,
@@ -103,11 +105,22 @@ impl PkgRef for ChecksumEntry {
     fn version(&self) -> &str {
         &self.hash
     }
+
+    fn namespace(&self) -> Option<&str> {
+        Some(&self.namespace)
+    }
 }
 
 impl ChecksumEntry {
-    pub fn new<I: Into<String>>(hash: I, size: u64, size_width: usize, path: I) -> Self {
+    pub fn new<I: Into<String>>(
+        namespace: String,
+        hash: I,
+        size: u64,
+        size_width: usize,
+        path: I,
+    ) -> Self {
         ChecksumEntry {
+            namespace,
             hash: hash.into(),
             size,
             size_width,
@@ -115,7 +128,7 @@ impl ChecksumEntry {
         }
     }
 
-    pub fn parse(mut line: &str) -> Result<Self> {
+    pub fn parse(namespace: String, mut line: &str) -> Result<Self> {
         let idx = line.find(' ').context("Invalid input")?;
         let hash = line[..idx].to_string();
         line = &line[idx + 1..];
@@ -133,6 +146,7 @@ impl ChecksumEntry {
 
         let path = line[size_width + 1..].to_string();
         Ok(ChecksumEntry {
+            namespace,
             hash,
             size,
             size_width,
@@ -1537,10 +1551,11 @@ zhTMHGCfZ/YjTWxa1Op4fFge92BHtFSfaPWpNp4NRiDGbSu4R6k/UHJkMIFBglbm
     #[test]
     fn test_parse_checksum_entry() -> Result<()> {
         let data = "10539c0645350845373a0e99a4940140  8183676 main/binary-amd64/Packages.xz";
-        let entry = ChecksumEntry::parse(data)?;
+        let entry = ChecksumEntry::parse("MD5Sum".to_string(), data)?;
         assert_eq!(
             entry,
             ChecksumEntry {
+                namespace: "MD5Sum".to_string(),
                 hash: "10539c0645350845373a0e99a4940140".to_string(),
                 size: 8183676,
                 size_width: 8,
@@ -1554,10 +1569,11 @@ zhTMHGCfZ/YjTWxa1Op4fFge92BHtFSfaPWpNp4NRiDGbSu4R6k/UHJkMIFBglbm
     #[test]
     fn test_parse_long_checksum_entry() -> Result<()> {
         let data = "463b35fbc23c26c5ac2099862328ea4c 687820704 main/Contents-source";
-        let entry = ChecksumEntry::parse(data)?;
+        let entry = ChecksumEntry::parse("MD5Sum".to_string(), data)?;
         assert_eq!(
             entry,
             ChecksumEntry {
+                namespace: "MD5Sum".to_string(),
                 hash: "463b35fbc23c26c5ac2099862328ea4c".to_string(),
                 size: 687820704,
                 size_width: 9,

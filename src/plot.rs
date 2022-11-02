@@ -155,12 +155,17 @@ pub trait PkgRef {
     fn name(&self) -> &str;
 
     fn version(&self) -> &str;
+
+    fn namespace(&self) -> Option<&str> {
+        None
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct PkgFilter {
     pub name: String,
     pub version: Option<String>,
+    pub namespace: Option<String>,
 }
 
 impl PkgFilter {
@@ -175,6 +180,10 @@ impl PkgFilter {
             }
         }
 
+        if self.namespace.is_some() && pkg.namespace() != self.namespace.as_deref() {
+            return false;
+        }
+
         true
     }
 }
@@ -185,6 +194,7 @@ impl FromStr for PkgFilter {
     fn from_str(mut s: &str) -> Result<Self> {
         let mut name = None;
         let mut version = None;
+        let mut namespace = None;
 
         while !s.is_empty() {
             let idx = s.find('=').context("Filter key but no value")?;
@@ -202,6 +212,7 @@ impl FromStr for PkgFilter {
             match key {
                 "name" => name = Some(value.to_string()),
                 "version" => version = Some(value.to_string()),
+                "namespace" => namespace = Some(value.to_string()),
                 _ => bail!("Invalid key: {:?}", key),
             }
         }
@@ -209,6 +220,7 @@ impl FromStr for PkgFilter {
         Ok(PkgFilter {
             name: name.context("Missing name")?,
             version,
+            namespace,
         })
     }
 }
@@ -420,18 +432,22 @@ mod tests {
             PkgFilter {
                 name: "foo".to_string(),
                 version: None,
+                namespace: None,
             }
         );
     }
 
     #[test]
-    fn test_parse_pkg_filter_name_version() {
-        let filter = "name=foo,version=1.33.7".parse::<PkgFilter>().unwrap();
+    fn test_parse_pkg_filter_name_version_namespace() {
+        let filter = "name=foo,version=1.33.7,namespace=asdf"
+            .parse::<PkgFilter>()
+            .unwrap();
         assert_eq!(
             filter,
             PkgFilter {
                 name: "foo".to_string(),
                 version: Some("1.33.7".to_string()),
+                namespace: Some("asdf".to_string()),
             }
         );
     }

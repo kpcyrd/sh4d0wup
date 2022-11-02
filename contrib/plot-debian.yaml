@@ -10,6 +10,10 @@ signing_keys:
 
 check:
   image: debian:stable
+  install_pgp:
+    - key: apt
+      binary: true
+      cmd: 'tee /etc/apt/trusted.gpg.d/pwn.gpg > /dev/null'
   cmds:
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable main" | tee /etc/apt/sources.list'
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian-security stable-security main" | tee -a /etc/apt/sources.list'

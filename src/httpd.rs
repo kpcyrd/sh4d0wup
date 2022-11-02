@@ -364,9 +364,13 @@ impl From<tls::TlsEmbedded> for Tls {
     }
 }
 
-pub async fn run(bind: SocketAddr, tls: Option<Tls>, mut plot: Plot) -> Result<()> {
+pub async fn run(
+    bind: SocketAddr,
+    tls: Option<Tls>,
+    plot: Plot,
+    plot_extras: PlotExtras,
+) -> Result<()> {
     let request_filter = extract_request_data_filter();
-    let plot_extras = plot.resolve_extras()?;
 
     let app = warp::any()
         .and(request_filter)

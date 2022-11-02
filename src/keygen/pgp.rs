@@ -36,6 +36,25 @@ impl PgpEmbedded {
             rev: None,
         })
     }
+
+    pub fn to_cert(&self, binary: bool) -> Result<Vec<u8>> {
+        let input = if let Some(cert) = &self.cert {
+            cert
+        } else {
+            &self.key
+        };
+
+        let cert = Cert::from_reader(input.as_bytes())?;
+
+        let mut output = Vec::new();
+        if binary {
+            cert.serialize(&mut output)?;
+        } else {
+            cert.armored().serialize(&mut output)?;
+        }
+
+        Ok(output)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

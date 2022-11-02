@@ -193,11 +193,29 @@ impl Container {
         self.exec_cmd_stdin(cmd, None).await
     }
 
-    pub async fn run_check(&self, config: &plot::Check, tls: Option<&httpd::Tls>) -> Result<()> {
+    pub async fn run_check(
+        &self,
+        config: &plot::Check,
+        plot_extras: &plot::PlotExtras,
+        tls: Option<&httpd::Tls>,
+    ) -> Result<()> {
         info!("Finishing setup in container...");
         if let (Some(tls), Some(cmd)) = (tls, &config.install_certs) {
             info!("Installing certificates...");
             self.exec_cmd_stdin(cmd, Some(&tls.cert))
+                .await
+                .context("Failed to install certificates")?;
+        }
+        for pgp in &config.install_pgp {
+            info!("Installing pgp key {:?} with {:?}...", pgp.key, pgp.cmd);
+            let key = plot_extras
+                .signing_keys
+                .get(&pgp.key)
+                .context("Invalid reference to signing key")?;
+
+            let cert = key.to_cert(pgp.binary)?;
+
+            self.exec_cmd_stdin(&pgp.cmd, Some(&cert))
                 .await
                 .context("Failed to install certificates")?;
         }
@@ -227,6 +245,7 @@ pub async fn run(
     check: args::Check,
     tls: Option<&httpd::Tls>,
     plot: plot::Plot,
+    plot_extras: plot::PlotExtras,
 ) -> Result<()> {
     let check_config = plot.check.context("No test configured in this plot")?;
     wait_for_server(&addr).await?;
@@ -250,7 +269,7 @@ pub async fn run(
     let container = Container::create(image, &init, addr).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
-        result = container.run_check(&check_config, tls) => result,
+        result = container.run_check(&check_config, &plot_extras, tls) => result,
         _ = signal::ctrl_c() => Err(anyhow!("Ctrl-c received")),
     };
     info!("Removing container...");
@@ -261,8 +280,10 @@ pub async fn run(
     result
 }
 
-pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
+pub async fn spawn(check: args::Check, mut plot: plot::Plot) -> Result<()> {
     test_for_unprivileged_userns_clone().await?;
+
+    let plot_extras = plot.resolve_extras()?;
 
     let addr = if let Some(addr) = check.bind {
         addr
@@ -276,8 +297,9 @@ pub async fn spawn(check: args::Check, plot: plot::Plot) -> Result<()> {
     } else {
         None
     };
-    let httpd = httpd::run(addr, tls.clone(), plot.clone());
-    let check = run(addr, check, tls.as_ref(), plot);
+
+    let httpd = httpd::run(addr, tls.clone(), plot.clone(), plot_extras.clone());
+    let check = run(addr, check, tls.as_ref(), plot, plot_extras);
 
     tokio::select! {
         httpd = httpd => httpd.context("httpd thread terminated")?,

@@ -32,8 +32,11 @@ async fn main() -> Result<()> {
     match args.subcommand {
         SubCommand::Bait(bait) => {
             info!("Loading plot from {:?}...", bait.plot);
-            let plot = Plot::load_from_path(&bait.plot)?;
+            let mut plot = Plot::load_from_path(&bait.plot)?;
             trace!("Loaded plot: {:?}", plot);
+
+            let plot_extras = plot.resolve_extras()?;
+
             let tls = if let Some(path) = bait.tls_cert {
                 let cert = fs::read(&path)
                     .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?;
@@ -53,7 +56,7 @@ async fn main() -> Result<()> {
                 None
             };
 
-            httpd::run(bait.bind, tls, plot).await?;
+            httpd::run(bait.bind, tls, plot, plot_extras).await?;
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;

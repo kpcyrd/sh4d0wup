@@ -1,6 +1,9 @@
 use crate::errors::*;
+use crate::keygen::pgp::PgpEmbedded;
 use crate::plot::{PatchAptReleaseConfig, PkgRef};
+use crate::sign;
 use indexmap::IndexMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::io::prelude::*;
 use std::str;
@@ -138,7 +141,12 @@ impl ChecksumEntry {
     }
 }
 
-pub fn patch<W: Write>(config: &PatchAptReleaseConfig, bytes: &[u8], out: &mut W) -> Result<()> {
+pub fn patch<W: Write>(
+    config: &PatchAptReleaseConfig,
+    keys: &BTreeMap<String, PgpEmbedded>,
+    bytes: &[u8],
+    out: &mut W,
+) -> Result<()> {
     let mut release = Release::parse(bytes).context("Failed to parse release")?;
 
     debug!("Got release: {:?}", release.fields);
@@ -185,14 +193,28 @@ pub fn patch<W: Write>(config: &PatchAptReleaseConfig, bytes: &[u8], out: &mut W
         }
     }
 
-    writeln!(out, "{}", release)?;
+    if let Some(signing_key) = &config.signing_key {
+        let signing_key = keys
+            .get(signing_key)
+            .with_context(|| anyhow!("Invalid signing key reference: {:?}", signing_key))?;
+        let release = sign::pgp::sign_cleartext(signing_key, release.to_string().as_bytes())
+            .context("Failed to sign release")?;
+        out.write_all(&release)?;
+    } else {
+        // serialize directly to stdout for performance
+        write!(out, "{}", release)?;
+    }
 
     Ok(())
 }
 
-pub fn modify_response(config: &PatchAptReleaseConfig, bytes: &[u8]) -> Result<Bytes> {
+pub fn modify_response(
+    config: &PatchAptReleaseConfig,
+    keys: &BTreeMap<String, PgpEmbedded>,
+    bytes: &[u8],
+) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch(config, bytes, &mut out)?;
+    patch(config, keys, bytes, &mut out)?;
     Ok(Bytes::from(out))
 }
 

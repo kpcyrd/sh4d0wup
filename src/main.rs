@@ -99,11 +99,30 @@ async fn main() -> Result<()> {
                 release_fields.insert(key.to_string(), value.to_string());
             }
 
+            let signing_key = match (tamper.unsigned, tamper.signing_key) {
+                (true, Some(_)) => {
+                    warn!("Using --unsigned and --signing-key together is causing the release to be unsigned");
+                    None
+                }
+                (true, None) => None,
+                (false, Some(path)) => Some(PgpEmbedded::read_from_disk(path)?),
+                (false, None) => bail!("Missing --signing-key and --unsigned wasn't provided"),
+            };
+
+            let mut keys = BTreeMap::new();
+            let signing_key = if let Some(signing_key) = signing_key {
+                keys.insert("pgp".to_string(), signing_key);
+                Some("pgp".to_string())
+            } else {
+                None
+            };
+
             let config = PatchAptReleaseConfig {
                 fields: release_fields,
                 checksums: checksum_config,
+                signing_key,
             };
-            tamper::apt_release::patch(&config, &db, &mut out)?;
+            tamper::apt_release::patch(&config, &keys, &db, &mut out)?;
         }
         SubCommand::Tamper(Tamper::AptPackageList(tamper)) => {
             let db = fs::read(&tamper.path)?;

@@ -1,5 +1,6 @@
 use crate::args;
 use crate::errors::*;
+use crate::keygen::pgp::{self, KeygenPgp, PgpEmbedded};
 use crate::keygen::tls::KeygenTls;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -11,6 +12,7 @@ use std::str::FromStr;
 pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
+    pub signing_keys: Option<BTreeMap<String, KeygenPgp>>,
     pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
@@ -58,6 +60,33 @@ impl Plot {
 
         Ok(&route.action)
     }
+
+    pub fn resolve_extras(&mut self) -> Result<PlotExtras> {
+        let signing_keys = if let Some(keys) = self.signing_keys.take() {
+            keys.into_iter()
+                .map(|(key, value)| {
+                    Ok((
+                        key,
+                        match value {
+                            KeygenPgp::Embedded(pgp) => pgp,
+                            KeygenPgp::Generate(pgp) => {
+                                pgp::generate(pgp).context("Failed to generate pgp key")?
+                            }
+                        },
+                    ))
+                })
+                .collect::<Result<_>>()?
+        } else {
+            BTreeMap::new()
+        };
+
+        Ok(PlotExtras { signing_keys })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlotExtras {
+    pub signing_keys: BTreeMap<String, PgpEmbedded>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -348,9 +377,11 @@ pub struct OciRegistryManifest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatchAptReleaseConfig {
+    #[serde(default)]
     pub fields: BTreeMap<String, String>,
     #[serde(flatten)]
     pub checksums: PatchPkgDatabaseConfig<String>,
+    pub signing_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -12,7 +12,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Pgp {
+pub enum KeygenPgp {
     Embedded(PgpEmbedded),
     Generate(PgpGenerate),
 }

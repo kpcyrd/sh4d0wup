@@ -189,6 +189,12 @@ pub struct TamperAptRelease {
     /// Patch a metadata field on the release instead of a checksum
     #[arg(long)]
     pub release_set: Vec<String>,
+    /// Skip signing the final release file
+    #[arg(long)]
+    pub unsigned: bool,
+    /// Path to signing key to sign the release with
+    #[arg(long)]
+    pub signing_key: Option<PathBuf>,
     #[clap(flatten)]
     pub config: TamperPackageDatabaseConfig,
 }

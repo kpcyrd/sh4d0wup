@@ -1,8 +1,8 @@
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
-    self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, ProxyRoute,
-    RouteAction, StaticRoute,
+    self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, PlotExtras,
+    ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -189,6 +189,7 @@ async fn patch_pacman_db_response(
 async fn patch_apt_release_response(
     args: &PatchAptReleaseRoute,
     plot: &Plot,
+    plot_extras: &PlotExtras,
     uri: FullPath,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
     let response = fetch_upstream(&args.proxy, plot, uri)
@@ -196,7 +197,8 @@ async fn patch_apt_release_response(
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
-    let response = apt_release::modify_response(&args.config, &bytes).map_err(http_error)?;
+    let response = apt_release::modify_response(&args.config, &plot_extras.signing_keys, &bytes)
+        .map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -297,6 +299,7 @@ async fn append_response(
 
 async fn serve_request(
     plot: Plot,
+    plot_extras: PlotExtras,
     uri: FullPath,
     params: QueryParameters,
     method: Method,
@@ -317,7 +320,9 @@ async fn serve_request(
         }
         RouteAction::Static(args) => generate_static_response(args).await?,
         RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &plot, uri).await?,
-        RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &plot, uri).await?,
+        RouteAction::PatchAptRelease(args) => {
+            patch_apt_release_response(args, &plot, &plot_extras, uri).await?
+        }
         RouteAction::PatchAptPackageList(args) => {
             patch_apt_package_list_response(args, &plot, uri).await?
         }
@@ -359,8 +364,9 @@ impl From<tls::TlsEmbedded> for Tls {
     }
 }
 
-pub async fn run(bind: SocketAddr, tls: Option<Tls>, plot: Plot) -> Result<()> {
+pub async fn run(bind: SocketAddr, tls: Option<Tls>, mut plot: Plot) -> Result<()> {
     let request_filter = extract_request_data_filter();
+    let plot_extras = plot.resolve_extras()?;
 
     let app = warp::any()
         .and(request_filter)
@@ -370,7 +376,16 @@ pub async fn run(bind: SocketAddr, tls: Option<Tls>, plot: Plot) -> Result<()> {
                   method: Method,
                   headers: HeaderMap,
                   body: Bytes| {
-                serve_request(plot.clone(), uri, params, method, headers, body)
+                // TODO: is clone a good idea here?
+                serve_request(
+                    plot.clone(),
+                    plot_extras.clone(),
+                    uri,
+                    params,
+                    method,
+                    headers,
+                    body,
+                )
             },
         )
         .untuple_one()

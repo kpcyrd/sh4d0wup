@@ -4,6 +4,10 @@ upstreams:
   debian:
     url: https://deb.debian.org/
 
+signing_keys:
+  apt:
+    uids: ["Debian Archive Automatic Signing Key (11/bullseye) <ftpmaster@debian.org>"]
+
 check:
   image: debian:stable
   cmds:
@@ -17,6 +21,7 @@ routes:
   - path: /debian/dists/stable/InRelease
     type: patch-apt-release
     args:
+      signing_key: apt
       upstream: debian
   # /debian/dists/stable/main/binary-amd64/Packages.xz
   - path: /debian/dists/stable/main/binary-amd64/by-hash/SHA256/c21a4111128e3f286b5a0b9543641c86bc111d4e2d0a41b0bb8db1ea4845ff68

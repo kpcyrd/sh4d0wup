@@ -34,13 +34,16 @@ pub fn detect_compression(bytes: &[u8]) -> CompressedWith {
     }
 }
 
-pub fn stream_decompress<'a>(comp: CompressedWith, bytes: &'a [u8]) -> Result<Box<dyn Read + 'a>> {
+pub fn stream_decompress<'a, R: Read + 'a>(
+    r: R,
+    comp: CompressedWith,
+) -> Result<Box<dyn Read + 'a>> {
     match comp {
-        CompressedWith::Gzip => Ok(Box::new(GzDecoder::new(bytes))),
-        CompressedWith::Bzip2 => Ok(Box::new(BzDecoder::new(bytes))),
-        CompressedWith::Xz => Ok(Box::new(XzDecoder::new(bytes))),
-        CompressedWith::Zstd => Ok(Box::new(zstd::Decoder::new(bytes)?)),
-        CompressedWith::Unknown => Ok(Box::new(bytes)),
+        CompressedWith::Gzip => Ok(Box::new(GzDecoder::new(r))),
+        CompressedWith::Bzip2 => Ok(Box::new(BzDecoder::new(r))),
+        CompressedWith::Xz => Ok(Box::new(XzDecoder::new(r))),
+        CompressedWith::Zstd => Ok(Box::new(zstd::Decoder::new(r)?)),
+        CompressedWith::Unknown => Ok(Box::new(r)),
     }
 }
 
@@ -95,7 +98,7 @@ impl<W: Write> Write for Compressor<'_, W> {
     }
 }
 
-pub fn stream_compress<W: Write>(comp: CompressedWith, w: W) -> Result<Compressor<'static, W>> {
+pub fn stream_compress<W: Write>(w: W, comp: CompressedWith) -> Result<Compressor<'static, W>> {
     match comp {
         CompressedWith::Gzip => Ok(Compressor::Gzip(GzEncoder::new(
             w,

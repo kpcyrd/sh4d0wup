@@ -138,8 +138,8 @@ pub fn patch_database<W: Write>(
 ) -> Result<()> {
     let comp = compression::detect_compression(bytes);
 
-    let mut out = compression::stream_compress(comp, out)?;
-    let tar = compression::stream_decompress(comp, bytes)?;
+    let mut out = compression::stream_compress(out, comp)?;
+    let tar = compression::stream_decompress(bytes, comp)?;
     let mut archive = Archive::new(tar);
 
     let mut builder = tar::Builder::new(&mut out);

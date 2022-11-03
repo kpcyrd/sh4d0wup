@@ -26,6 +26,7 @@ pub enum SubCommand {
     Keygen(Keygen),
     #[command(subcommand)]
     Sign(Sign),
+    Build(Build),
     Check(Check),
     Completions(Completions),
 }
@@ -250,6 +251,19 @@ pub struct SignPgp {
     pub path: PathBuf,
 }
 
+/// Compile an attack based on a plot
+#[derive(Debug, Clone, Parser)]
+pub struct Build {
+    /// Path to plot configuration file
+    pub plot: PathBuf,
+    /// Run the build in this directory
+    #[arg(short = 'C', long)]
+    pub context: Option<PathBuf>,
+    /// Output the compiled plot here
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
 /// Ensure a provided attack can still execute correctly
 #[derive(Debug, Clone, Parser)]
 pub struct Check {
@@ -261,6 +275,9 @@ pub struct Check {
     /// Pull the image even if it already exists locally
     #[arg(long)]
     pub pull: bool,
+    /// Only load the plot but don't execute it
+    #[arg(short, long)]
+    pub no_exec: bool,
 }
 
 /// Generate shell completions

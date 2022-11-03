@@ -70,7 +70,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
     {
         let mut builder = tar::Builder::new(&mut out);
 
-        let tar = compression::stream_decompress(comp, buf)?;
+        let tar = compression::stream_decompress(buf, comp)?;
         let mut archive = tar::Archive::new(tar);
         let mut control_header = None;
         let mut had_postinst = false;

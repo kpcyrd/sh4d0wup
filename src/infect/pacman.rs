@@ -83,8 +83,8 @@ pub fn infect<W: Write>(args: &args::InfectPacmanPkg, pkg: &[u8], out: &mut W) -
 
     let comp = compression::detect_compression(pkg);
 
-    let mut out = compression::stream_compress(comp, out)?;
-    let tar = compression::stream_decompress(comp, pkg)?;
+    let mut out = compression::stream_compress(out, comp)?;
+    let tar = compression::stream_decompress(pkg, comp)?;
     let mut archive = Archive::new(tar);
 
     let mut builder = tar::Builder::new(&mut out);

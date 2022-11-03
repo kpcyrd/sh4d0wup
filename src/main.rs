@@ -1,13 +1,14 @@
 use clap::Parser;
 use env_logger::Env;
 use sh4d0wup::args::{self, Args, Infect, Keygen, Sign, SubCommand, Tamper};
+use sh4d0wup::build;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
-use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
+use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::collections::BTreeMap;
@@ -33,7 +34,6 @@ async fn main() -> Result<()> {
         SubCommand::Bait(bait) => {
             info!("Loading plot from {:?}...", bait.plot);
             let mut plot = Plot::load_from_path(&bait.plot)?;
-            trace!("Loaded plot: {:?}", plot);
 
             let plot_extras = plot.resolve_extras()?;
 
@@ -136,9 +136,10 @@ async fn main() -> Result<()> {
         }
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);
-            let plot = Plot::load_from_path(&check.plot)?;
-            trace!("Loaded plot: {:?}", plot);
-            check::spawn(check, plot).await?;
+            let ctx = Ctx::load_from_path(&check.plot)?;
+            if !check.no_exec {
+                check::spawn(check, ctx.plot).await?;
+            }
         }
         SubCommand::Keygen(Keygen::Tls(tls)) => {
             let tls =
@@ -183,6 +184,7 @@ async fn main() -> Result<()> {
             let sig = sign::pgp::sign_detached(&secret_key, &data, pgp.binary)?;
             io::stdout().write_all(&sig)?;
         }
+        SubCommand::Build(build) => build::run(build)?,
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;
         }

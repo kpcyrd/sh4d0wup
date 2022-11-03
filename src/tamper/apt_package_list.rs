@@ -148,8 +148,8 @@ impl Pkg {
 pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut W) -> Result<()> {
     let comp = compression::detect_compression(bytes);
 
-    let mut out = compression::stream_compress(comp, out)?;
-    let mut reader = compression::stream_decompress(comp, bytes)?;
+    let mut out = compression::stream_compress(out, comp)?;
+    let mut reader = compression::stream_decompress(bytes, comp)?;
     let mut bytes = Vec::new();
     reader.read_to_end(&mut bytes)?;
     let mut bytes = &bytes[..];

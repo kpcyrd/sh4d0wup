@@ -1,12 +1,103 @@
 use crate::args;
+use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::pgp::{self, KeygenPgp, PgpEmbedded};
 use crate::keygen::tls::KeygenTls;
+use peekread::BufPeekReader;
+use peekread::PeekRead;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::str::FromStr;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Ctx {
+    pub plot: Plot,
+    pub extras: PlotExtras,
+    pub artifacts: BTreeMap<String, Vec<u8>>,
+}
+
+impl Ctx {
+    pub fn is_bundle<R: Read>(r: R) -> Result<Option<CompressedWith>> {
+        let mut buf = Vec::new();
+        r.take(256).read_to_end(&mut buf)?;
+        let comp = compression::detect_compression(&buf);
+        match comp {
+            CompressedWith::Zstd => Ok(Some(comp)),
+            CompressedWith::Unknown => Ok(None),
+            _ => bail!("Unsupported file format: {:?}", comp),
+        }
+    }
+
+    pub fn load_bundle<R: Read>(
+        r: R,
+        comp: CompressedWith,
+        artifacts: &mut BTreeMap<String, Vec<u8>>,
+    ) -> Result<String> {
+        let r = compression::stream_decompress(r, comp)?;
+        let mut tar = tar::Archive::new(r);
+
+        let mut plot = None;
+        debug!("Reading bundle...");
+        for entry in tar.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?;
+            let path = path.to_str().with_context(|| {
+                anyhow!(
+                    "Bundle contains entry with invalid utf8 filename: {:?}",
+                    path
+                )
+            })?;
+            debug!("Found entry in bundle: {:?}", path);
+            match path {
+                "plot.json" => {
+                    let mut s = String::new();
+                    entry.read_to_string(&mut s)?;
+                    plot = Some(s);
+                }
+                name => {
+                    debug!("Registering artifact: {:?}", name);
+                    let name = name.to_string();
+                    let mut buf = Vec::new();
+                    entry.read_to_end(&mut buf)?;
+                    artifacts.insert(name, buf);
+                }
+            }
+        }
+        debug!("Finished reading bundle");
+
+        plot.context("Bundle contains no plot")
+    }
+
+    pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+
+        let f = File::open(path).context("Failed to open plot")?;
+        let mut r = BufPeekReader::new(f);
+
+        let mut artifacts = BTreeMap::new();
+        let plot = if let Some(comp) = Self::is_bundle(r.peek())? {
+            Self::load_bundle(r, comp, &mut artifacts)?
+        } else {
+            let mut s = String::new();
+            r.read_to_string(&mut s)?;
+            s
+        };
+
+        let mut plot = Plot::load_from_str(&plot).context("Failed to deserialize plot")?;
+        plot.validate().context("Plot failed to validate")?;
+        let extras = plot.resolve_extras()?;
+        Ok(Ctx {
+            plot,
+            extras,
+            artifacts,
+        })
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plot {
@@ -20,13 +111,15 @@ pub struct Plot {
 
 impl Plot {
     pub fn load_from_str(s: &str) -> Result<Self> {
-        let x = serde_yaml::from_str(s).context("Failed to load plot from string")?;
-        Ok(x)
+        let plot = serde_yaml::from_str(s).context("Failed to load plot from string")?;
+        trace!("Loaded plot: {:?}", plot);
+        Ok(plot)
     }
 
-    pub fn load_from_path(path: &str) -> Result<Self> {
-        let s = fs::read_to_string(&path)
-            .with_context(|| anyhow!("Failed to read file: {:?}", path))?;
+    pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        let s =
+            fs::read_to_string(path).with_context(|| anyhow!("Failed to read file: {:?}", path))?;
         let plot = Plot::load_from_str(&s).context("Failed to deserialize plot")?;
         plot.validate().context("Plot failed to validate")?;
         Ok(plot)

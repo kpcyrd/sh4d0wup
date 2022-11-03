@@ -28,7 +28,7 @@ impl PgpEmbedded {
     pub fn read_from_disk<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
         debug!("Reading pgp key from path: {:?}", path);
-        let key = fs::read_to_string(&path)
+        let key = fs::read_to_string(path)
             .with_context(|| anyhow!("Failed to read from file {:?}", path))?;
         Ok(PgpEmbedded {
             cert: None,

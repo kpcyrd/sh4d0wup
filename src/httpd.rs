@@ -11,6 +11,7 @@ use http::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use std::fmt::Write;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Filter, Rejection, Reply};
 use warp_reverse_proxy::extract_request_data_filter;
@@ -298,8 +299,7 @@ async fn append_response(
 }
 
 async fn serve_request(
-    plot: Plot,
-    plot_extras: PlotExtras,
+    ctx: Arc<plot::Ctx>,
     uri: FullPath,
     params: QueryParameters,
     method: Method,
@@ -308,7 +308,8 @@ async fn serve_request(
 ) -> std::result::Result<(String, http::Response<Bytes>), Rejection> {
     log::log_request(&method, &uri, &headers);
 
-    let route_action = plot
+    let route_action = ctx
+        .plot
         .select_route(uri.as_str())
         .context("Failed to select route")
         .map_err(http_error)?;
@@ -316,20 +317,22 @@ async fn serve_request(
     let path = uri.as_str().to_string();
     let response = match route_action {
         RouteAction::Proxy(args) => {
-            proxy_forward_request(args, &plot, uri, params, method, headers, body).await?
+            proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
         RouteAction::Static(args) => generate_static_response(args).await?,
-        RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &plot, uri).await?,
+        RouteAction::PatchPacmanDbRoute(args) => {
+            patch_pacman_db_response(args, &ctx.plot, uri).await?
+        }
         RouteAction::PatchAptRelease(args) => {
-            patch_apt_release_response(args, &plot, &plot_extras, uri).await?
+            patch_apt_release_response(args, &ctx.plot, &ctx.extras, uri).await?
         }
         RouteAction::PatchAptPackageList(args) => {
-            patch_apt_package_list_response(args, &plot, uri).await?
+            patch_apt_package_list_response(args, &ctx.plot, uri).await?
         }
         RouteAction::OciRegistryManifest(args) => {
             generate_oci_registry_manifest_response(args).await?
         }
-        RouteAction::Append(args) => append_response(args, &plot, uri).await?,
+        RouteAction::Append(args) => append_response(args, &ctx.plot, uri).await?,
     };
 
     Ok((path, response))
@@ -364,14 +367,10 @@ impl From<tls::TlsEmbedded> for Tls {
     }
 }
 
-pub async fn run(
-    bind: SocketAddr,
-    tls: Option<Tls>,
-    plot: Plot,
-    plot_extras: PlotExtras,
-) -> Result<()> {
+pub async fn run(bind: SocketAddr, tls: Option<Tls>, ctx: plot::Ctx) -> Result<()> {
     let request_filter = extract_request_data_filter();
 
+    let ctx = Arc::new(ctx);
     let app = warp::any()
         .and(request_filter)
         .and_then(
@@ -380,16 +379,7 @@ pub async fn run(
                   method: Method,
                   headers: HeaderMap,
                   body: Bytes| {
-                // TODO: is clone a good idea here?
-                serve_request(
-                    plot.clone(),
-                    plot_extras.clone(),
-                    uri,
-                    params,
-                    method,
-                    headers,
-                    body,
-                )
+                serve_request(ctx.clone(), uri, params, method, headers, body)
             },
         )
         .untuple_one()

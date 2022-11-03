@@ -244,10 +244,9 @@ pub async fn run(
     addr: SocketAddr,
     check: args::Check,
     tls: Option<&httpd::Tls>,
-    plot: plot::Plot,
-    plot_extras: plot::PlotExtras,
+    ctx: plot::Ctx,
 ) -> Result<()> {
-    let check_config = plot.check.context("No test configured in this plot")?;
+    let check_config = ctx.plot.check.context("No test configured in this plot")?;
     wait_for_server(&addr).await?;
 
     let image = &check_config.image;
@@ -269,7 +268,7 @@ pub async fn run(
     let container = Container::create(image, &init, addr).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
-        result = container.run_check(&check_config, &plot_extras, tls) => result,
+        result = container.run_check(&check_config, &ctx.extras, tls) => result,
         _ = signal::ctrl_c() => Err(anyhow!("Ctrl-c received")),
     };
     info!("Removing container...");
@@ -280,10 +279,8 @@ pub async fn run(
     result
 }
 
-pub async fn spawn(check: args::Check, mut plot: plot::Plot) -> Result<()> {
+pub async fn spawn(check: args::Check, ctx: plot::Ctx) -> Result<()> {
     test_for_unprivileged_userns_clone().await?;
-
-    let plot_extras = plot.resolve_extras()?;
 
     let addr = if let Some(addr) = check.bind {
         addr
@@ -292,14 +289,14 @@ pub async fn spawn(check: args::Check, mut plot: plot::Plot) -> Result<()> {
         sock.local_addr()?
     };
 
-    let tls = if let Some(tls) = plot.tls.clone() {
+    let tls = if let Some(tls) = ctx.plot.tls.clone() {
         Some(httpd::Tls::try_from(tls)?)
     } else {
         None
     };
 
-    let httpd = httpd::run(addr, tls.clone(), plot.clone(), plot_extras.clone());
-    let check = run(addr, check, tls.as_ref(), plot, plot_extras);
+    let httpd = httpd::run(addr, tls.clone(), ctx.clone());
+    let check = run(addr, check, tls.as_ref(), ctx);
 
     tokio::select! {
         httpd = httpd => httpd.context("httpd thread terminated")?,

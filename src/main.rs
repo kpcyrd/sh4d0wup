@@ -8,7 +8,7 @@ use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
-use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig, Plot};
+use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::collections::BTreeMap;
@@ -33,9 +33,7 @@ async fn main() -> Result<()> {
     match args.subcommand {
         SubCommand::Bait(bait) => {
             info!("Loading plot from {:?}...", bait.plot);
-            let mut plot = Plot::load_from_path(&bait.plot)?;
-
-            let plot_extras = plot.resolve_extras()?;
+            let ctx = Ctx::load_from_path(&bait.plot)?;
 
             let tls = if let Some(path) = bait.tls_cert {
                 let cert = fs::read(&path)
@@ -50,13 +48,13 @@ async fn main() -> Result<()> {
                 };
 
                 Some(httpd::Tls { cert, key })
-            } else if let Some(tls) = plot.tls.clone() {
+            } else if let Some(tls) = ctx.plot.tls.clone() {
                 Some(httpd::Tls::try_from(tls)?)
             } else {
                 None
             };
 
-            httpd::run(bait.bind, tls, plot, plot_extras).await?;
+            httpd::run(bait.bind, tls, ctx).await?;
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;
@@ -137,8 +135,13 @@ async fn main() -> Result<()> {
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);
             let ctx = Ctx::load_from_path(&check.plot)?;
-            if !check.no_exec {
-                check::spawn(check, ctx.plot).await?;
+            if check.no_exec {
+                serde_json::to_writer_pretty(io::stdout(), &ctx.plot)?;
+                println!();
+                serde_json::to_writer_pretty(io::stdout(), &ctx.extras)?;
+                println!();
+            } else {
+                check::spawn(check, ctx).await?;
             }
         }
         SubCommand::Keygen(Keygen::Tls(tls)) => {

@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -18,7 +19,6 @@ use std::str::FromStr;
 pub struct Ctx {
     pub plot: Plot,
     pub extras: PlotExtras,
-    pub artifacts: BTreeMap<String, Vec<u8>>,
 }
 
 impl Ctx {
@@ -90,12 +90,11 @@ impl Ctx {
 
         let mut plot = Plot::load_from_str(&plot).context("Failed to deserialize plot")?;
         plot.validate().context("Plot failed to validate")?;
-        let extras = plot.resolve_extras()?;
-        Ok(Ctx {
-            plot,
-            extras,
-            artifacts,
-        })
+        let mut extras = plot.resolve_extras()?;
+
+        extras.artifacts.extend(artifacts.into_iter());
+
+        Ok(Ctx { plot, extras })
     }
 }
 
@@ -182,12 +181,12 @@ impl Plot {
             match v {
                 Artifact::Path(_) => (),
                 Artifact::Inline(inline) => {
-                    let data = std::mem::take(&mut inline.data);
+                    let data = mem::take(&mut inline.data);
                     *v = Artifact::Memory;
                     let bytes = data.into_bytes();
                     artifacts.insert(k.to_string(), bytes);
                 }
-                Artifact::Memory => bail!("Can't be in memory yet"),
+                Artifact::Memory => (),
             }
         }
 

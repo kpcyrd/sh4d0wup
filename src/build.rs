@@ -1,8 +1,11 @@
 use crate::args;
 use crate::errors::*;
-use crate::plot::Plot;
+use crate::plot::{Artifact, Plot};
+use std::collections::BTreeMap;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::mem;
 use zstd::stream::write::Encoder;
 
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 3;
@@ -42,7 +45,7 @@ impl<W: Write> ArchiveBuilder<W> {
 
 pub fn run(build: args::Build) -> Result<()> {
     info!("Loading plot from {:?}...", build.plot);
-    let plot = Plot::load_from_path(&build.plot)?;
+    let mut plot = Plot::load_from_path(&build.plot)?;
 
     debug!("Setting up compressed writer...");
     let f = File::create(&build.output)
@@ -51,8 +54,33 @@ pub fn run(build: args::Build) -> Result<()> {
         .context("Failed to setup zstd stream")?
         .auto_finish();
 
+    info!("Loading artifacts...");
+    let mut artifacts = BTreeMap::new();
+    for (key, value) in &mut plot.artifacts {
+        match value {
+            Artifact::Path(artifact) => {
+                info!("Reading artifact from disk: {:?}", artifact.path);
+                let buf = fs::read(&artifact.path)?;
+                artifacts.insert(key.to_string(), buf);
+                *value = Artifact::Memory
+            }
+            Artifact::Inline(inline) => {
+                let data = mem::take(&mut inline.data);
+                let bytes = data.into_bytes();
+                artifacts.insert(key.to_string(), bytes);
+                *value = Artifact::Memory;
+            }
+            Artifact::Memory => (),
+        }
+    }
+
+    info!("Writing archive...");
     let mut tar = ArchiveBuilder::new(w);
     tar.append_json("plot.json", &plot)?;
+    for (key, value) in artifacts {
+        tar.append(&key, &value)?;
+    }
+
     tar.finish()?;
 
     Ok(())

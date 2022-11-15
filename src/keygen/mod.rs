@@ -1,7 +1,9 @@
+pub mod in_toto;
 pub mod openssl;
 pub mod pgp;
 pub mod tls;
 
+use self::in_toto::KeygenInToto;
 use self::openssl::KeygenOpenssl;
 use self::pgp::KeygenPgp;
 use crate::errors::*;
@@ -12,6 +14,7 @@ use serde::{Deserialize, Serialize};
 pub enum Keygen {
     Pgp(pgp::KeygenPgp),
     Openssl(openssl::KeygenOpenssl),
+    InToto(in_toto::KeygenInToto),
 }
 
 impl Keygen {
@@ -28,6 +31,12 @@ impl Keygen {
                     openssl::generate(&openssl).context("Failed to generate openssl key")?;
                 EmbeddedKey::Openssl(openssl)
             }
+            Keygen::InToto(KeygenInToto::Embedded(in_toto)) => EmbeddedKey::InToto(in_toto),
+            Keygen::InToto(KeygenInToto::Generate(in_toto)) => {
+                let in_toto =
+                    in_toto::generate(&in_toto).context("Failed to generate in-toto key")?;
+                EmbeddedKey::InToto(in_toto)
+            }
         })
     }
 }
@@ -36,6 +45,7 @@ impl Keygen {
 pub enum EmbeddedKey {
     Pgp(pgp::PgpEmbedded),
     Openssl(openssl::OpensslEmbedded),
+    InToto(in_toto::InTotoEmbedded),
 }
 
 impl EmbeddedKey {

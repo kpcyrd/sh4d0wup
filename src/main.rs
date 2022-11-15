@@ -7,6 +7,7 @@ use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
+use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::keygen::{self, EmbeddedKey};
@@ -176,6 +177,14 @@ async fn main() -> Result<()> {
             }
             print!("{}", openssl.secret_key);
         }
+        SubCommand::Keygen(Keygen::InToto(in_toto)) => {
+            let in_toto = keygen::in_toto::generate(&in_toto.into())
+                .context("Failed to generate in-toto key")?;
+            if let Some(public_key) = in_toto.public_key {
+                println!("{}", public_key);
+            }
+            println!("{}", in_toto.secret_key);
+        }
         SubCommand::Sign(Sign::PgpCleartext(pgp)) => {
             if pgp.binary {
                 bail!("Binary output is not supported for cleartext signatures");
@@ -224,6 +233,13 @@ async fn main() -> Result<()> {
             };
 
             let sig = sign::openssl::sign(&secret_key, &data, digest)?;
+            io::stdout().write_all(&sig)?;
+        }
+        SubCommand::Sign(Sign::InToto(in_toto)) => {
+            let secret_key = InTotoEmbedded::read_from_disk(&in_toto.secret_key)
+                .context("Failed to load secret key")?;
+            let mut sig = sign::in_toto::sign(&secret_key, &in_toto.try_into()?)?;
+            sig.push(b'\n');
             io::stdout().write_all(&sig)?;
         }
         SubCommand::Build(build) => build::run(build)?,

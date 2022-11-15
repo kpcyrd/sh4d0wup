@@ -1,5 +1,6 @@
 use crate::errors::*;
 use crate::plot::{PkgFilter, PkgPatchValues};
+use crate::sign::in_toto::VirtualEntry;
 use clap::{ArgAction, CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
 use std::io::stdout;
@@ -217,6 +218,7 @@ pub enum Keygen {
     Tls(KeygenTls),
     Pgp(KeygenPgp),
     Openssl(KeygenOpenssl),
+    InToto(KeygenInToto),
 }
 
 /// Generate a self-signed tls certificate
@@ -245,6 +247,10 @@ pub struct KeygenOpenssl {
     pub bits: Option<u32>,
 }
 
+/// Generate an in-toto keypair
+#[derive(Debug, Clone, Parser)]
+pub struct KeygenInToto {}
+
 /// Use signing keys to generate signatures
 #[derive(Debug, Subcommand)]
 pub enum Sign {
@@ -253,6 +259,7 @@ pub enum Sign {
     /// Create a detached pgp signature
     PgpDetached(SignPgp),
     Openssl(SignOpenssl),
+    InToto(SignInToto),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -296,6 +303,25 @@ pub struct SignOpenssl {
     /// Use sha3-512 hash function
     #[arg(long, group = "hash")]
     pub sha3_512: bool,
+}
+
+/// Create an in-toto attestation
+#[derive(Debug, Clone, Parser)]
+pub struct SignInToto {
+    /// Secret key to use for signing
+    #[arg(short, long)]
+    pub secret_key: PathBuf,
+    /// Path to data to sign
+    pub path: PathBuf,
+    /// Identify attestation
+    #[arg(long)]
+    pub name: String,
+    /// Build input for the attestation (format: name=/path/to/file.txt)
+    #[arg(long)]
+    pub material: Vec<VirtualEntry>,
+    /// Build output for the attestation (format: name=/path/to/file.txt)
+    #[arg(long)]
+    pub product: Vec<VirtualEntry>,
 }
 
 /// Compile an attack based on a plot

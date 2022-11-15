@@ -133,6 +133,7 @@ async fn proxy_forward_request(
 
 async fn generate_static_response(
     args: &StaticRoute,
+    plot_extras: &PlotExtras,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
     let status = args.status.unwrap_or(200);
     let mut builder = http::Response::builder().status(status);
@@ -145,9 +146,20 @@ async fn generate_static_response(
         builder = builder.header(key, value);
     }
 
-    Ok(builder
-        .body(Bytes::from(args.data.as_bytes().to_vec()))
-        .unwrap())
+    let data = if let Some(data) = &args.data {
+        data.as_bytes().to_vec()
+    } else if let Some(artifact) = &args.artifact {
+        plot_extras
+            .artifacts
+            .get(artifact)
+            .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
+            .map_err(http_error)?
+            .clone()
+    } else {
+        return Err(http_error(anyhow!("No data or artifact configured for static route")).into());
+    };
+
+    Ok(builder.body(Bytes::from(data)).unwrap())
 }
 
 async fn fetch_upstream(
@@ -319,7 +331,7 @@ async fn serve_request(
         RouteAction::Proxy(args) => {
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
-        RouteAction::Static(args) => generate_static_response(args).await?,
+        RouteAction::Static(args) => generate_static_response(args, &ctx.extras).await?,
         RouteAction::PatchPacmanDbRoute(args) => {
             patch_pacman_db_response(args, &ctx.plot, uri).await?
         }

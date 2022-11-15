@@ -1,0 +1,24 @@
+---
+
+artifacts:
+  index:
+    path: contrib/artifacts.html
+  text:
+    data: |
+      hello world!
+
+routes:
+  - path: "/data.txt"
+    type: static
+    args:
+      content_type: "text/plain; charset=utf-8"
+      artifact: text
+  - path: "/"
+    type: static
+    args:
+      content_type: "text/html; charset=utf-8"
+      artifact: index
+  - type: static
+    args:
+      status: 404
+      data: ""

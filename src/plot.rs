@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +104,8 @@ pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
     pub signing_keys: Option<BTreeMap<String, Keygen>>,
+    #[serde(default)]
+    pub artifacts: BTreeMap<String, Artifact>,
     pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
@@ -130,6 +132,18 @@ impl Plot {
             if let Some(upstream) = route.action.upstream() {
                 if !self.upstreams.contains_key(upstream) {
                     bail!("Reference to undefined upstream: {:?}", upstream);
+                }
+            }
+            if let RouteAction::Static(route) = &route.action {
+                match (&route.data, &route.artifact) {
+                    (None, None) => bail!("Static route is missing both data and artifact reference"),
+                    (Some(_), Some(_)) => bail!("Static route has both data and artifact reference but they are mutually exclusive"),
+                    (None, Some(artifact)) => {
+                        if self.artifacts.get(artifact).is_none() {
+                            bail!("Reference to undefined artifact object: {:?}", artifact);
+                        }
+                    }
+                    _ => (),
                 }
             }
         }
@@ -163,13 +177,27 @@ impl Plot {
             BTreeMap::new()
         };
 
-        Ok(PlotExtras { signing_keys })
+        let mut artifacts = BTreeMap::new();
+        for (k, v) in &self.artifacts {
+            let v = match v {
+                Artifact::Path(path) => fs::read(&path.path)
+                    .with_context(|| anyhow!("Failed to read file: {:?}", path.path))?,
+                Artifact::Inline(inline) => inline.data.as_bytes().to_vec(),
+            };
+            artifacts.insert(k.to_string(), v);
+        }
+
+        Ok(PlotExtras {
+            signing_keys,
+            artifacts,
+        })
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlotExtras {
     pub signing_keys: BTreeMap<String, EmbeddedKey>,
+    pub artifacts: BTreeMap<String, Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -229,7 +257,8 @@ pub struct ProxyRoute {
 pub struct StaticRoute {
     pub status: Option<u16>,
     pub content_type: Option<String>,
-    pub data: String,
+    pub data: Option<String>,
+    pub artifact: Option<String>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
 }
@@ -511,6 +540,23 @@ pub struct InstallPgp {
     #[serde(default)]
     pub binary: bool,
     pub cmd: Cmd,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Artifact {
+    Path(PathArtifact),
+    Inline(InlineArtifact),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PathArtifact {
+    path: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InlineArtifact {
+    data: String,
 }
 
 #[cfg(test)]

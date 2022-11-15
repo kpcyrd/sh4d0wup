@@ -7,9 +7,9 @@ use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
-use sh4d0wup::keygen;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
+use sh4d0wup::keygen::{self, EmbeddedKey};
 use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
@@ -114,7 +114,7 @@ async fn main() -> Result<()> {
 
             let mut keys = BTreeMap::new();
             let signing_key = if let Some(signing_key) = signing_key {
-                keys.insert("pgp".to_string(), signing_key);
+                keys.insert("pgp".to_string(), EmbeddedKey::Pgp(signing_key));
                 Some("pgp".to_string())
             } else {
                 None

@@ -6,6 +6,7 @@ upstreams:
 
 signing_keys:
   apt:
+    type: pgp
     uids: ["Debian Archive Automatic Signing Key (11/bullseye) <ftpmaster@debian.org>"]
 
 check:

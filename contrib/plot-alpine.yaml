@@ -4,6 +4,12 @@ upstreams:
   alpine:
     url: https://dl-cdn.alpinelinux.org/
 
+signing_keys:
+  pwn:
+    type: openssl
+    keypair_type: rsa
+    bits: 4096
+
 check:
   image: alpine:edge
   cmds:

@@ -6,6 +6,7 @@ upstreams:
 
 signing_keys:
   pwn:
+    type: pgp
     uids: ["pwn"]
 
 check:

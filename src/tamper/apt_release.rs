@@ -1,5 +1,5 @@
 use crate::errors::*;
-use crate::keygen::pgp::PgpEmbedded;
+use crate::keygen::EmbeddedKey;
 use crate::plot::{PatchAptReleaseConfig, PkgRef};
 use crate::sign;
 use indexmap::IndexMap;
@@ -157,7 +157,7 @@ impl ChecksumEntry {
 
 pub fn patch<W: Write>(
     config: &PatchAptReleaseConfig,
-    keys: &BTreeMap<String, PgpEmbedded>,
+    keys: &BTreeMap<String, EmbeddedKey>,
     bytes: &[u8],
     out: &mut W,
 ) -> Result<()> {
@@ -210,7 +210,9 @@ pub fn patch<W: Write>(
     if let Some(signing_key) = &config.signing_key {
         let signing_key = keys
             .get(signing_key)
-            .with_context(|| anyhow!("Invalid signing key reference: {:?}", signing_key))?;
+            .with_context(|| anyhow!("Invalid signing key reference: {:?}", signing_key))?
+            .pgp()?;
+
         let release = sign::pgp::sign_cleartext(signing_key, release.to_string().as_bytes())
             .context("Failed to sign release")?;
         out.write_all(&release)?;
@@ -224,7 +226,7 @@ pub fn patch<W: Write>(
 
 pub fn modify_response(
     config: &PatchAptReleaseConfig,
-    keys: &BTreeMap<String, PgpEmbedded>,
+    keys: &BTreeMap<String, EmbeddedKey>,
     bytes: &[u8],
 ) -> Result<Bytes> {
     let mut out = Vec::new();

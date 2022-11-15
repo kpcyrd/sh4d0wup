@@ -1,8 +1,8 @@
 use crate::args;
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
-use crate::keygen::pgp::{self, KeygenPgp, PgpEmbedded};
 use crate::keygen::tls::KeygenTls;
+use crate::keygen::{EmbeddedKey, Keygen};
 use peekread::BufPeekReader;
 use peekread::PeekRead;
 use serde::{Deserialize, Serialize};
@@ -99,11 +99,11 @@ impl Ctx {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
-    pub signing_keys: Option<BTreeMap<String, KeygenPgp>>,
+    pub signing_keys: Option<BTreeMap<String, Keygen>>,
     pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
@@ -157,17 +157,7 @@ impl Plot {
     pub fn resolve_extras(&mut self) -> Result<PlotExtras> {
         let signing_keys = if let Some(keys) = self.signing_keys.take() {
             keys.into_iter()
-                .map(|(key, value)| {
-                    Ok((
-                        key,
-                        match value {
-                            KeygenPgp::Embedded(pgp) => pgp,
-                            KeygenPgp::Generate(pgp) => {
-                                pgp::generate(pgp).context("Failed to generate pgp key")?
-                            }
-                        },
-                    ))
-                })
+                .map(|(key, value)| Ok((key, value.resolve()?)))
                 .collect::<Result<_>>()?
         } else {
             BTreeMap::new()
@@ -179,7 +169,7 @@ impl Plot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlotExtras {
-    pub signing_keys: BTreeMap<String, PgpEmbedded>,
+    pub signing_keys: BTreeMap<String, EmbeddedKey>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

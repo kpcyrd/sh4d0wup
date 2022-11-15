@@ -211,7 +211,8 @@ impl Container {
             let key = plot_extras
                 .signing_keys
                 .get(&pgp.key)
-                .context("Invalid reference to signing key")?;
+                .context("Invalid reference to signing key")?
+                .pgp()?;
 
             let cert = key.to_cert(pgp.binary)?;
 

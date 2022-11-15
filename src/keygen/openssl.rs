@@ -35,6 +35,7 @@ impl OpensslEmbedded {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum KeypairType {
     Rsa,
     Secp256k1,

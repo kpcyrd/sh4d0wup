@@ -20,7 +20,7 @@ pub enum KeygenPgp {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PgpEmbedded {
     pub cert: Option<String>,
-    pub key: String,
+    pub secret_key: String,
     pub rev: Option<String>,
 }
 
@@ -28,11 +28,11 @@ impl PgpEmbedded {
     pub fn read_from_disk<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
         debug!("Reading pgp key from path: {:?}", path);
-        let key = fs::read_to_string(path)
+        let secret_key = fs::read_to_string(path)
             .with_context(|| anyhow!("Failed to read from file {:?}", path))?;
         Ok(PgpEmbedded {
             cert: None,
-            key,
+            secret_key,
             rev: None,
         })
     }
@@ -41,7 +41,7 @@ impl PgpEmbedded {
         let input = if let Some(cert) = &self.cert {
             cert
         } else {
-            &self.key
+            &self.secret_key
         };
 
         let cert = Cert::from_reader(input.as_bytes())?;
@@ -103,7 +103,7 @@ pub fn generate(config: PgpGenerate) -> Result<PgpEmbedded> {
         .generate()?;
 
     let cert = String::from_utf8(pgp.armored().to_vec()?)?;
-    let key = String::from_utf8(pgp.as_tsk().armored().to_vec()?)?;
+    let secret_key = String::from_utf8(pgp.as_tsk().armored().to_vec()?)?;
 
     let rev = {
         let headers = pgp.armor_headers();
@@ -120,7 +120,7 @@ pub fn generate(config: PgpGenerate) -> Result<PgpEmbedded> {
 
     Ok(PgpEmbedded {
         cert: Some(cert),
-        key,
+        secret_key,
         rev: Some(rev),
     })
 }

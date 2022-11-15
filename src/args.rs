@@ -216,6 +216,7 @@ pub struct TamperAptPackageList {
 pub enum Keygen {
     Tls(KeygenTls),
     Pgp(KeygenPgp),
+    Openssl(KeygenOpenssl),
 }
 
 /// Generate a self-signed tls certificate
@@ -230,6 +231,20 @@ pub struct KeygenPgp {
     pub uids: Vec<String>,
 }
 
+/// Generate an openssl keypair
+#[derive(Debug, Clone, Parser)]
+pub struct KeygenOpenssl {
+    /// Generate an rsa keypair
+    #[arg(long, group = "keypair")]
+    pub rsa: bool,
+    /// Generate an secp256k1 keypair
+    #[arg(long, group = "keypair")]
+    pub secp256k1: bool,
+    /// Number of bits to use for the keypair
+    #[arg(short, long)]
+    pub bits: Option<u32>,
+}
+
 /// Use signing keys to generate signatures
 #[derive(Debug, Subcommand)]
 pub enum Sign {
@@ -237,18 +252,50 @@ pub enum Sign {
     PgpCleartext(SignPgp),
     /// Create a detached pgp signature
     PgpDetached(SignPgp),
+    Openssl(SignOpenssl),
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct SignPgp {
     /// Secret key to use for signing
-    #[arg(long)]
+    #[arg(short, long)]
     pub secret_key: PathBuf,
     /// Don't use ascii armor
-    #[arg(long)]
+    #[arg(short, long)]
     pub binary: bool,
     /// Path to data to sign
     pub path: PathBuf,
+}
+
+/// Create a digest signature with openssl
+#[derive(Debug, Clone, Parser)]
+pub struct SignOpenssl {
+    /// Secret key to use for signing
+    #[arg(short, long)]
+    pub secret_key: PathBuf,
+    /// Don't use ascii armor
+    #[arg(short, long)]
+    pub binary: bool,
+    /// Path to data to sign
+    pub path: PathBuf,
+    /// Use md5 hash function
+    #[arg(long, group = "hash")]
+    pub md5: bool,
+    /// Use sha1 hash function
+    #[arg(long, group = "hash")]
+    pub sha1: bool,
+    /// Use sha256 hash function
+    #[arg(long, group = "hash")]
+    pub sha256: bool,
+    /// Use sha512 hash function
+    #[arg(long, group = "hash")]
+    pub sha512: bool,
+    /// Use sha3-256 hash function
+    #[arg(long, group = "hash")]
+    pub sha3_256: bool,
+    /// Use sha3-512 hash function
+    #[arg(long, group = "hash")]
+    pub sha3_512: bool,
 }
 
 /// Compile an attack based on a plot

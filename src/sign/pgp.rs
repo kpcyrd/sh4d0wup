@@ -12,7 +12,7 @@ use sequoia_openpgp::types::SignatureType;
 use std::io::Write;
 
 pub fn parse_secret_signing_key(pgp: &PgpEmbedded) -> Result<KeyPair> {
-    let cert = Cert::from_bytes(&pgp.key).context("Failed to parse pgp secret key")?;
+    let cert = Cert::from_bytes(&pgp.secret_key).context("Failed to parse pgp secret key")?;
     if !cert.is_tsk() {
         bail!("Loaded certificate is not a secret key");
     }

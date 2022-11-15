@@ -1,5 +1,6 @@
 use clap::Parser;
 use env_logger::Env;
+use openssl::hash::MessageDigest;
 use sh4d0wup::args::{self, Args, Infect, Keygen, Sign, SubCommand, Tamper};
 use sh4d0wup::build;
 use sh4d0wup::check;
@@ -7,6 +8,7 @@ use sh4d0wup::errors::*;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen;
+use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig};
 use sh4d0wup::sign;
@@ -157,14 +159,22 @@ async fn main() -> Result<()> {
                     .context("Failed to inspect serialized pgp data")?;
                 print!("{}", cert);
             }
-            keygen::pgp::debug_inspect(pgp.key.as_bytes())
+            keygen::pgp::debug_inspect(pgp.secret_key.as_bytes())
                 .context("Failed to inspect serialized pgp data")?;
-            print!("{}", pgp.key);
+            print!("{}", pgp.secret_key);
             if let Some(rev) = pgp.rev {
                 keygen::pgp::debug_inspect(rev.as_bytes())
                     .context("Failed to inspect serialized pgp data")?;
                 print!("{}", rev);
             }
+        }
+        SubCommand::Keygen(Keygen::Openssl(openssl)) => {
+            let openssl = keygen::openssl::generate(&openssl.try_into()?)
+                .context("Failed to generate openssl key")?;
+            if let Some(public_key) = openssl.public_key {
+                print!("{}", public_key);
+            }
+            print!("{}", openssl.secret_key);
         }
         SubCommand::Sign(Sign::PgpCleartext(pgp)) => {
             if pgp.binary {
@@ -185,6 +195,35 @@ async fn main() -> Result<()> {
             let data = fs::read(&pgp.path)
                 .with_context(|| anyhow!("Failed to read payload data from {:?}", pgp.path))?;
             let sig = sign::pgp::sign_detached(&secret_key, &data, pgp.binary)?;
+            io::stdout().write_all(&sig)?;
+        }
+        SubCommand::Sign(Sign::Openssl(openssl)) => {
+            if !openssl.binary {
+                bail!("Openssl signatures are always binary");
+            }
+            let secret_key = OpensslEmbedded::read_from_disk(&openssl.secret_key)
+                .context("Failed to load secret key")?;
+            debug!("Reading data to sign...");
+            let data = fs::read(&openssl.path)
+                .with_context(|| anyhow!("Failed to read payload data from {:?}", openssl.path))?;
+
+            let digest = if openssl.md5 {
+                MessageDigest::md5()
+            } else if openssl.sha1 {
+                MessageDigest::sha1()
+            } else if openssl.sha256 {
+                MessageDigest::sha256()
+            } else if openssl.sha512 {
+                MessageDigest::sha512()
+            } else if openssl.sha3_256 {
+                MessageDigest::sha3_256()
+            } else if openssl.sha3_512 {
+                MessageDigest::sha3_512()
+            } else {
+                bail!("No hash function selected")
+            };
+
+            let sig = sign::openssl::sign(&secret_key, &data, digest)?;
             io::stdout().write_all(&sig)?;
         }
         SubCommand::Build(build) => build::run(build)?,

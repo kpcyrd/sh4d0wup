@@ -349,8 +349,8 @@ pub struct Check {
     #[arg(long)]
     pub pull: bool,
     /// Only load the plot but don't execute it
-    #[arg(short, long)]
-    pub no_exec: bool,
+    #[arg(short, long, action(ArgAction::Count))]
+    pub no_exec: u8,
 }
 
 /// Generate shell completions

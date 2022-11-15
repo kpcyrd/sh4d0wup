@@ -138,13 +138,24 @@ async fn main() -> Result<()> {
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);
             let ctx = Ctx::load_from_path(&check.plot)?;
-            if check.no_exec {
-                serde_json::to_writer_pretty(io::stdout(), &ctx.plot)?;
-                println!();
-                serde_json::to_writer_pretty(io::stdout(), &ctx.extras)?;
-                println!();
-            } else {
-                check::spawn(check, ctx).await?;
+            match check.no_exec {
+                0 => {
+                    check::spawn(check, ctx).await?;
+                }
+                1 => {
+                    serde_json::to_writer_pretty(io::stdout(), &ctx.plot)?;
+                    println!();
+                }
+                _ => {
+                    serde_json::to_writer_pretty(io::stdout(), &ctx.plot)?;
+                    println!();
+                    for (key, value) in &ctx.extras.signing_keys {
+                        println!("signing_key {:?}: {:?}", key, value);
+                    }
+                    for (key, value) in &ctx.extras.artifacts {
+                        println!("artifact {:?}: {} bytes", key, value.len());
+                    }
+                }
             }
         }
         SubCommand::Keygen(Keygen::Tls(tls)) => {

@@ -178,13 +178,17 @@ impl Plot {
         };
 
         let mut artifacts = BTreeMap::new();
-        for (k, v) in &self.artifacts {
-            let v = match v {
-                Artifact::Path(path) => fs::read(&path.path)
-                    .with_context(|| anyhow!("Failed to read file: {:?}", path.path))?,
-                Artifact::Inline(inline) => inline.data.as_bytes().to_vec(),
-            };
-            artifacts.insert(k.to_string(), v);
+        for (k, v) in &mut self.artifacts {
+            match v {
+                Artifact::Path(_) => (),
+                Artifact::Inline(inline) => {
+                    let data = std::mem::take(&mut inline.data);
+                    *v = Artifact::Memory;
+                    let bytes = data.into_bytes();
+                    artifacts.insert(k.to_string(), bytes);
+                }
+                Artifact::Memory => bail!("Can't be in memory yet"),
+            }
         }
 
         Ok(PlotExtras {
@@ -547,16 +551,17 @@ pub struct InstallPgp {
 pub enum Artifact {
     Path(PathArtifact),
     Inline(InlineArtifact),
+    Memory,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathArtifact {
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InlineArtifact {
-    data: String,
+    pub data: String,
 }
 
 #[cfg(test)]

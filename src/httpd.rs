@@ -1,8 +1,8 @@
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
-    self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, PlotExtras,
-    ProxyRoute, RouteAction, StaticRoute,
+    self, Artifact, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot,
+    PlotExtras, ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -12,6 +12,7 @@ use serde::Serialize;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::fs;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Filter, Rejection, Reply};
 use warp_reverse_proxy::extract_request_data_filter;
@@ -133,6 +134,7 @@ async fn proxy_forward_request(
 
 async fn generate_static_response(
     args: &StaticRoute,
+    plot: &Plot,
     plot_extras: &PlotExtras,
 ) -> std::result::Result<http::Response<Bytes>, Rejection> {
     let status = args.status.unwrap_or(200);
@@ -149,12 +151,27 @@ async fn generate_static_response(
     let data = if let Some(data) = &args.data {
         data.as_bytes().to_vec()
     } else if let Some(artifact) = &args.artifact {
-        plot_extras
+        let config = plot
             .artifacts
             .get(artifact)
             .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
-            .map_err(http_error)?
-            .clone()
+            .map_err(http_error)?;
+
+        match config {
+            Artifact::Path(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
+            Artifact::Inline(_) => {
+                return Err(http_error(anyhow!(
+                    "Inline artifacts are expected to be loaded into memory at this point"
+                ))
+                .into())
+            }
+            Artifact::Memory => plot_extras
+                .artifacts
+                .get(artifact)
+                .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
+                .map_err(http_error)?
+                .clone(),
+        }
     } else {
         return Err(http_error(anyhow!("No data or artifact configured for static route")).into());
     };
@@ -331,7 +348,7 @@ async fn serve_request(
         RouteAction::Proxy(args) => {
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
-        RouteAction::Static(args) => generate_static_response(args, &ctx.extras).await?,
+        RouteAction::Static(args) => generate_static_response(args, &ctx.plot, &ctx.extras).await?,
         RouteAction::PatchPacmanDbRoute(args) => {
             patch_pacman_db_response(args, &ctx.plot, uri).await?
         }

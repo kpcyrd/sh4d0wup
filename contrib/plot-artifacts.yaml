@@ -6,8 +6,16 @@ artifacts:
   text:
     data: |
       hello world!
+  remote:
+    url: https://www.wikipedia.org/portal/wikipedia.org/assets/img/Wikipedia-logo-v2.png
+    sha256: 75038605ff9e35cc393e0ed8200069601c889100607cde67d2af68b9eb88e5d4
 
 routes:
+  - path: "/img.png"
+    type: static
+    args:
+      content_type: image/png
+      artifact: remote
   - path: "/data.txt"
     type: static
     args:

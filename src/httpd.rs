@@ -159,6 +159,7 @@ async fn generate_static_response(
 
         match config {
             Artifact::Path(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
+            Artifact::Url(_) => todo!(),
             Artifact::Inline(_) => {
                 return Err(http_error(anyhow!(
                     "Inline artifacts are expected to be loaded into memory at this point"

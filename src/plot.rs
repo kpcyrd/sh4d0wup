@@ -14,6 +14,7 @@ use std::io::Read;
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ctx {
@@ -180,6 +181,7 @@ impl Plot {
         for (k, v) in &mut self.artifacts {
             match v {
                 Artifact::Path(_) => (),
+                Artifact::Url(_) => (),
                 Artifact::Inline(inline) => {
                     let data = mem::take(&mut inline.data);
                     *v = Artifact::Memory;
@@ -549,6 +551,7 @@ pub struct InstallPgp {
 #[serde(untagged)]
 pub enum Artifact {
     Path(PathArtifact),
+    Url(UrlArtifact),
     Inline(InlineArtifact),
     Memory,
 }
@@ -556,6 +559,12 @@ pub enum Artifact {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathArtifact {
     pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UrlArtifact {
+    pub url: Url,
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

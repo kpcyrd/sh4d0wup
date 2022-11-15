@@ -1,6 +1,9 @@
 use crate::args;
 use crate::errors::*;
 use crate::plot::{Artifact, Plot};
+use crate::upstream;
+use http::Method;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
@@ -43,7 +46,7 @@ impl<W: Write> ArchiveBuilder<W> {
     }
 }
 
-pub fn run(build: args::Build) -> Result<()> {
+pub async fn run(build: args::Build) -> Result<()> {
     info!("Loading plot from {:?}...", build.plot);
     let mut plot = Plot::load_from_path(&build.plot)?;
 
@@ -63,6 +66,29 @@ pub fn run(build: args::Build) -> Result<()> {
                 let buf = fs::read(&artifact.path)?;
                 artifacts.insert(key.to_string(), buf);
                 *value = Artifact::Memory
+            }
+            Artifact::Url(artifact) => {
+                let response = upstream::send_req(Method::GET, artifact.url.clone()).await?;
+                let buf = response.bytes().await?;
+
+                if let Some(expected) = &artifact.sha256 {
+                    debug!("Calculating hash sum...");
+                    let mut h = Sha256::new();
+                    h.update(&buf);
+                    let h = hex::encode(h.finalize());
+                    debug!("Calcuated sha256: {:?}", h);
+                    debug!("Expected sha256: {:?}", expected);
+                    if h != *expected {
+                        bail!(
+                            "Calculated sha256 {:?} doesn't match expected sha256 {:?}",
+                            h,
+                            expected
+                        );
+                    }
+                }
+
+                artifacts.insert(key.to_string(), buf.to_vec());
+                *value = Artifact::Memory;
             }
             Artifact::Inline(inline) => {
                 let data = mem::take(&mut inline.data);

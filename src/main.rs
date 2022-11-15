@@ -253,7 +253,7 @@ async fn main() -> Result<()> {
             sig.push(b'\n');
             io::stdout().write_all(&sig)?;
         }
-        SubCommand::Build(build) => build::run(build)?,
+        SubCommand::Build(build) => build::run(build).await?,
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;
         }

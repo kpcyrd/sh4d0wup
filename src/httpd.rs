@@ -7,6 +7,7 @@ use crate::plot::{
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
+use crate::upstream::proxy_to_and_forward_response;
 use http::Method;
 use http::{HeaderMap, HeaderValue};
 use serde::Serialize;
@@ -17,7 +18,6 @@ use tokio::fs;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Filter, Rejection, Reply};
 use warp_reverse_proxy::extract_request_data_filter;
-use warp_reverse_proxy::proxy_to_and_forward_response;
 use warp_reverse_proxy::QueryParameters;
 
 #[derive(Debug)]
@@ -119,18 +119,16 @@ async fn proxy_forward_request(
         }
     }
 
-    let base_path = String::new();
-    debug!("Sending request upstream to {:?}", upstream.url.to_string());
-    proxy_to_and_forward_response(
-        upstream.url.to_string(),
-        base_path,
-        uri,
-        params,
-        method,
-        headers,
-        body,
-    )
-    .await
+    let mut url = upstream.url.clone();
+    if let Some(path) = &args.path {
+        url.set_path(path);
+    } else {
+        url.set_path(uri.as_str());
+    };
+    let proxy_uri = url.to_string();
+
+    debug!("Sending request upstream to {:?}", &proxy_uri);
+    proxy_to_and_forward_response(proxy_uri, uri, params, method, headers, body).await
 }
 
 async fn generate_static_response(

@@ -234,7 +234,9 @@ impl Container {
 
         info!("Starting test...");
         for cmd in &config.cmds {
-            self.exec_cmd(cmd).await.context("Test failed")?;
+            self.exec_cmd(cmd)
+                .await
+                .context("Attack failed to execute on test environment")?;
         }
         info!("Test completed successfully");
         Ok(())

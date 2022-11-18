@@ -185,7 +185,6 @@ impl Plot {
                     let buf = artifact.download().await?;
                     artifacts.insert(k.to_string(), buf.to_vec());
                     *v = Artifact::Memory;
-
                 }
                 Artifact::Inline(inline) => {
                     let data = mem::take(&mut inline.data);

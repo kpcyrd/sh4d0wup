@@ -1,4 +1,5 @@
 use crate::args;
+use crate::artifacts::Artifact;
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
@@ -12,9 +13,8 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
-use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ctx {
@@ -74,7 +74,7 @@ impl Ctx {
         plot.context("Bundle contains no plot")
     }
 
-    pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
 
         let f = File::open(path).context("Failed to open plot")?;
@@ -91,7 +91,7 @@ impl Ctx {
 
         let mut plot = Plot::load_from_str(&plot).context("Failed to deserialize plot")?;
         plot.validate().context("Plot failed to validate")?;
-        let mut extras = plot.resolve_extras()?;
+        let mut extras = plot.resolve_extras().await?;
 
         extras.artifacts.extend(artifacts.into_iter());
 
@@ -168,7 +168,7 @@ impl Plot {
         Ok(&route.action)
     }
 
-    pub fn resolve_extras(&mut self) -> Result<PlotExtras> {
+    pub async fn resolve_extras(&mut self) -> Result<PlotExtras> {
         let signing_keys = if let Some(keys) = self.signing_keys.take() {
             keys.into_iter()
                 .map(|(key, value)| Ok((key, value.resolve()?)))
@@ -181,12 +181,17 @@ impl Plot {
         for (k, v) in &mut self.artifacts {
             match v {
                 Artifact::Path(_) => (),
-                Artifact::Url(_) => (),
+                Artifact::Url(artifact) => {
+                    let buf = artifact.download().await?;
+                    artifacts.insert(k.to_string(), buf.to_vec());
+                    *v = Artifact::Memory;
+
+                }
                 Artifact::Inline(inline) => {
                     let data = mem::take(&mut inline.data);
-                    *v = Artifact::Memory;
                     let bytes = data.into_bytes();
                     artifacts.insert(k.to_string(), bytes);
+                    *v = Artifact::Memory;
                 }
                 Artifact::Memory => (),
             }
@@ -545,31 +550,6 @@ pub struct InstallPgp {
     #[serde(default)]
     pub binary: bool,
     pub cmd: Cmd,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Artifact {
-    Path(PathArtifact),
-    Url(UrlArtifact),
-    Inline(InlineArtifact),
-    Memory,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PathArtifact {
-    pub path: PathBuf,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UrlArtifact {
-    pub url: Url,
-    pub sha256: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InlineArtifact {
-    pub data: String,
 }
 
 #[cfg(test)]

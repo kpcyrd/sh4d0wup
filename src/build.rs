@@ -1,9 +1,7 @@
 use crate::args;
+use crate::artifacts::Artifact;
 use crate::errors::*;
-use crate::plot::{Artifact, Plot};
-use crate::upstream;
-use http::Method;
-use sha2::{Digest, Sha256};
+use crate::plot::Plot;
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
@@ -68,25 +66,8 @@ pub async fn run(build: args::Build) -> Result<()> {
                 *value = Artifact::Memory
             }
             Artifact::Url(artifact) => {
-                let response = upstream::send_req(Method::GET, artifact.url.clone()).await?;
-                let buf = response.bytes().await?;
-
-                if let Some(expected) = &artifact.sha256 {
-                    debug!("Calculating hash sum...");
-                    let mut h = Sha256::new();
-                    h.update(&buf);
-                    let h = hex::encode(h.finalize());
-                    debug!("Calcuated sha256: {:?}", h);
-                    debug!("Expected sha256: {:?}", expected);
-                    if h != *expected {
-                        bail!(
-                            "Calculated sha256 {:?} doesn't match expected sha256 {:?}",
-                            h,
-                            expected
-                        );
-                    }
-                }
-
+                info!("Reading artifact from url: {}", artifact.url);
+                let buf = artifact.download().await?;
                 artifacts.insert(key.to_string(), buf.to_vec());
                 *value = Artifact::Memory;
             }

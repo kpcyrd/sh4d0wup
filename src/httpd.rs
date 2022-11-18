@@ -1,8 +1,9 @@
+use crate::artifacts::Artifact;
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
-    self, Artifact, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot,
-    PlotExtras, ProxyRoute, RouteAction, StaticRoute,
+    self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, PlotExtras,
+    ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -159,7 +160,12 @@ async fn generate_static_response(
 
         match config {
             Artifact::Path(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
-            Artifact::Url(_) => todo!(),
+            Artifact::Url(_) => {
+                return Err(http_error(anyhow!(
+                    "Url artifacts are expected to be loaded into memory at this point"
+                ))
+                .into())
+            }
             Artifact::Inline(_) => {
                 return Err(http_error(anyhow!(
                     "Inline artifacts are expected to be loaded into memory at this point"

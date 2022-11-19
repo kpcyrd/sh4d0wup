@@ -5,6 +5,7 @@ use reqwest::redirect::Policy;
 use unicase::Ascii;
 use url::Url;
 use warp::http::{HeaderMap, HeaderValue};
+use warp::hyper::Body;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Rejection};
 use warp_reverse_proxy::errors::Error as ProxyError;
@@ -47,7 +48,7 @@ pub async fn proxy_to_and_forward_response(
     method: Method,
     headers: HeaderMap,
     body: Bytes,
-) -> Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let request =
         filtered_data_to_request(proxy_uri, (original_uri, params, method, headers, body))
             .map_err(warp::reject::custom)?;
@@ -120,13 +121,12 @@ async fn proxy_request(request: reqwest::Request) -> Result<reqwest::Response, P
 
 async fn response_to_reply(
     response: reqwest::Response,
-) -> Result<http::Response<Bytes>, ProxyError> {
+) -> Result<http::Response<Body>, ProxyError> {
     let mut builder = http::Response::builder();
     for (k, v) in remove_hop_headers(response.headers()).iter() {
         builder = builder.header(k, v);
     }
-    builder
-        .status(response.status())
-        .body(response.bytes().await?)
-        .map_err(ProxyError::HTTP)
+    let status = response.status();
+    let body = Body::wrap_stream(response.bytes_stream());
+    builder.status(status).body(body).map_err(ProxyError::HTTP)
 }

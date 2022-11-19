@@ -1,0 +1,136 @@
+---
+
+upstreams:
+  archlinux:
+    url: https://geo.mirror.pkgbuild.com/
+
+check:
+  image: archlinux
+  cmds:
+    - 'echo "Server = http://${SH4D0WUP_BOUND_ADDR}/\$repo/os/\$arch" | tee /etc/pacman.d/mirrorlist'
+    - ["pacman", "-Suy", "--noconfirm"]
+
+routes:
+  - path: "/core/os/x86_64/core.db"
+    type: patch-pacman-db
+    args:
+      upstream: archlinux
+      patch:
+        - name: base
+          set:
+            "%REPLACES%":
+              - acl
+              - archlinux-keyring
+              - argon2
+              - attr
+              - audit
+              - bash
+              - brotli
+              - bzip2
+              - ca-certificates
+              - ca-certificates-mozilla
+              - ca-certificates-utils
+              - coreutils
+              - cryptsetup
+              - curl
+              - dbus
+              - device-mapper
+              - e2fsprogs
+              - expat
+              - file
+              - filesystem
+              - findutils
+              - gawk
+              - gcc-libs
+              - gdbm
+              - gettext
+              - glib2
+              - glibc
+              - gmp
+              - gnupg
+              - gnutls
+              - gpgme
+              - grep
+              - gzip
+              - hwdata
+              - iana-etc
+              - icu
+              - iproute2
+              - iptables
+              - iputils
+              - json-c
+              - kbd
+              - keyutils
+              - kmod
+              - krb5
+              - less
+              - libarchive
+              - libassuan
+              - libbpf
+              - libcap
+              - libcap-ng
+              - libelf
+              - libevent
+              - libffi
+              - libgcrypt
+              - libgpg-error
+              - libidn2
+              - libksba
+              - libldap
+              - libmnl
+              - libnetfilter_conntrack
+              - libnfnetlink
+              - libnftnl
+              - libnghttp2
+              - libnl
+              - libp11-kit
+              - libpcap
+              - libpsl
+              - libsasl
+              - libseccomp
+              - libsecret
+              - libssh2
+              - libsysprof-capture
+              - libtasn1
+              - libtirpc
+              - libunistring
+              - libverto
+              - libxcrypt
+              - libxml2
+              - licenses
+              - linux-api-headers
+              - lz4
+              - mpfr
+              - ncurses
+              - nettle
+              - npth
+              - openssl
+              - p11-kit
+              - pacman
+              - pacman-mirrorlist
+              - pam
+              - pambase
+              - pciutils
+              - pcre2
+              - pinentry
+              - popt
+              - procps-ng
+              - psmisc
+              - readline
+              - sed
+              - shadow
+              - sqlite
+              - systemd
+              - systemd-libs
+              - systemd-sysvcompat
+              - tar
+              - tpm2-tss
+              - tzdata
+              - util-linux
+              - util-linux-libs
+              - xz
+              - zlib
+              - zstd
+  - type: proxy
+    args:
+      upstream: archlinux

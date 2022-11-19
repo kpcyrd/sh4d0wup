@@ -15,6 +15,8 @@ use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::fs;
+use warp::hyper::body::HttpBody;
+use warp::hyper::Body;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Filter, Rejection, Reply};
 use warp_reverse_proxy::extract_request_data_filter;
@@ -64,21 +66,18 @@ pub mod log {
 
     pub async fn log_response(
         uri: String,
-        response: http::Response<Bytes>,
+        response: http::Response<Body>,
     ) -> Result<impl Reply, Rejection> {
         let headers = response.headers();
+        let size = response.body().size_hint().exact();
         let fields = Fields::default()
+            .append("bytes", size)
+            .append_header(headers, "content-length")
             .append_header(headers, "location")
             .append_header(headers, "etag")
             .append_header(headers, "last-modified")
             .into_string();
-        info!(
-            "Sending: {:?} {:?} - bytes={:?}{}",
-            uri,
-            response.status(),
-            response.body().len(),
-            fields,
-        );
+        info!("Sending: {:?} {:?} -{}", uri, response.status(), fields);
         debug!("Response headers: {:?}", headers);
         trace!("Sending response: {:?}", response);
         Ok(response)
@@ -94,7 +93,7 @@ async fn proxy_forward_request(
     method: Method,
     mut headers: HeaderMap,
     body: Bytes,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let upstream = plot
         .upstreams
         .get(&args.upstream)
@@ -135,7 +134,7 @@ async fn generate_static_response(
     args: &StaticRoute,
     plot: &Plot,
     plot_extras: &PlotExtras,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let status = args.status.unwrap_or(200);
     let mut builder = http::Response::builder().status(status);
 
@@ -181,7 +180,7 @@ async fn generate_static_response(
         return Err(http_error(anyhow!("No data or artifact configured for static route")).into());
     };
 
-    Ok(builder.body(Bytes::from(data)).unwrap())
+    Ok(builder.body(Body::from(data)).unwrap())
 }
 
 async fn fetch_upstream(
@@ -207,7 +206,7 @@ async fn patch_pacman_db_response(
     args: &PatchPkgDatabaseRoute,
     plot: &Plot,
     uri: FullPath,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
@@ -217,7 +216,7 @@ async fn patch_pacman_db_response(
 
     Ok(http::Response::builder()
         .status(200)
-        .body(response)
+        .body(Body::from(response))
         .unwrap())
 }
 
@@ -226,7 +225,7 @@ async fn patch_apt_release_response(
     plot: &Plot,
     plot_extras: &PlotExtras,
     uri: FullPath,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
@@ -237,7 +236,7 @@ async fn patch_apt_release_response(
 
     Ok(http::Response::builder()
         .status(200)
-        .body(response)
+        .body(Body::from(response))
         .unwrap())
 }
 
@@ -245,7 +244,7 @@ async fn patch_apt_package_list_response(
     args: &PatchPkgDatabaseRoute,
     plot: &Plot,
     uri: FullPath,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
@@ -256,7 +255,7 @@ async fn patch_apt_package_list_response(
 
     Ok(http::Response::builder()
         .status(200)
-        .body(response)
+        .body(Body::from(response))
         .unwrap())
 }
 
@@ -280,7 +279,7 @@ pub struct OciRegistryManifestResponse {
 
 async fn generate_oci_registry_manifest_response(
     args: &OciRegistryManifest,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let response = OciRegistryManifestResponse {
         schema_version: 1,
         name: args.name.clone(),
@@ -306,7 +305,7 @@ async fn generate_oci_registry_manifest_response(
         .header("docker-distribution-api-version", "registry/2.0")
         .header("etag", format!("\"{}\"", args.content_digest))
         .header("x-content-type-options", "nosniff")
-        .body(Bytes::from(buf))
+        .body(Body::from(buf))
         .unwrap())
 }
 
@@ -314,21 +313,21 @@ async fn append_response(
     args: &plot::Append,
     plot: &Plot,
     uri: FullPath,
-) -> std::result::Result<http::Response<Bytes>, Rejection> {
+) -> Result<http::Response<Body>, Rejection> {
     let mut response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
 
+    // TODO: rewrite to stream, then use Body::wrap_stream
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(http_error)? {
         body.extend(&chunk);
     }
     body.extend(args.data.as_bytes());
-    let body = Bytes::from(body);
 
     Ok(http::Response::builder()
         .status(response.status())
-        .body(body)
+        .body(Body::from(body))
         .unwrap())
 }
 
@@ -339,7 +338,7 @@ async fn serve_request(
     method: Method,
     headers: HeaderMap,
     body: Bytes,
-) -> std::result::Result<(String, http::Response<Bytes>), Rejection> {
+) -> Result<(String, http::Response<Body>), Rejection> {
     log::log_request(&method, &uri, &headers);
 
     let route_action = ctx

@@ -182,6 +182,10 @@ impl Plot {
             match v {
                 Artifact::Path(_) => (),
                 Artifact::Url(artifact) => {
+                    info!(
+                        "Downloading artifact into memory: {:?}",
+                        artifact.url.to_string()
+                    );
                     let buf = artifact.download().await?;
                     artifacts.insert(k.to_string(), buf.to_vec());
                     *v = Artifact::Memory;

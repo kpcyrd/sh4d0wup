@@ -1,16 +1,11 @@
 use crate::args;
 use crate::artifacts::Artifact;
 use crate::errors::*;
-use crate::keygen::in_toto::KeygenInToto;
-use crate::keygen::openssl::KeygenOpenssl;
-use crate::keygen::pgp::KeygenPgp;
-use crate::keygen::{EmbeddedKey, Keygen};
-use crate::plot::Plot;
+use crate::plot::{Plot, PlotExtras};
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::mem;
 use zstd::stream::write::Encoder;
 
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 3;
@@ -59,16 +54,16 @@ pub async fn run(build: args::Build) -> Result<()> {
         .context("Failed to setup zstd stream")?
         .auto_finish();
 
-    let signing_keys = if let Some(keys) = plot.signing_keys.take() {
-        keys.into_iter()
-            .map(|(key, value)| Ok((key, value.resolve()?)))
-            .collect::<Result<_>>()?
-    } else {
-        BTreeMap::new()
-    };
+    info!("Resolving plot...");
+    let artifacts = BTreeMap::new();
+    let PlotExtras {
+        mut artifacts,
+        signing_keys,
+    } = plot
+        .resolve_extras(artifacts)
+        .await
+        .context("Failed to resolve plot into runtime state")?;
 
-    info!("Loading artifacts...");
-    let mut artifacts = BTreeMap::new();
     for (key, value) in &mut plot.artifacts {
         match value {
             Artifact::Path(artifact) => {
@@ -77,23 +72,9 @@ pub async fn run(build: args::Build) -> Result<()> {
                 artifacts.insert(key.to_string(), buf);
                 *value = Artifact::Memory
             }
-            Artifact::Url(artifact) => {
-                info!("Reading artifact from url: {}", artifact.url);
-                let buf = artifact.download().await?;
-                artifacts.insert(key.to_string(), buf.to_vec());
-                *value = Artifact::Memory;
+            Artifact::Url(_) | Artifact::Inline(_) | Artifact::Signature(_) | Artifact::Memory => {
+                ()
             }
-            Artifact::Inline(inline) => {
-                let data = mem::take(&mut inline.data);
-                let bytes = data.into_bytes();
-                artifacts.insert(key.to_string(), bytes);
-                *value = Artifact::Memory;
-            }
-            Artifact::Signature(artifact) => {
-                let sig = artifact.resolve(&mut artifacts, &signing_keys)?;
-                artifacts.insert(key.to_string(), sig);
-            }
-            Artifact::Memory => (),
         }
     }
 
@@ -102,20 +83,7 @@ pub async fn run(build: args::Build) -> Result<()> {
         plot.signing_keys = Some(
             signing_keys
                 .into_iter()
-                .map(|(k, v)| {
-                    (
-                        k,
-                        match v {
-                            EmbeddedKey::Pgp(pgp) => Keygen::Pgp(KeygenPgp::Embedded(pgp)),
-                            EmbeddedKey::Openssl(openssl) => {
-                                Keygen::Openssl(KeygenOpenssl::Embedded(openssl))
-                            }
-                            EmbeddedKey::InToto(in_toto) => {
-                                Keygen::InToto(KeygenInToto::Embedded(in_toto))
-                            }
-                        },
-                    )
-                })
+                .map(|(k, v)| (k, v.into()))
                 .collect(),
         );
     }

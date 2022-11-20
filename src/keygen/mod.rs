@@ -57,3 +57,13 @@ impl EmbeddedKey {
         }
     }
 }
+
+impl Into<Keygen> for EmbeddedKey {
+    fn into(self) -> Keygen {
+        match self {
+            EmbeddedKey::Pgp(pgp) => Keygen::Pgp(KeygenPgp::Embedded(pgp)),
+            EmbeddedKey::Openssl(openssl) => Keygen::Openssl(KeygenOpenssl::Embedded(openssl)),
+            EmbeddedKey::InToto(in_toto) => Keygen::InToto(KeygenInToto::Embedded(in_toto)),
+        }
+    }
+}

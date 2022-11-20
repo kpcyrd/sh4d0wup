@@ -57,7 +57,9 @@ async fn main() -> Result<()> {
                 None
             };
 
-            httpd::run(bait.bind, tls, ctx).await?;
+            if !bait.no_bind {
+                httpd::run(bait.bind, tls, ctx).await?;
+            }
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;

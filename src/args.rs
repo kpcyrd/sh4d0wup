@@ -59,6 +59,9 @@ pub struct Bait {
     pub tls_key: Option<PathBuf>,
     /// Path to the plot to execute
     pub plot: String,
+    /// Setup the attack but exit instead of serving requests
+    #[arg(short, long)]
+    pub no_bind: bool,
 }
 
 /// High level tampering, inject additional commands into a package

@@ -1,6 +1,10 @@
 use crate::args;
 use crate::artifacts::Artifact;
 use crate::errors::*;
+use crate::keygen::in_toto::KeygenInToto;
+use crate::keygen::openssl::KeygenOpenssl;
+use crate::keygen::pgp::KeygenPgp;
+use crate::keygen::{EmbeddedKey, Keygen};
 use crate::plot::Plot;
 use std::collections::BTreeMap;
 use std::fs;
@@ -55,6 +59,14 @@ pub async fn run(build: args::Build) -> Result<()> {
         .context("Failed to setup zstd stream")?
         .auto_finish();
 
+    let signing_keys = if let Some(keys) = plot.signing_keys.take() {
+        keys.into_iter()
+            .map(|(key, value)| Ok((key, value.resolve()?)))
+            .collect::<Result<_>>()?
+    } else {
+        BTreeMap::new()
+    };
+
     info!("Loading artifacts...");
     let mut artifacts = BTreeMap::new();
     for (key, value) in &mut plot.artifacts {
@@ -77,8 +89,35 @@ pub async fn run(build: args::Build) -> Result<()> {
                 artifacts.insert(key.to_string(), bytes);
                 *value = Artifact::Memory;
             }
+            Artifact::Signature(artifact) => {
+                let sig = artifact.resolve(&mut artifacts, &signing_keys)?;
+                artifacts.insert(key.to_string(), sig);
+            }
             Artifact::Memory => (),
         }
+    }
+
+    if !signing_keys.is_empty() {
+        info!("Embedding generated/referenced secret keys in plot");
+        plot.signing_keys = Some(
+            signing_keys
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        k,
+                        match v {
+                            EmbeddedKey::Pgp(pgp) => Keygen::Pgp(KeygenPgp::Embedded(pgp)),
+                            EmbeddedKey::Openssl(openssl) => {
+                                Keygen::Openssl(KeygenOpenssl::Embedded(openssl))
+                            }
+                            EmbeddedKey::InToto(in_toto) => {
+                                Keygen::InToto(KeygenInToto::Embedded(in_toto))
+                            }
+                        },
+                    )
+                })
+                .collect(),
+        );
     }
 
     info!("Writing archive...");

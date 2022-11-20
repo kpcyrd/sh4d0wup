@@ -16,6 +16,9 @@ use std::mem;
 use std::path::Path;
 use std::str::FromStr;
 
+pub type Artifacts = BTreeMap<String, Vec<u8>>;
+pub type SigningKeys = BTreeMap<String, EmbeddedKey>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ctx {
     pub plot: Plot,
@@ -91,9 +94,7 @@ impl Ctx {
 
         let mut plot = Plot::load_from_str(&plot).context("Failed to deserialize plot")?;
         plot.validate().context("Plot failed to validate")?;
-        let mut extras = plot.resolve_extras().await?;
-
-        extras.artifacts.extend(artifacts.into_iter());
+        let extras = plot.resolve_extras(artifacts).await?;
 
         Ok(Ctx { plot, extras })
     }
@@ -168,7 +169,8 @@ impl Plot {
         Ok(&route.action)
     }
 
-    pub async fn resolve_extras(&mut self) -> Result<PlotExtras> {
+    pub async fn resolve_extras(&mut self, mut artifacts: Artifacts) -> Result<PlotExtras> {
+        debug!("Resolving plot into runtime state");
         let signing_keys = if let Some(keys) = self.signing_keys.take() {
             keys.into_iter()
                 .map(|(key, value)| Ok((key, value.resolve()?)))
@@ -177,16 +179,23 @@ impl Plot {
             BTreeMap::new()
         };
 
-        let mut artifacts = BTreeMap::new();
         for (k, v) in &mut self.artifacts {
+            if artifacts.contains_key(k) {
+                debug!("Artifact {:?} is already registered, skipping...", k);
+                continue;
+            }
             match v {
                 Artifact::Path(_) => (),
                 Artifact::Url(artifact) => {
                     info!(
-                        "Downloading artifact into memory: {:?}",
+                        "Downloading artifact {:?} into memory: {:?}",
+                        k,
                         artifact.url.to_string()
                     );
-                    let buf = artifact.download().await?;
+                    let buf = artifact
+                        .download()
+                        .await
+                        .context("Failed to resolve url artifact")?;
                     artifacts.insert(k.to_string(), buf.to_vec());
                     *v = Artifact::Memory;
                 }
@@ -195,6 +204,12 @@ impl Plot {
                     let bytes = data.into_bytes();
                     artifacts.insert(k.to_string(), bytes);
                     *v = Artifact::Memory;
+                }
+                Artifact::Signature(artifact) => {
+                    let sig = artifact
+                        .resolve(&mut artifacts, &signing_keys)
+                        .context("Failed to resolve signature artifact")?;
+                    artifacts.insert(k.to_string(), sig);
                 }
                 Artifact::Memory => (),
             }
@@ -209,8 +224,8 @@ impl Plot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlotExtras {
-    pub signing_keys: BTreeMap<String, EmbeddedKey>,
-    pub artifacts: BTreeMap<String, Vec<u8>>,
+    pub signing_keys: SigningKeys,
+    pub artifacts: Artifacts,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

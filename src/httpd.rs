@@ -169,7 +169,7 @@ async fn generate_static_response(
                 ))
                 .into())
             }
-            Artifact::Memory => plot_extras
+            Artifact::Signature(_) | Artifact::Memory => plot_extras
                 .artifacts
                 .get(artifact)
                 .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))

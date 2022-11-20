@@ -12,6 +12,9 @@ signing_keys:
 artifacts:
   coreutils:
     url: https://geo.mirror.pkgbuild.com/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst
+  coreutils_sig:
+    artifact: coreutils
+    sign_with: pwn
 
 check:
   image: archlinux
@@ -44,10 +47,9 @@ routes:
     args:
       artifact: coreutils
   - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst.sig"
-    type: proxy
+    type: static
     args:
-      upstream: archlinux
-      path: "/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst.sig"
+      artifact: coreutils_sig
   - type: proxy
     args:
       upstream: archlinux

@@ -11,7 +11,7 @@ use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::keygen::{self, EmbeddedKey};
-use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig};
+use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::collections::BTreeMap;
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
         SubCommand::Infect(Infect::Pacman(infect)) => {
             let pkg = fs::read(&infect.path)?;
             let mut out = File::create(&infect.out)?;
-            infect::pacman::infect(&infect, &pkg, &mut out)?;
+            infect::pacman::infect(&infect.try_into()?, &pkg, &mut out)?;
         }
         SubCommand::Infect(Infect::Deb(infect)) => {
             let pkg = fs::read(&infect.path)?;
@@ -90,7 +90,8 @@ async fn main() -> Result<()> {
             let mut out = File::create(&tamper.out)?;
 
             let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
-            tamper::pacman::patch_database(&config, &db, &mut out)?;
+            let plot_extras = PlotExtras::default();
+            tamper::pacman::patch_database(&config, &plot_extras, &db, &mut out)?;
         }
         SubCommand::Tamper(Tamper::AptRelease(tamper)) => {
             let db = fs::read(&tamper.path)?;

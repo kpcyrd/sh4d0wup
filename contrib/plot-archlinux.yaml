@@ -10,8 +10,17 @@ signing_keys:
     uids: ["pwn"]
 
 artifacts:
-  coreutils:
+  coreutils_upstream:
     url: https://geo.mirror.pkgbuild.com/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst
+    sha256: 43dfb7cee3765a5e95a8ef463712f2955fdc0f8c84a2a62d053bb67b0ee7f614
+  coreutils:
+     type: pacman
+     infect:
+       artifact: coreutils_upstream
+       set:
+         pkgver:
+           - 9.1-777
+       payload: id
   coreutils_sig:
     artifact: coreutils
     sign_with: pwn
@@ -35,6 +44,8 @@ routes:
       upstream: archlinux
       patch:
         - name: coreutils
+          artifact: coreutils
+          signature: coreutils_sig
           set:
             "%VERSION%":
               - 9.1-777

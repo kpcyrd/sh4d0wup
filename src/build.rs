@@ -65,16 +65,11 @@ pub async fn run(build: args::Build) -> Result<()> {
         .context("Failed to resolve plot into runtime state")?;
 
     for (key, value) in &mut plot.artifacts {
-        match value {
-            Artifact::Path(artifact) => {
-                info!("Reading artifact from disk: {:?}", artifact.path);
-                let buf = fs::read(&artifact.path)?;
-                artifacts.insert(key.to_string(), buf);
-                *value = Artifact::Memory
-            }
-            Artifact::Url(_) | Artifact::Inline(_) | Artifact::Signature(_) | Artifact::Memory => {
-                ()
-            }
+        if let Artifact::Path(artifact) = value {
+            info!("Reading artifact from disk: {:?}", artifact.path);
+            let buf = fs::read(&artifact.path)?;
+            artifacts.insert(key.to_string(), buf);
+            *value = Artifact::Memory
         }
     }
 

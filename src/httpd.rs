@@ -169,7 +169,7 @@ async fn generate_static_response(
                 ))
                 .into())
             }
-            Artifact::Signature(_) | Artifact::Memory => plot_extras
+            _ => plot_extras
                 .artifacts
                 .get(artifact)
                 .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
@@ -206,13 +206,15 @@ async fn patch_pacman_db_response(
     args: &PatchPkgDatabaseRoute,
     plot: &Plot,
     uri: FullPath,
+    plot_extras: &PlotExtras,
 ) -> Result<http::Response<Body>, Rejection> {
     let response = fetch_upstream(&args.proxy, plot, uri)
         .await
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
-    let response = pacman::modify_response(&args.config, &bytes).map_err(http_error)?;
+    let response =
+        pacman::modify_response(&args.config, plot_extras, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -354,7 +356,7 @@ async fn serve_request(
         }
         RouteAction::Static(args) => generate_static_response(args, &ctx.plot, &ctx.extras).await?,
         RouteAction::PatchPacmanDbRoute(args) => {
-            patch_pacman_db_response(args, &ctx.plot, uri).await?
+            patch_pacman_db_response(args, &ctx.plot, uri, &ctx.extras).await?
         }
         RouteAction::PatchAptRelease(args) => {
             patch_apt_release_response(args, &ctx.plot, &ctx.extras, uri).await?

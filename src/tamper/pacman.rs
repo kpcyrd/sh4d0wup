@@ -1,7 +1,9 @@
 use crate::compression;
 use crate::errors::*;
-use crate::plot::{self, PkgRef};
+use crate::plot::{self, PkgRef, PlotExtras};
 use indexmap::IndexMap;
+use md5::{Digest, Md5};
+use sha2::Sha256;
 use std::io;
 use std::io::prelude::*;
 use tar::{Archive, EntryType};
@@ -133,6 +135,7 @@ impl ToString for Pkg {
 
 pub fn patch_database<W: Write>(
     config: &PatchPkgDatabaseConfig,
+    plot_extras: &PlotExtras,
     bytes: &[u8],
     out: &mut W,
 ) -> Result<()> {
@@ -160,6 +163,39 @@ pub fn patch_database<W: Write>(
                 if config.is_excluded(&pkg) {
                     debug!("Filtering package: {:?}", pkg.name());
                     continue;
+                }
+
+                if let Some(artifact) = config.artifact(&pkg) {
+                    let artifact = plot_extras.artifacts.get(artifact).with_context(|| {
+                        anyhow!("Referencing undefined artifact: {:?}", artifact)
+                    })?;
+
+                    pkg.set_key("%CSIZE%".to_string(), vec![artifact.len().to_string()])
+                        .context("Failed to patch package")?;
+
+                    // TODO: these should be pre-computed
+                    debug!("Computing md5sum for artifact...");
+                    let mut hasher = Md5::new();
+                    hasher.update(artifact);
+                    let md5 = hasher.finalize();
+                    pkg.set_key("%MD5SUM%".to_string(), vec![hex::encode(md5)])
+                        .context("Failed to patch package")?;
+
+                    debug!("Computing sha256sum for artifact...");
+                    let mut hasher = Sha256::new();
+                    hasher.update(artifact);
+                    let sha256 = hasher.finalize();
+                    pkg.set_key("%SHA256SUM%".to_string(), vec![hex::encode(sha256)])
+                        .context("Failed to patch package")?;
+                }
+
+                if let Some(signature) = config.signature(&pkg) {
+                    let signature = plot_extras.artifacts.get(signature).with_context(|| {
+                        anyhow!("Referencing undefined artifact: {:?}", signature)
+                    })?;
+                    let encoded = base64::encode(signature);
+                    pkg.set_key("%PGPSIG%".to_string(), vec![encoded])
+                        .context("Failed to patch package")?;
                 }
 
                 if let Some(patch) = config.get_patches(&pkg) {
@@ -208,9 +244,13 @@ pub fn patch_database<W: Write>(
     Ok(())
 }
 
-pub fn modify_response(config: &PatchPkgDatabaseConfig, bytes: &[u8]) -> Result<Bytes> {
+pub fn modify_response(
+    config: &PatchPkgDatabaseConfig,
+    plot_extras: &PlotExtras,
+    bytes: &[u8],
+) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch_database(config, bytes, &mut out)?;
+    patch_database(config, plot_extras, bytes, &mut out)?;
     Ok(Bytes::from(out))
 }
 

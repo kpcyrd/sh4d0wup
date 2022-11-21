@@ -2,6 +2,7 @@ use crate::args;
 use crate::compression;
 use crate::errors::*;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::io::prelude::*;
@@ -68,19 +69,37 @@ pub fn patch_install_script(script: Option<&str>, payload: &str) -> Result<Strin
     }
 }
 
-pub fn infect<W: Write>(args: &args::InfectPacmanPkg, pkg: &[u8], out: &mut W) -> Result<()> {
-    let mut pkginfo_overrides = HashMap::<_, Vec<_>>::new();
-    for set in &args.set {
-        let (a, b) = set
-            .split_once('=')
-            .with_context(|| anyhow!("Invalid --set assignment: {:?}", set))?;
-        pkginfo_overrides
-            .entry(a.to_string())
-            .or_default()
-            .push(b.to_string());
-    }
-    debug!("Parsed pkginfo overrides: {:?}", pkginfo_overrides);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Infect {
+    #[serde(default)]
+    pub set: HashMap<String, Vec<String>>,
+    pub payload: Option<String>,
+}
 
+impl TryFrom<args::InfectPacmanPkg> for Infect {
+    type Error = Error;
+
+    fn try_from(args: args::InfectPacmanPkg) -> Result<Self> {
+        let mut pkginfo_overrides = HashMap::<_, Vec<_>>::new();
+        for set in &args.set {
+            let (a, b) = set
+                .split_once('=')
+                .with_context(|| anyhow!("Invalid --set assignment: {:?}", set))?;
+            pkginfo_overrides
+                .entry(a.to_string())
+                .or_default()
+                .push(b.to_string());
+        }
+        debug!("Parsed pkginfo overrides: {:?}", pkginfo_overrides);
+
+        Ok(Infect {
+            set: pkginfo_overrides,
+            payload: args.payload,
+        })
+    }
+}
+
+pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
     let comp = compression::detect_compression(pkg);
 
     let mut out = compression::stream_compress(out, comp)?;
@@ -136,7 +155,7 @@ pub fn infect<W: Write>(args: &args::InfectPacmanPkg, pkg: &[u8], out: &mut W) -
                 builder.append(&header, &mut &script[..])?;
             }
             (_, ".PKGINFO") => {
-                if pkginfo_overrides.is_empty() {
+                if args.set.is_empty() {
                     debug!("Passing through pkginfo unparsed");
                     builder.append(&header, &mut entry)?;
                 } else {
@@ -147,7 +166,7 @@ pub fn infect<W: Write>(args: &args::InfectPacmanPkg, pkg: &[u8], out: &mut W) -
                         .context("Failed to parse pkginfo")?;
                     debug!("Found pkginfo: {:?}", pkginfo);
 
-                    for (key, value) in &pkginfo_overrides {
+                    for (key, value) in &args.set {
                         let old = pkginfo.map.insert(key.clone(), value.clone());
                         debug!("Updated pkginfo {:?}: {:?} -> {:?}", key, old, value);
                     }

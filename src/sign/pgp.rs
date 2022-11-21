@@ -57,7 +57,7 @@ pub fn sign(signer: &PgpEmbedded, data: &[u8], encoding: EncodingType) -> Result
             message = Armorer::new(message).kind(armor::Kind::Signature).build()?;
         }
 
-        let builder = SignatureBuilder::new(SignatureType::Text);
+        let builder = SignatureBuilder::new(SignatureType::Binary);
         let signer = Signer::with_template(message, keypair, builder);
 
         let signer = match encoding {

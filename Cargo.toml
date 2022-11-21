@@ -18,8 +18,10 @@ flate2 = "1.0.24"
 hex = "0.4.3"
 http = "0.2.8"
 in-toto = "0.3.0"
-indexmap = "1.9.1"
+indexmap = { version = "1.9.1", features = ["serde"] }
 log = "0.4.17"
+maplit = "1.0.2"
+md-5 = "0.10.5"
 memchr = "2.5.0"
 nix = { version = "0.25.0", default-features = false, features = ["sched"] }
 oci-spec = { version = "0.5.8", features = ["image"], default-features = false }

@@ -4,6 +4,7 @@ use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
+use indexmap::IndexMap;
 use peekread::BufPeekReader;
 use peekread::PeekRead;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
-use std::mem;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -106,7 +106,7 @@ pub struct Plot {
     pub upstreams: BTreeMap<String, Upstream>,
     pub signing_keys: Option<BTreeMap<String, Keygen>>,
     #[serde(default)]
-    pub artifacts: BTreeMap<String, Artifact>,
+    pub artifacts: IndexMap<String, Artifact>,
     pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
@@ -170,7 +170,7 @@ impl Plot {
     }
 
     pub async fn resolve_extras(&mut self, mut artifacts: Artifacts) -> Result<PlotExtras> {
-        debug!("Resolving plot into runtime state");
+        debug!("Resolving signing keys...");
         let signing_keys = if let Some(keys) = self.signing_keys.take() {
             keys.into_iter()
                 .map(|(key, value)| Ok((key, value.resolve()?)))
@@ -179,39 +179,16 @@ impl Plot {
             BTreeMap::new()
         };
 
+        debug!("Resolving artifacts...");
         for (k, v) in &mut self.artifacts {
             if artifacts.contains_key(k) {
                 debug!("Artifact {:?} is already registered, skipping...", k);
                 continue;
             }
-            match v {
-                Artifact::Path(_) => (),
-                Artifact::Url(artifact) => {
-                    info!(
-                        "Downloading artifact {:?} into memory: {:?}",
-                        k,
-                        artifact.url.to_string()
-                    );
-                    let buf = artifact
-                        .download()
-                        .await
-                        .context("Failed to resolve url artifact")?;
-                    artifacts.insert(k.to_string(), buf.to_vec());
-                    *v = Artifact::Memory;
-                }
-                Artifact::Inline(inline) => {
-                    let data = mem::take(&mut inline.data);
-                    let bytes = data.into_bytes();
-                    artifacts.insert(k.to_string(), bytes);
-                    *v = Artifact::Memory;
-                }
-                Artifact::Signature(artifact) => {
-                    let sig = artifact
-                        .resolve(&mut artifacts, &signing_keys)
-                        .context("Failed to resolve signature artifact")?;
-                    artifacts.insert(k.to_string(), sig);
-                }
-                Artifact::Memory => (),
+
+            debug!("Resolving artifact {:?}...", k);
+            if let Some(buf) = v.resolve(&mut artifacts, &signing_keys).await? {
+                artifacts.insert(k.to_string(), buf);
             }
         }
 
@@ -222,7 +199,7 @@ impl Plot {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PlotExtras {
     pub signing_keys: SigningKeys,
     pub artifacts: Artifacts,
@@ -404,6 +381,9 @@ impl FromStr for PkgPatchValues<Vec<String>> {
 pub struct PkgPatch<T> {
     #[serde(flatten)]
     pub filter: PkgFilter,
+    pub artifact: Option<String>,
+    pub signature: Option<String>,
+    #[serde(default)]
     pub set: PkgPatchValues<T>,
 }
 
@@ -449,6 +429,30 @@ impl<T> PatchPkgDatabaseConfig<T> {
             Some(patch)
         }
     }
+
+    // TODO: not sure if this method is well thought out
+    pub fn artifact<P: PkgRef>(&self, pkg: &P) -> Option<&str> {
+        for rule in &self.patch {
+            if rule.filter.matches_pkg(pkg) {
+                if let Some(artifact) = &rule.artifact {
+                    return Some(artifact.as_str());
+                }
+            }
+        }
+        None
+    }
+
+    // TODO: not sure if this method is well thought out
+    pub fn signature<P: PkgRef>(&self, pkg: &P) -> Option<&str> {
+        for rule in &self.patch {
+            if rule.filter.matches_pkg(pkg) {
+                if let Some(signature) = &rule.signature {
+                    return Some(signature.as_str());
+                }
+            }
+        }
+        None
+    }
 }
 
 impl PatchPkgDatabaseConfig<Vec<String>> {
@@ -464,7 +468,12 @@ impl PatchPkgDatabaseConfig<Vec<String>> {
         }
 
         for (filter, set) in args.filter.into_iter().zip(args.set) {
-            patch.push(PkgPatch { filter, set });
+            patch.push(PkgPatch {
+                filter,
+                artifact: None,
+                signature: None,
+                set,
+            });
         }
 
         Ok(Self {
@@ -497,7 +506,12 @@ impl PatchPkgDatabaseConfig<String> {
             }
 
             let set = PkgPatchValues { values };
-            patch.push(PkgPatch { filter, set });
+            patch.push(PkgPatch {
+                filter,
+                artifact: None,
+                signature: None,
+                set,
+            });
         }
 
         Ok(Self {

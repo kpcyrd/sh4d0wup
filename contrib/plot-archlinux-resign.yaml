@@ -1,0 +1,45 @@
+---
+
+upstreams:
+  archlinux:
+    url: https://geo.mirror.pkgbuild.com/
+
+signing_keys:
+  pwn:
+    type: pgp
+    uids: ["pwn"]
+
+artifacts:
+  pkg:
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/shadow-4.12.3-2-x86_64.pkg.tar.zst
+  sig:
+    artifact: pkg
+    sign_with: pwn
+
+check:
+  image: archlinux
+  install_pgp:
+    - key: pwn
+      cmd: ["tee", "/tmp/pwn.pgp"]
+  cmds:
+    - ["pacman-key", "--init"]
+    - ["pacman-key", "--add", "/tmp/pwn.pgp"]
+    - ["pacman-key", "--lsign", "pwn"]
+    - 'echo "Server = http://${SH4D0WUP_BOUND_ADDR}/\$repo/os/\$arch" | tee /etc/pacman.d/mirrorlist'
+    - ["pacman", "-Suy", "--noconfirm"]
+
+routes:
+  - path: "/core/os/x86_64/core.db"
+    type: patch-pacman-db
+    args:
+      upstream: archlinux
+      patch:
+        - name: shadow
+          signature: sig
+  - path: "/core/os/x86_64/shadow-4.12.3-2-x86_64.pkg.tar.zst.sig"
+    type: static
+    args:
+      artifact: sig
+  - type: proxy
+    args:
+      upstream: archlinux

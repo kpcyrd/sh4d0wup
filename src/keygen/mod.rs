@@ -41,6 +41,16 @@ impl Keygen {
     }
 }
 
+impl From<EmbeddedKey> for Keygen {
+    fn from(key: EmbeddedKey) -> Self {
+        match key {
+            EmbeddedKey::Pgp(pgp) => Keygen::Pgp(KeygenPgp::Embedded(pgp)),
+            EmbeddedKey::Openssl(openssl) => Keygen::Openssl(KeygenOpenssl::Embedded(openssl)),
+            EmbeddedKey::InToto(in_toto) => Keygen::InToto(KeygenInToto::Embedded(in_toto)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EmbeddedKey {
     Pgp(pgp::PgpEmbedded),
@@ -54,16 +64,6 @@ impl EmbeddedKey {
             Ok(key)
         } else {
             bail!("Referenced signing key is not of type pgp");
-        }
-    }
-}
-
-impl Into<Keygen> for EmbeddedKey {
-    fn into(self) -> Keygen {
-        match self {
-            EmbeddedKey::Pgp(pgp) => Keygen::Pgp(KeygenPgp::Embedded(pgp)),
-            EmbeddedKey::Openssl(openssl) => Keygen::Openssl(KeygenOpenssl::Embedded(openssl)),
-            EmbeddedKey::InToto(in_toto) => Keygen::InToto(KeygenInToto::Embedded(in_toto)),
         }
     }
 }

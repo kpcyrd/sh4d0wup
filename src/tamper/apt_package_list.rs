@@ -1,6 +1,6 @@
-use crate::compression;
+use crate::compression::{self, CompressedWith};
 use crate::errors::*;
-use crate::plot::{self, PkgRef};
+use crate::plot::{self, Artifacts, PkgRef, PlotExtras, SigningKeys};
 use indexmap::IndexMap;
 use std::fmt;
 use std::io::prelude::*;
@@ -145,11 +145,18 @@ impl Pkg {
     }
 }
 
-pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut W) -> Result<()> {
-    let comp = compression::detect_compression(bytes);
+pub fn patch<W: Write>(
+    config: &PatchPkgDatabaseConfig,
+    compression: Option<CompressedWith>,
+    artifacts: &Artifacts,
+    _signing_keys: &SigningKeys,
+    bytes: &[u8],
+    out: &mut W,
+) -> Result<()> {
+    let detected_compression = compression::detect_compression(bytes);
 
-    let mut out = compression::stream_compress(out, comp)?;
-    let mut reader = compression::stream_decompress(bytes, comp)?;
+    let mut out = compression::stream_compress(out, compression.unwrap_or(detected_compression))?;
+    let mut reader = compression::stream_decompress(bytes, detected_compression)?;
     let mut bytes = Vec::new();
     reader.read_to_end(&mut bytes)?;
     let mut bytes = &bytes[..];
@@ -161,6 +168,21 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
         if config.is_excluded(&pkg) {
             debug!("Filtering package: {:?}", pkg.name());
             continue;
+        }
+
+        if let Some(artifact) = config.artifact(&pkg) {
+            let artifact = artifacts
+                .get(artifact)
+                .with_context(|| anyhow!("Referencing undefined artifact: {:?}", artifact))?;
+
+            pkg.set_key("Size".to_string(), vec![artifact.len().to_string()])
+                .context("Failed to patch package")?;
+
+            pkg.set_key("MD5sum".to_string(), vec![artifact.md5.clone()])
+                .context("Failed to patch package")?;
+
+            pkg.set_key("SHA256".to_string(), vec![artifact.sha256.clone()])
+                .context("Failed to patch package")?;
         }
 
         if let Some(patch) = config.get_patches(&pkg) {
@@ -177,9 +199,20 @@ pub fn patch<W: Write>(config: &PatchPkgDatabaseConfig, bytes: &[u8], out: &mut 
     Ok(())
 }
 
-pub fn modify_response(config: &PatchPkgDatabaseConfig, bytes: &[u8]) -> Result<Bytes> {
+pub fn modify_response(
+    config: &PatchPkgDatabaseConfig,
+    plot_extras: &PlotExtras,
+    bytes: &[u8],
+) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch(config, bytes, &mut out)?;
+    patch(
+        config,
+        None,
+        &plot_extras.artifacts,
+        &plot_extras.signing_keys,
+        bytes,
+        &mut out,
+    )?;
     Ok(Bytes::from(out))
 }
 

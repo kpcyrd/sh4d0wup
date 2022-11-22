@@ -1,9 +1,10 @@
 use crate::args;
-use crate::artifacts::Artifact;
+use crate::artifacts::{Artifact, HashedArtifact};
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
+use handlebars::Handlebars;
 use indexmap::IndexMap;
 use peekread::BufPeekReader;
 use peekread::PeekRead;
@@ -16,7 +17,7 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
-pub type Artifacts = BTreeMap<String, Vec<u8>>;
+pub type Artifacts = BTreeMap<String, HashedArtifact>;
 pub type SigningKeys = BTreeMap<String, EmbeddedKey>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +33,7 @@ impl Ctx {
         let comp = compression::detect_compression(&buf);
         match comp {
             CompressedWith::Zstd => Ok(Some(comp)),
-            CompressedWith::Unknown => Ok(None),
+            CompressedWith::None => Ok(None),
             _ => bail!("Unsupported file format: {:?}", comp),
         }
     }
@@ -40,7 +41,7 @@ impl Ctx {
     pub fn load_bundle<R: Read>(
         r: R,
         comp: CompressedWith,
-        artifacts: &mut BTreeMap<String, Vec<u8>>,
+        artifacts: &mut Artifacts,
     ) -> Result<String> {
         let r = compression::stream_decompress(r, comp)?;
         let mut tar = tar::Archive::new(r);
@@ -68,7 +69,7 @@ impl Ctx {
                     let name = name.to_string();
                     let mut buf = Vec::new();
                     entry.read_to_end(&mut buf)?;
-                    artifacts.insert(name, buf);
+                    artifacts.insert(name, HashedArtifact::new(buf));
                 }
             }
         }
@@ -188,8 +189,15 @@ impl Plot {
 
             debug!("Resolving artifact {:?}...", k);
             if let Some(buf) = v.resolve(&mut artifacts, &signing_keys).await? {
-                artifacts.insert(k.to_string(), buf);
+                artifacts.insert(k.to_string(), HashedArtifact::new(buf));
             }
+        }
+
+        debug!("Updating path templates...");
+        for route in &mut self.routes {
+            route
+                .resolve_path_template(&artifacts)
+                .context("Failed to resolve path for route")?;
         }
 
         Ok(PlotExtras {
@@ -215,8 +223,42 @@ pub struct Upstream {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     pub path: Option<String>,
+    pub path_template: Option<String>,
     #[serde(flatten)]
     pub action: RouteAction,
+}
+
+impl Route {
+    pub fn resolve_path_template(&mut self, artifacts: &Artifacts) -> Result<()> {
+        if let Some(path_template) = &self.path_template {
+            let mut handlebars = Handlebars::new();
+            handlebars
+                .register_template_string("t", path_template)
+                .with_context(|| anyhow!("Failed to parse path_template: {:?}", path_template))?;
+
+            let mut data = BTreeMap::new();
+
+            let artifact = if let RouteAction::Static(action) = &self.action {
+                let artifact = action
+                    .artifact
+                    .as_ref()
+                    .context("Static route with undefined artifact reference")?;
+                artifacts
+                    .get(artifact)
+                    .with_context(|| anyhow!("Reference to undefined artifact: {:?}", artifact))?
+            } else {
+                bail!("Path templates are only available to routes of type `static`");
+            };
+
+            data.insert("sha256".to_string(), artifact.sha256.clone());
+
+            let rendered = handlebars
+                .render("t", &data)
+                .context("Failed to render path_template")?;
+            self.path = Some(rendered);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

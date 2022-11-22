@@ -1,10 +1,13 @@
+use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::infect;
-use crate::plot::{Artifacts, SigningKeys};
+use crate::plot::{Artifacts, PatchAptReleaseConfig, PatchPkgDatabaseConfig, SigningKeys};
 use crate::sign;
+use crate::tamper;
 use crate::upstream;
 use http::Method;
 use maplit::hashset;
+use md5::Md5;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -20,6 +23,8 @@ pub enum Artifact {
     Inline(InlineArtifact),
     Signature(SignatureArtifact),
     Infect(InfectArtifact),
+    Tamper(TamperArtifact),
+    Compress(CompressArtifact),
     Memory,
 }
 
@@ -29,10 +34,32 @@ impl Artifact {
             Artifact::Path(_) => None,
             Artifact::Url(_) => None,
             Artifact::Inline(_) => None,
-            Artifact::Signature(artifact) => Some(hashset![artifact.artifact.as_str()]),
-            Artifact::Infect(InfectArtifact::Pacman(artifact)) => {
-                Some(hashset![artifact.artifact.as_str()])
+            Artifact::Signature(sign) => Some(hashset![sign.artifact.as_str()]),
+            Artifact::Infect(InfectArtifact::Pacman(infect)) => {
+                Some(hashset![infect.artifact.as_str()])
             }
+            Artifact::Infect(InfectArtifact::Deb(infect)) => {
+                Some(hashset![infect.artifact.as_str()])
+            }
+            Artifact::Tamper(TamperArtifact::PatchAptRelease(tamper)) => {
+                let mut set = hashset![tamper.artifact.as_str()];
+                for patch in &tamper.config.checksums.patch {
+                    if let Some(artifact) = &patch.artifact {
+                        set.insert(artifact);
+                    }
+                }
+                Some(set)
+            }
+            Artifact::Tamper(TamperArtifact::PatchAptPackageList(tamper)) => {
+                let mut set = hashset![tamper.artifact.as_str()];
+                for patch in &tamper.config.patch {
+                    if let Some(artifact) = &patch.artifact {
+                        set.insert(artifact);
+                    }
+                }
+                Some(set)
+            }
+            Artifact::Compress(compress) => Some(hashset![compress.artifact.as_str()]),
             Artifact::Memory => None,
         }
     }
@@ -68,9 +95,24 @@ impl Artifact {
                 Ok(Some(sig))
             }
             Artifact::Infect(artifact) => {
+                info!("Infecting artifact...");
                 let buf = artifact
                     .resolve(artifacts, signing_keys)
                     .context("Failed to infect artifact")?;
+                Ok(Some(buf))
+            }
+            Artifact::Tamper(artifact) => {
+                info!("Tampering with index...");
+                let buf = artifact
+                    .resolve(artifacts, signing_keys)
+                    .context("Failed to tamper with artifact")?;
+                Ok(Some(buf))
+            }
+            Artifact::Compress(artifact) => {
+                info!("Compressing artifact...");
+                let buf = artifact
+                    .resolve(artifacts)
+                    .context("Failed to tamper with artifact")?;
                 Ok(Some(buf))
             }
             Artifact::Memory => Ok(None),
@@ -91,7 +133,9 @@ pub struct UrlArtifact {
 
 impl UrlArtifact {
     pub async fn download(&self) -> Result<warp::hyper::body::Bytes> {
-        let response = upstream::send_req(Method::GET, self.url.clone()).await?;
+        let response = upstream::send_req(Method::GET, self.url.clone())
+            .await?
+            .error_for_status()?;
         let buf = response.bytes().await?;
 
         if let Some(expected) = &self.sha256 {
@@ -131,7 +175,7 @@ impl SignatureArtifact {
         artifacts: &mut Artifacts,
         signing_keys: &SigningKeys,
     ) -> Result<Vec<u8>> {
-        let bytes = artifacts.get(&self.artifact).with_context(|| {
+        let artifact = artifacts.get(&self.artifact).with_context(|| {
             anyhow!(
                 "Referencing artifact that doesn't exist: {:?}",
                 self.artifact
@@ -143,7 +187,7 @@ impl SignatureArtifact {
                 self.sign_with
             )
         })?;
-        let sig = sign::sign(bytes, key).context("Failed to sign artifact")?;
+        let sig = sign::sign(artifact.as_bytes(), key).context("Failed to sign artifact")?;
         Ok(sig)
     }
 }
@@ -153,6 +197,8 @@ impl SignatureArtifact {
 pub enum InfectArtifact {
     #[serde(rename = "pacman")]
     Pacman(InfectPacmanArtifact),
+    #[serde(rename = "deb")]
+    Deb(InfectDebArtifact),
 }
 
 impl InfectArtifact {
@@ -163,7 +209,7 @@ impl InfectArtifact {
     ) -> Result<Vec<u8>> {
         match self {
             InfectArtifact::Pacman(infect) => {
-                let bytes = artifacts.get(&infect.artifact).with_context(|| {
+                let artifact = artifacts.get(&infect.artifact).with_context(|| {
                     anyhow!(
                         "Referencing artifact that doesn't exist: {:?}",
                         infect.artifact
@@ -171,7 +217,19 @@ impl InfectArtifact {
                 })?;
 
                 let mut out = Vec::new();
-                infect::pacman::infect(&infect.infect, bytes, &mut out)?;
+                infect::pacman::infect(&infect.config, artifact.as_bytes(), &mut out)?;
+                Ok(out)
+            }
+            InfectArtifact::Deb(infect) => {
+                let artifact = artifacts.get(&infect.artifact).with_context(|| {
+                    anyhow!(
+                        "Referencing artifact that doesn't exist: {:?}",
+                        infect.artifact
+                    )
+                })?;
+
+                let mut out = Vec::new();
+                infect::deb::infect(&infect.config, artifact.as_bytes(), &mut out)?;
                 Ok(out)
             }
         }
@@ -182,5 +240,145 @@ impl InfectArtifact {
 pub struct InfectPacmanArtifact {
     pub artifact: String,
     #[serde(flatten)]
-    pub infect: infect::pacman::Infect,
+    pub config: infect::pacman::Infect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InfectDebArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: infect::deb::Infect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "tamper")]
+pub enum TamperArtifact {
+    #[serde(rename = "patch-apt-release")]
+    PatchAptRelease(PatchAptReleaseArtifact),
+    #[serde(rename = "patch-apt-package-list")]
+    PatchAptPackageList(PatchPkgDatabaseArtifact),
+}
+
+impl TamperArtifact {
+    pub fn resolve(
+        &self,
+        artifacts: &mut Artifacts,
+        signing_keys: &SigningKeys,
+    ) -> Result<Vec<u8>> {
+        match self {
+            TamperArtifact::PatchAptRelease(tamper) => {
+                let bytes = artifacts.get(&tamper.artifact).with_context(|| {
+                    anyhow!(
+                        "Referencing artifact that doesn't exist: {:?}",
+                        tamper.artifact
+                    )
+                })?;
+
+                let mut out = Vec::new();
+                tamper::apt_release::patch(
+                    &tamper.config,
+                    artifacts,
+                    signing_keys,
+                    bytes.as_bytes(),
+                    &mut out,
+                )?;
+                Ok(out)
+            }
+            TamperArtifact::PatchAptPackageList(tamper) => {
+                let artifact = artifacts.get(&tamper.artifact).with_context(|| {
+                    anyhow!(
+                        "Referencing artifact that doesn't exist: {:?}",
+                        tamper.artifact
+                    )
+                })?;
+
+                let mut out = Vec::new();
+                tamper::apt_package_list::patch(
+                    &tamper.config,
+                    tamper.compression,
+                    artifacts,
+                    signing_keys,
+                    artifact.as_bytes(),
+                    &mut out,
+                )?;
+                Ok(out)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchAptReleaseArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: PatchAptReleaseConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchPkgDatabaseArtifact {
+    pub artifact: String,
+    pub compression: Option<CompressedWith>,
+    #[serde(flatten)]
+    pub config: PatchPkgDatabaseConfig<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompressArtifact {
+    pub artifact: String,
+    pub compression: CompressedWith,
+}
+
+impl CompressArtifact {
+    pub fn resolve(&self, artifacts: &mut Artifacts) -> Result<Vec<u8>> {
+        let artifact = artifacts.get(&self.artifact).with_context(|| {
+            anyhow!(
+                "Referencing artifact that doesn't exist: {:?}",
+                self.artifact
+            )
+        })?;
+        compression::compress(self.compression, artifact.as_bytes())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HashedArtifact {
+    pub bytes: Vec<u8>,
+    pub sha256: String,
+    pub md5: String,
+}
+
+impl HashedArtifact {
+    pub fn new(bytes: Vec<u8>) -> HashedArtifact {
+        debug!("Computing md5sum for artifact...");
+        let mut hasher = Md5::new();
+        hasher.update(&bytes);
+        let md5 = hex::encode(hasher.finalize());
+
+        debug!("Computing sha256sum for artifact...");
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let sha256 = hex::encode(hasher.finalize());
+
+        HashedArtifact { bytes, sha256, md5 }
+    }
+}
+
+impl HashedArtifact {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+}
+
+impl AsRef<[u8]> for HashedArtifact {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes
+    }
 }

@@ -15,6 +15,7 @@ clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4.0.3"
 env_logger = "0.9.0"
 flate2 = "1.0.24"
+handlebars = "4.3.5"
 hex = "0.4.3"
 http = "0.2.8"
 in-toto = "0.3.0"

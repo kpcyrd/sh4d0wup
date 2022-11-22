@@ -29,7 +29,7 @@ check:
   image: archlinux
   install_pgp:
     - key: pwn
-      cmd: ["tee", "/tmp/pwn.pgp"]
+      cmd: "tee /tmp/pwn.pgp > /dev/null"
   cmds:
     - ["pacman-key", "--init"]
     - ["pacman-key", "--add", "/tmp/pwn.pgp"]

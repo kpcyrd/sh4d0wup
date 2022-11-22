@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
         SubCommand::Infect(Infect::Deb(infect)) => {
             let pkg = fs::read(&infect.path)?;
             let mut out = File::create(&infect.out)?;
-            infect::deb::infect(&infect, &pkg, &mut out)?;
+            infect::deb::infect(&infect.try_into()?, &pkg, &mut out)?;
         }
         SubCommand::Infect(Infect::Oci(infect)) => {
             let pkg = fs::read(&infect.path)?;
@@ -116,27 +116,42 @@ async fn main() -> Result<()> {
                 (false, None) => bail!("Missing --signing-key and --unsigned wasn't provided"),
             };
 
-            let mut keys = BTreeMap::new();
+            let mut plot_extras = PlotExtras::default();
             let signing_key = if let Some(signing_key) = signing_key {
-                keys.insert("pgp".to_string(), EmbeddedKey::Pgp(signing_key));
+                plot_extras
+                    .signing_keys
+                    .insert("pgp".to_string(), EmbeddedKey::Pgp(signing_key));
                 Some("pgp".to_string())
             } else {
                 None
             };
-
             let config = PatchAptReleaseConfig {
                 fields: release_fields,
                 checksums: checksum_config,
                 signing_key,
             };
-            tamper::apt_release::patch(&config, &keys, &db, &mut out)?;
+            tamper::apt_release::patch(
+                &config,
+                &plot_extras.artifacts,
+                &plot_extras.signing_keys,
+                &db,
+                &mut out,
+            )?;
         }
         SubCommand::Tamper(Tamper::AptPackageList(tamper)) => {
             let db = fs::read(&tamper.path)?;
             let mut out = File::create(&tamper.out)?;
 
+            let plot_extras = PlotExtras::default();
             let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
-            tamper::apt_package_list::patch(&config, &db, &mut out)?;
+            tamper::apt_package_list::patch(
+                &config,
+                None,
+                &plot_extras.artifacts,
+                &plot_extras.signing_keys,
+                &db,
+                &mut out,
+            )?;
         }
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);

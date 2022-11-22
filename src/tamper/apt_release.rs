@@ -1,9 +1,7 @@
 use crate::errors::*;
-use crate::keygen::EmbeddedKey;
-use crate::plot::{PatchAptReleaseConfig, PkgRef};
+use crate::plot::{Artifacts, PatchAptReleaseConfig, PkgRef, PlotExtras, SigningKeys};
 use crate::sign;
 use indexmap::IndexMap;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::io::prelude::*;
 use std::str;
@@ -157,7 +155,8 @@ impl ChecksumEntry {
 
 pub fn patch<W: Write>(
     config: &PatchAptReleaseConfig,
-    keys: &BTreeMap<String, EmbeddedKey>,
+    artifacts: &Artifacts,
+    signing_keys: &SigningKeys,
     bytes: &[u8],
     out: &mut W,
 ) -> Result<()> {
@@ -182,6 +181,34 @@ pub fn patch<W: Write>(
         });
 
         for checksum in group {
+            if let Some(artifact) = config.checksums.artifact(checksum) {
+                let artifact = artifacts
+                    .get(artifact)
+                    .with_context(|| anyhow!("Referencing undefined artifact: {:?}", artifact))?;
+
+                debug!(
+                    "Patching size for {:?} to {:?}",
+                    checksum.path,
+                    artifact.len()
+                );
+                checksum.size = artifact.len() as u64;
+
+                match checksum.namespace.as_str() {
+                    "MD5Sum" => {
+                        debug!("Patching md5 for {:?} to {:?}", checksum.path, artifact.md5);
+                        checksum.hash = artifact.md5.clone();
+                    }
+                    "SHA256" => {
+                        debug!(
+                            "Patching sha256 for {:?} to {:?}",
+                            checksum.path, artifact.sha256
+                        );
+                        checksum.hash = artifact.sha256.clone();
+                    }
+                    ns => warn!("Unknown checksum namespace: {:?}", ns),
+                }
+            }
+
             if let Some(patch) = config.checksums.get_patches(checksum) {
                 debug!("Patching checksum {:?} with {:?}", checksum, patch);
                 for (key, value) in patch {
@@ -208,7 +235,7 @@ pub fn patch<W: Write>(
     }
 
     if let Some(signing_key) = &config.signing_key {
-        let signing_key = keys
+        let signing_key = signing_keys
             .get(signing_key)
             .with_context(|| anyhow!("Invalid signing key reference: {:?}", signing_key))?
             .pgp()?;
@@ -226,11 +253,17 @@ pub fn patch<W: Write>(
 
 pub fn modify_response(
     config: &PatchAptReleaseConfig,
-    keys: &BTreeMap<String, EmbeddedKey>,
+    plot_extras: &PlotExtras,
     bytes: &[u8],
 ) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch(config, keys, bytes, &mut out)?;
+    patch(
+        config,
+        &plot_extras.artifacts,
+        &plot_extras.signing_keys,
+        bytes,
+        &mut out,
+    )?;
     Ok(Bytes::from(out))
 }
 

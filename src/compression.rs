@@ -3,12 +3,14 @@ use bzip2::read::BzDecoder;
 use bzip2::write::BzEncoder;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::io::prelude::*;
 use xz::read::XzDecoder;
 use xz::write::XzEncoder;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CompressedWith {
     // .gz
     Gzip,
@@ -18,7 +20,7 @@ pub enum CompressedWith {
     Xz,
     // .zstd
     Zstd,
-    Unknown,
+    None,
 }
 
 pub fn detect_compression(bytes: &[u8]) -> CompressedWith {
@@ -30,7 +32,7 @@ pub fn detect_compression(bytes: &[u8]) -> CompressedWith {
         "application/x-bzip" => CompressedWith::Bzip2,
         "application/x-xz" => CompressedWith::Xz,
         "application/zstd" => CompressedWith::Zstd,
-        _ => CompressedWith::Unknown,
+        _ => CompressedWith::None,
     }
 }
 
@@ -43,7 +45,7 @@ pub fn stream_decompress<'a, R: Read + 'a>(
         CompressedWith::Bzip2 => Ok(Box::new(BzDecoder::new(r))),
         CompressedWith::Xz => Ok(Box::new(XzDecoder::new(r))),
         CompressedWith::Zstd => Ok(Box::new(zstd::Decoder::new(r)?)),
-        CompressedWith::Unknown => Ok(Box::new(r)),
+        CompressedWith::None => Ok(Box::new(r)),
     }
 }
 
@@ -113,7 +115,7 @@ pub fn stream_compress<W: Write>(w: W, comp: CompressedWith) -> Result<Compresso
             w,
             zstd::DEFAULT_COMPRESSION_LEVEL,
         )?)),
-        CompressedWith::Unknown => Ok(Compressor::Passthru(w)),
+        CompressedWith::None => Ok(Compressor::Passthru(w)),
     }
 }
 
@@ -141,7 +143,7 @@ pub fn compress(comp: CompressedWith, bytes: &[u8]) -> Result<Vec<u8>> {
             e.write_all(bytes)?;
             out = e.finish()?;
         }
-        CompressedWith::Unknown => {
+        CompressedWith::None => {
             out = bytes.to_vec();
         }
     }

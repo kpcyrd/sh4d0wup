@@ -3,6 +3,7 @@ use crate::compression;
 use crate::errors::*;
 use crate::shell;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::io::prelude::*;
@@ -54,17 +55,35 @@ impl ToString for DebControl {
     }
 }
 
-pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8>> {
-    let mut control_overrides = HashMap::new();
-    for set in &args.set {
-        let (key, value) = set
-            .split_once('=')
-            .with_context(|| anyhow!("Invalid --set assignment: {:?}", set))?;
-        control_overrides.insert(key.to_string(), value.to_string());
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Infect {
+    #[serde(default)]
+    pub set: HashMap<String, String>,
+    pub payload: Option<String>,
+}
+
+impl TryFrom<args::InfectDebPkg> for Infect {
+    type Error = Error;
+
+    fn try_from(args: args::InfectDebPkg) -> Result<Self> {
+        let mut control_overrides = HashMap::new();
+        for set in &args.set {
+            let (key, value) = set
+                .split_once('=')
+                .with_context(|| anyhow!("Invalid --set assignment: {:?}", set))?;
+            control_overrides.insert(key.to_string(), value.to_string());
+        }
+
+        debug!("Parsed control overrides: {:?}", control_overrides);
+
+        Ok(Infect {
+            set: control_overrides,
+            payload: args.payload,
+        })
     }
+}
 
-    debug!("Parsed control overrides: {:?}", control_overrides);
-
+pub fn patch_control_tar(args: &Infect, buf: &[u8]) -> Result<Vec<u8>> {
     let comp = compression::detect_compression(buf);
     let mut out = Vec::new();
     {
@@ -102,7 +121,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                 }
                 (_, "./control") => {
                     control_header = Some(header.clone());
-                    if control_overrides.is_empty() {
+                    if args.set.is_empty() {
                         debug!("Passing through control unparsed");
                         builder.append(&header, &mut entry)?;
                     } else {
@@ -114,7 +133,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
                             .context("Failed to parse deb control file")?;
                         debug!("Found control data: {:?}", control);
 
-                        for (key, value) in &control_overrides {
+                        for (key, value) in &args.set {
                             let old = control.map.insert(key.clone(), value.clone());
                             debug!("Updated control {:?}: {:?} -> {:?}", key, old, value);
                         }
@@ -152,7 +171,7 @@ pub fn patch_control_tar(args: &args::InfectDebPkg, buf: &[u8]) -> Result<Vec<u8
     Ok(out)
 }
 
-pub fn infect<W: Write>(args: &args::InfectDebPkg, pkg: &[u8], out: &mut W) -> Result<()> {
+pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut archive = ar::Archive::new(pkg);
     let mut builder = ar::Builder::new(out);
     while let Some(entry) = archive.next_entry() {

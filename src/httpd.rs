@@ -2,8 +2,8 @@ use crate::artifacts::Artifact;
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
-    self, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, PlotExtras,
-    ProxyRoute, RouteAction, StaticRoute,
+    self, Ctx, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, ProxyRoute,
+    RouteAction, StaticRoute,
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -132,8 +132,7 @@ async fn proxy_forward_request(
 
 async fn generate_static_response(
     args: &StaticRoute,
-    plot: &Plot,
-    plot_extras: &PlotExtras,
+    ctx: &Ctx,
 ) -> Result<http::Response<Body>, Rejection> {
     let status = args.status.unwrap_or(200);
     let mut builder = http::Response::builder().status(status);
@@ -149,7 +148,8 @@ async fn generate_static_response(
     let data = if let Some(data) = &args.data {
         data.as_bytes().to_vec()
     } else if let Some(artifact) = &args.artifact {
-        let config = plot
+        let config = ctx
+            .plot
             .artifacts
             .get(artifact)
             .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
@@ -169,11 +169,13 @@ async fn generate_static_response(
                 ))
                 .into())
             }
-            _ => plot_extras
+            _ => ctx
+                .extras
                 .artifacts
                 .get(artifact)
                 .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
                 .map_err(http_error)?
+                .bytes
                 .clone(),
         }
     } else {
@@ -204,17 +206,16 @@ async fn fetch_upstream(
 
 async fn patch_pacman_db_response(
     args: &PatchPkgDatabaseRoute,
-    plot: &Plot,
+    ctx: &Ctx,
     uri: FullPath,
-    plot_extras: &PlotExtras,
 ) -> Result<http::Response<Body>, Rejection> {
-    let response = fetch_upstream(&args.proxy, plot, uri)
+    let response = fetch_upstream(&args.proxy, &ctx.plot, uri)
         .await
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
     let response =
-        pacman::modify_response(&args.config, plot_extras, &bytes).map_err(http_error)?;
+        pacman::modify_response(&args.config, &ctx.extras, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -224,17 +225,16 @@ async fn patch_pacman_db_response(
 
 async fn patch_apt_release_response(
     args: &PatchAptReleaseRoute,
-    plot: &Plot,
-    plot_extras: &PlotExtras,
+    ctx: &Ctx,
     uri: FullPath,
 ) -> Result<http::Response<Body>, Rejection> {
-    let response = fetch_upstream(&args.proxy, plot, uri)
+    let response = fetch_upstream(&args.proxy, &ctx.plot, uri)
         .await
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
-    let response = apt_release::modify_response(&args.config, &plot_extras.signing_keys, &bytes)
-        .map_err(http_error)?;
+    let response =
+        apt_release::modify_response(&args.config, &ctx.extras, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -244,16 +244,17 @@ async fn patch_apt_release_response(
 
 async fn patch_apt_package_list_response(
     args: &PatchPkgDatabaseRoute,
-    plot: &Plot,
+    ctx: &Ctx,
     uri: FullPath,
 ) -> Result<http::Response<Body>, Rejection> {
-    let response = fetch_upstream(&args.proxy, plot, uri)
+    let response = fetch_upstream(&args.proxy, &ctx.plot, uri)
         .await
         .map_err(http_error)?;
 
     let bytes = response.bytes().await.map_err(http_error)?;
 
-    let response = apt_package_list::modify_response(&args.config, &bytes).map_err(http_error)?;
+    let response =
+        apt_package_list::modify_response(&args.config, &ctx.extras, &bytes).map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)
@@ -354,15 +355,11 @@ async fn serve_request(
         RouteAction::Proxy(args) => {
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
-        RouteAction::Static(args) => generate_static_response(args, &ctx.plot, &ctx.extras).await?,
-        RouteAction::PatchPacmanDbRoute(args) => {
-            patch_pacman_db_response(args, &ctx.plot, uri, &ctx.extras).await?
-        }
-        RouteAction::PatchAptRelease(args) => {
-            patch_apt_release_response(args, &ctx.plot, &ctx.extras, uri).await?
-        }
+        RouteAction::Static(args) => generate_static_response(args, &ctx).await?,
+        RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &ctx, uri).await?,
+        RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &ctx, uri).await?,
         RouteAction::PatchAptPackageList(args) => {
-            patch_apt_package_list_response(args, &ctx.plot, uri).await?
+            patch_apt_package_list_response(args, &ctx, uri).await?
         }
         RouteAction::OciRegistryManifest(args) => {
             generate_oci_registry_manifest_response(args).await?

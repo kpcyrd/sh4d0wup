@@ -1,5 +1,5 @@
 use crate::args;
-use crate::artifacts::Artifact;
+use crate::artifacts::{Artifact, HashedArtifact};
 use crate::errors::*;
 use crate::plot::{Plot, PlotExtras};
 use std::collections::BTreeMap;
@@ -68,7 +68,7 @@ pub async fn run(build: args::Build) -> Result<()> {
         if let Artifact::Path(artifact) = value {
             info!("Reading artifact from disk: {:?}", artifact.path);
             let buf = fs::read(&artifact.path)?;
-            artifacts.insert(key.to_string(), buf);
+            artifacts.insert(key.to_string(), HashedArtifact::new(buf));
             *value = Artifact::Memory
         }
     }
@@ -87,7 +87,7 @@ pub async fn run(build: args::Build) -> Result<()> {
     let mut tar = ArchiveBuilder::new(w);
     tar.append_json("plot.json", &plot)?;
     for (key, value) in artifacts {
-        tar.append(&key, &value)?;
+        tar.append(&key, value.as_bytes())?;
     }
 
     tar.finish()?;

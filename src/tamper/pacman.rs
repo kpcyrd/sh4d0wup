@@ -2,8 +2,6 @@ use crate::compression;
 use crate::errors::*;
 use crate::plot::{self, PkgRef, PlotExtras};
 use indexmap::IndexMap;
-use md5::{Digest, Md5};
-use sha2::Sha256;
 use std::io;
 use std::io::prelude::*;
 use tar::{Archive, EntryType};
@@ -173,19 +171,10 @@ pub fn patch_database<W: Write>(
                     pkg.set_key("%CSIZE%".to_string(), vec![artifact.len().to_string()])
                         .context("Failed to patch package")?;
 
-                    // TODO: these should be pre-computed
-                    debug!("Computing md5sum for artifact...");
-                    let mut hasher = Md5::new();
-                    hasher.update(artifact);
-                    let md5 = hasher.finalize();
-                    pkg.set_key("%MD5SUM%".to_string(), vec![hex::encode(md5)])
+                    pkg.set_key("%MD5SUM%".to_string(), vec![artifact.md5.clone()])
                         .context("Failed to patch package")?;
 
-                    debug!("Computing sha256sum for artifact...");
-                    let mut hasher = Sha256::new();
-                    hasher.update(artifact);
-                    let sha256 = hasher.finalize();
-                    pkg.set_key("%SHA256SUM%".to_string(), vec![hex::encode(sha256)])
+                    pkg.set_key("%SHA256SUM%".to_string(), vec![artifact.sha256.clone()])
                         .context("Failed to patch package")?;
                 }
 

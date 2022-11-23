@@ -5,20 +5,6 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-/*
-use crate::shell;
-use flate2::bufread::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::GzBuilder;
-use openssl::hash::MessageDigest;
-use openssl::pkey;
-use openssl::pkey::PKey;
-use openssl::sign::Signer;
-use std::io;
-use std::io::prelude::*;
-use std::io::BufReader;
-*/
-// use tokio::io::AsyncWrite;
 
 pub fn c_escape(data: &[u8], out: &mut String) -> Result<()> {
     for b in data {

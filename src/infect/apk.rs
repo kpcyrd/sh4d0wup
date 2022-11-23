@@ -1,13 +1,12 @@
 use crate::args;
 use crate::errors::*;
+use crate::keygen::openssl::OpensslEmbedded;
 use crate::shell;
+use crate::sign;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::GzBuilder;
 use openssl::hash::MessageDigest;
-use openssl::pkey;
-use openssl::pkey::PKey;
-use openssl::sign::Signer;
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -43,25 +42,12 @@ pub fn patch_signature_buf(
     let mut archive = Archive::new(signature_buf);
 
     // Load signing key
-    let buf = std::fs::read(&args.signing_key)
-        .with_context(|| anyhow!("Failed to read signing key from {:?}", args.signing_key))?;
-    let keypair = PKey::private_key_from_pem(&buf).context("Failed to load signing key")?;
-    let key_algo_id = match keypair.id() {
-        pkey::Id::RSA => "RSA",
-        _ => "XXX",
-    };
+    let key = OpensslEmbedded::read_from_disk(&args.signing_key)?;
+
+    let key_algo_id = key.key_algo_id().unwrap_or("XXX");
 
     // Sign the data
-    let mut signer =
-        Signer::new(MessageDigest::sha1(), &keypair).context("Failed to setup signer")?;
-    signer.update(pkg).context("Failed to hash package")?;
-    let signature = signer.sign_to_vec().context("Failed to sign package")?;
-
-    debug!(
-        "Generated signature ({} bytes): {:?}",
-        signature.len(),
-        signature
-    );
+    let signature = sign::openssl::sign(&key, pkg, MessageDigest::sha1())?;
 
     for entry in archive.entries()? {
         let mut entry = entry?;

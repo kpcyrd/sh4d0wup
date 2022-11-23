@@ -1,7 +1,7 @@
 use crate::args;
 use crate::errors::*;
 use openssl::ec::{EcGroup, EcKey};
-use openssl::pkey::PKey;
+use openssl::pkey::{self, PKey};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -25,12 +25,21 @@ impl OpensslEmbedded {
         let path = path.as_ref();
         debug!("Reading openssl secret key from path: {:?}", path);
         let secret_key = fs::read_to_string(path)
-            .with_context(|| anyhow!("Failed to read from file {:?}", path))?;
+            .with_context(|| anyhow!("Failed to read openssl secret key from file {:?}", path))?;
 
         Ok(OpensslEmbedded {
             public_key: None,
             secret_key,
         })
+    }
+
+    pub fn key_algo_id(&self) -> Result<&'static str> {
+        let keypair = PKey::private_key_from_pem(self.secret_key.as_bytes())
+            .context("Failed to load openssl key")?;
+        match keypair.id() {
+            pkey::Id::RSA => Ok("RSA"),
+            id => bail!("Unknown key type: {:?}", id),
+        }
     }
 }
 

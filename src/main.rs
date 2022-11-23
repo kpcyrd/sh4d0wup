@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
 
             let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
             let plot_extras = PlotExtras::default();
-            tamper::pacman::patch_database(&config, &plot_extras, &db, &mut out)?;
+            tamper::pacman::patch(&config, &plot_extras, &db, &mut out)?;
         }
         SubCommand::Tamper(Tamper::AptRelease(tamper)) => {
             let db = fs::read(&tamper.path)?;

@@ -124,7 +124,7 @@ pub struct InfectOci {
     pub payload: Option<String>,
 }
 
-/// Infect an alpine package
+/// Infect an alpine apk package
 #[derive(Debug, Clone, Parser)]
 pub struct InfectApkPkg {
     /// The input package to use as a base

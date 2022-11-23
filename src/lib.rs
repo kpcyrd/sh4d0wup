@@ -12,3 +12,4 @@ pub mod shell;
 pub mod sign;
 pub mod tamper;
 pub mod upstream;
+pub mod utils;

@@ -66,4 +66,12 @@ impl EmbeddedKey {
             bail!("Referenced signing key is not of type pgp");
         }
     }
+
+    pub fn openssl(&self) -> Result<&openssl::OpensslEmbedded> {
+        if let EmbeddedKey::Openssl(key) = self {
+            Ok(key)
+        } else {
+            bail!("Referenced signing key is not of type openssl");
+        }
+    }
 }

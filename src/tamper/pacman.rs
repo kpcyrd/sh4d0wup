@@ -131,7 +131,7 @@ impl ToString for Pkg {
     }
 }
 
-pub fn patch_database<W: Write>(
+pub fn patch<W: Write>(
     config: &PatchPkgDatabaseConfig,
     plot_extras: &PlotExtras,
     bytes: &[u8],
@@ -239,7 +239,7 @@ pub fn modify_response(
     bytes: &[u8],
 ) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch_database(config, plot_extras, bytes, &mut out)?;
+    patch(config, plot_extras, bytes, &mut out)?;
     Ok(Bytes::from(out))
 }
 

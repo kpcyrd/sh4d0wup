@@ -138,13 +138,20 @@ impl UrlArtifact {
             .error_for_status()?;
         let buf = response.bytes().await?;
 
+        self.verify_sha256(&buf)?;
+
+        Ok(buf)
+    }
+
+    pub fn verify_sha256(&self, bytes: &[u8]) -> Result<()> {
         if let Some(expected) = &self.sha256 {
             debug!("Calculating hash sum...");
             let mut h = Sha256::new();
-            h.update(&buf);
+            h.update(bytes);
             let h = hex::encode(h.finalize());
             debug!("Calcuated sha256: {:?}", h);
             debug!("Expected sha256: {:?}", expected);
+
             if h != *expected {
                 bail!(
                     "Calculated sha256 {:?} doesn't match expected sha256 {:?}",
@@ -152,9 +159,12 @@ impl UrlArtifact {
                     expected
                 );
             }
-        }
 
-        Ok(buf)
+            Ok(())
+        } else {
+            trace!("No sha256 configured for url artifact, skipping pinning");
+            Ok(())
+        }
     }
 }
 

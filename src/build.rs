@@ -1,7 +1,7 @@
 use crate::args;
 use crate::artifacts::{Artifact, HashedArtifact};
 use crate::errors::*;
-use crate::plot::{Plot, PlotExtras};
+use crate::plot::{Ctx, Plot, PlotExtras};
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
@@ -47,6 +47,15 @@ pub async fn run(build: args::Build) -> Result<()> {
     info!("Loading plot from {:?}...", build.plot);
     let mut plot = Plot::load_from_path(&build.plot)?;
 
+    let mut artifacts = BTreeMap::new();
+    if let Some(path) = build.cache_from.path {
+        info!("Loading existing plot as cache: {:?}", path);
+        Ctx::load_as_download_cache(&path, &plot, &mut artifacts)
+            .await
+            .context("Failed to load existing plot as cache")?;
+        debug!("Finished loading existing plot");
+    }
+
     debug!("Setting up compressed writer...");
     let f = File::create(&build.output)
         .with_context(|| anyhow!("Failed to open output file: {:?}", build.output))?;
@@ -55,7 +64,6 @@ pub async fn run(build: args::Build) -> Result<()> {
         .auto_finish();
 
     info!("Resolving plot...");
-    let artifacts = BTreeMap::new();
     let PlotExtras {
         mut artifacts,
         signing_keys,

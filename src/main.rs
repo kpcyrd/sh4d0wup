@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     match args.subcommand {
         SubCommand::Bait(bait) => {
             info!("Loading plot from {:?}...", bait.plot);
-            let ctx = Ctx::load_from_path(&bait.plot).await?;
+            let ctx = Ctx::load_from_path(&bait.plot, bait.cache_from.path.as_deref()).await?;
 
             let tls = if let Some(path) = bait.tls_cert {
                 let cert = fs::read(&path)
@@ -155,7 +155,7 @@ async fn main() -> Result<()> {
         }
         SubCommand::Check(check) => {
             info!("Loading plot from {:?}...", check.plot);
-            let ctx = Ctx::load_from_path(&check.plot).await?;
+            let ctx = Ctx::load_from_path(&check.plot, check.cache_from.path.as_deref()).await?;
             match check.no_exec {
                 0 => {
                     check::spawn(check, ctx).await?;

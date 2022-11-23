@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
+use std::io::BufRead;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
@@ -78,7 +79,10 @@ impl Ctx {
         plot.context("Bundle contains no plot")
     }
 
-    pub async fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn load_from_path<P: AsRef<Path>>(
+        path: P,
+        cache_from: Option<&Path>,
+    ) -> Result<Self> {
         let path = path.as_ref();
 
         let f = File::open(path).context("Failed to open plot")?;
@@ -95,9 +99,62 @@ impl Ctx {
 
         let mut plot = Plot::load_from_str(&plot).context("Failed to deserialize plot")?;
         plot.validate().context("Plot failed to validate")?;
+
+        if let Some(path) = cache_from {
+            Ctx::load_as_download_cache(path, &plot, &mut artifacts)
+                .await
+                .context("Failed to load existing plot as cache")?;
+        }
+
         let extras = plot.resolve_extras(artifacts).await?;
 
         Ok(Ctx { plot, extras })
+    }
+
+    pub async fn load_as_download_cache<P: AsRef<Path>>(
+        path: P,
+        plot: &Plot,
+        out: &mut Artifacts,
+    ) -> Result<()> {
+        let path = path.as_ref();
+
+        let f = File::open(path).context("Failed to open plot")?;
+        let mut r = BufPeekReader::new(f);
+
+        if r.peek().fill_buf().map(|b| b.is_empty()).ok() == Some(true) {
+            debug!("Cache bundle is empty file, starting with empty cache...");
+            return Ok(());
+        }
+
+        let mut existing = BTreeMap::new();
+        if let Some(comp) = Self::is_bundle(r.peek())? {
+            Self::load_bundle(r, comp, &mut existing)?
+        } else {
+            bail!("Only compiled plot bundles are supported");
+        };
+
+        for (key, artifact) in &plot.artifacts {
+            if let Artifact::Url(artifact) = artifact {
+                if let Some(existing) = existing.remove(key) {
+                    info!(
+                        "Found existing artifact for url artifact {:?}: {:?} (sha256:{})",
+                        key,
+                        artifact.url.to_string(),
+                        existing.sha256
+                    );
+                    if let Some(expected) = &artifact.sha256 {
+                        if *expected != existing.sha256 {
+                            debug!("Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}", expected, existing.sha256);
+                            continue;
+                        }
+                    }
+
+                    out.insert(key.to_string(), existing);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

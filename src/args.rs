@@ -62,6 +62,8 @@ pub struct Bait {
     /// Setup the attack but exit instead of serving requests
     #[arg(short, long)]
     pub no_bind: bool,
+    #[clap(flatten)]
+    pub cache_from: CacheFrom,
 }
 
 /// High level tampering, inject additional commands into a package
@@ -338,6 +340,8 @@ pub struct Build {
     /// Output the compiled plot here
     #[arg(short, long)]
     pub output: PathBuf,
+    #[clap(flatten)]
+    pub cache_from: CacheFrom,
 }
 
 /// Ensure a provided attack can still execute correctly
@@ -354,6 +358,15 @@ pub struct Check {
     /// Only load the plot but don't execute it
     #[arg(short, long, action(ArgAction::Count))]
     pub no_exec: u8,
+    #[clap(flatten)]
+    pub cache_from: CacheFrom,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct CacheFrom {
+    /// Use artifacts from compiled plot as download cache
+    #[arg(long = "cache-from")]
+    pub path: Option<PathBuf>,
 }
 
 /// Generate shell completions

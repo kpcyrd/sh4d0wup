@@ -27,7 +27,7 @@ artifacts:
 
 check:
   image: archlinux
-  install_pgp:
+  install_keys:
     - key: pwn
       cmd: "tee /tmp/pwn.pgp > /dev/null"
   cmds:

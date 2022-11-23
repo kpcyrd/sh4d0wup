@@ -12,6 +12,9 @@ signing_keys:
 
 check:
   image: alpine:edge
+  install_keys:
+    - key: pwn
+      cmd: "tee /etc/apk/keys/hax.rsa.pub > /dev/null"
   cmds:
     - 'echo "http://${SH4D0WUP_BOUND_ADDR}/alpine/edge/main" | tee /etc/apk/repositories'
     - 'echo "http://${SH4D0WUP_BOUND_ADDR}/alpine/edge/community" | tee -a /etc/apk/repositories'

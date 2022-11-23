@@ -33,6 +33,17 @@ impl OpensslEmbedded {
         })
     }
 
+    pub fn to_cert(&self, binary: bool) -> Result<Vec<u8>> {
+        let secret_key = PKey::private_key_from_pem(self.secret_key.as_bytes())
+            .context("Failed to load signing key")?;
+
+        if binary {
+            bail!("binary encoding not implemented yet");
+        } else {
+            Ok(secret_key.public_key_to_pem()?)
+        }
+    }
+
     pub fn key_algo_id(&self) -> Result<&'static str> {
         let keypair = PKey::private_key_from_pem(self.secret_key.as_bytes())
             .context("Failed to load openssl key")?;

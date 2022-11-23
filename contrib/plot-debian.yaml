@@ -58,7 +58,7 @@ artifacts:
 
 check:
   image: debian:stable
-  install_pgp:
+  install_keys:
     - key: apt
       binary: true
       cmd: 'tee /etc/apt/trusted.gpg.d/pwn.gpg > /dev/null'

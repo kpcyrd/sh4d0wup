@@ -604,7 +604,7 @@ pub struct Check {
     pub image: String,
     pub install_certs: Option<Cmd>,
     #[serde(default)]
-    pub install_pgp: Vec<InstallPgp>,
+    pub install_keys: Vec<InstallKey>,
     #[serde(default)]
     pub register_hosts: Vec<String>,
     pub cmds: Vec<Cmd>,
@@ -619,7 +619,7 @@ pub enum Cmd {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InstallPgp {
+pub struct InstallKey {
     pub key: String,
     #[serde(default)]
     pub binary: bool,

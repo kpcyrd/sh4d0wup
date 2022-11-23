@@ -1,6 +1,7 @@
 use crate::args;
 use crate::errors::*;
 use crate::httpd;
+use crate::keygen::EmbeddedKey;
 use crate::plot;
 use crate::plot::Cmd;
 use nix::sched::CloneFlags;
@@ -206,17 +207,20 @@ impl Container {
                 .await
                 .context("Failed to install certificates")?;
         }
-        for pgp in &config.install_pgp {
-            info!("Installing pgp key {:?} with {:?}...", pgp.key, pgp.cmd);
+        for install in &config.install_keys {
+            info!("Installing key {:?} with {:?}...", install.key, install.cmd);
             let key = plot_extras
                 .signing_keys
-                .get(&pgp.key)
-                .context("Invalid reference to signing key")?
-                .pgp()?;
+                .get(&install.key)
+                .context("Invalid reference to signing key")?;
 
-            let cert = key.to_cert(pgp.binary)?;
+            let cert = match key {
+                EmbeddedKey::Pgp(pgp) => pgp.to_cert(install.binary)?,
+                EmbeddedKey::Openssl(openssl) => openssl.to_cert(install.binary)?,
+                EmbeddedKey::InToto(_in_toto) => bail!("Installing in-toto keys into the container isn't supported yet"),
+            };
 
-            self.exec_cmd_stdin(&pgp.cmd, Some(&cert))
+            self.exec_cmd_stdin(&install.cmd, Some(&cert))
                 .await
                 .context("Failed to install certificates")?;
         }

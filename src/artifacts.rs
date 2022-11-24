@@ -1,7 +1,7 @@
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::infect;
-use crate::plot::{Artifacts, PatchAptReleaseConfig, PatchPkgDatabaseConfig, SigningKeys};
+use crate::plot::{Artifacts, PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use crate::sign;
 use crate::tamper;
 use crate::upstream;
@@ -41,6 +41,9 @@ impl Artifact {
             Artifact::Infect(InfectArtifact::Deb(infect)) => {
                 Some(hashset![infect.artifact.as_str()])
             }
+            Artifact::Infect(InfectArtifact::Apk(infect)) => {
+                Some(hashset![infect.artifact.as_str()])
+            }
             Artifact::Tamper(TamperArtifact::PatchAptRelease(tamper)) => {
                 let mut set = hashset![tamper.artifact.as_str()];
                 for patch in &tamper.config.checksums.patch {
@@ -59,16 +62,21 @@ impl Artifact {
                 }
                 Some(set)
             }
+            Artifact::Tamper(TamperArtifact::PatchApkIndex(tamper)) => {
+                let mut set = hashset![tamper.artifact.as_str()];
+                for patch in &tamper.config.patch {
+                    if let Some(artifact) = &patch.artifact {
+                        set.insert(artifact);
+                    }
+                }
+                Some(set)
+            }
             Artifact::Compress(compress) => Some(hashset![compress.artifact.as_str()]),
             Artifact::Memory => None,
         }
     }
 
-    pub async fn resolve(
-        &mut self,
-        artifacts: &mut Artifacts,
-        signing_keys: &SigningKeys,
-    ) -> Result<Option<Vec<u8>>> {
+    pub async fn resolve(&mut self, plot_extras: &mut PlotExtras) -> Result<Option<Vec<u8>>> {
         match self {
             Artifact::Path(_) => Ok(None),
             Artifact::Url(artifact) => {
@@ -90,28 +98,28 @@ impl Artifact {
             }
             Artifact::Signature(artifact) => {
                 let sig = artifact
-                    .resolve(artifacts, signing_keys)
+                    .resolve(plot_extras)
                     .context("Failed to resolve signature artifact")?;
                 Ok(Some(sig))
             }
             Artifact::Infect(artifact) => {
                 info!("Infecting artifact...");
                 let buf = artifact
-                    .resolve(artifacts, signing_keys)
+                    .resolve(plot_extras)
                     .context("Failed to infect artifact")?;
                 Ok(Some(buf))
             }
             Artifact::Tamper(artifact) => {
                 info!("Tampering with index...");
                 let buf = artifact
-                    .resolve(artifacts, signing_keys)
+                    .resolve(plot_extras)
                     .context("Failed to tamper with artifact")?;
                 Ok(Some(buf))
             }
             Artifact::Compress(artifact) => {
                 info!("Compressing artifact...");
                 let buf = artifact
-                    .resolve(artifacts)
+                    .resolve(&mut plot_extras.artifacts)
                     .context("Failed to tamper with artifact")?;
                 Ok(Some(buf))
             }
@@ -180,66 +188,86 @@ pub struct SignatureArtifact {
 }
 
 impl SignatureArtifact {
-    pub fn resolve(
-        &self,
-        artifacts: &mut Artifacts,
-        signing_keys: &SigningKeys,
-    ) -> Result<Vec<u8>> {
-        let artifact = artifacts.get(&self.artifact).with_context(|| {
+    pub fn resolve(&self, plot_extras: &mut PlotExtras) -> Result<Vec<u8>> {
+        let artifact = plot_extras.artifacts.get(&self.artifact).with_context(|| {
             anyhow!(
                 "Referencing artifact that doesn't exist: {:?}",
                 self.artifact
             )
         })?;
-        let key = signing_keys.get(&self.sign_with).with_context(|| {
-            anyhow!(
-                "Referencing signing key that doesn't exist: {:?}",
-                self.sign_with
-            )
-        })?;
+        let key = plot_extras
+            .signing_keys
+            .get(&self.sign_with)
+            .with_context(|| {
+                anyhow!(
+                    "Referencing signing key that doesn't exist: {:?}",
+                    self.sign_with
+                )
+            })?;
         let sig = sign::sign(artifact.as_bytes(), key).context("Failed to sign artifact")?;
         Ok(sig)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "infect")]
+#[serde(tag = "type", content = "infect", rename_all = "kebab-case")]
 pub enum InfectArtifact {
-    #[serde(rename = "pacman")]
     Pacman(InfectPacmanArtifact),
-    #[serde(rename = "deb")]
     Deb(InfectDebArtifact),
+    Apk(InfectApkArtifact),
 }
 
 impl InfectArtifact {
-    pub fn resolve(
-        &self,
-        artifacts: &mut Artifacts,
-        _signing_keys: &SigningKeys,
-    ) -> Result<Vec<u8>> {
+    pub fn resolve(&self, plot_extras: &mut PlotExtras) -> Result<Vec<u8>> {
         match self {
             InfectArtifact::Pacman(infect) => {
-                let artifact = artifacts.get(&infect.artifact).with_context(|| {
-                    anyhow!(
-                        "Referencing artifact that doesn't exist: {:?}",
-                        infect.artifact
-                    )
-                })?;
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&infect.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
 
                 let mut out = Vec::new();
                 infect::pacman::infect(&infect.config, artifact.as_bytes(), &mut out)?;
                 Ok(out)
             }
             InfectArtifact::Deb(infect) => {
-                let artifact = artifacts.get(&infect.artifact).with_context(|| {
-                    anyhow!(
-                        "Referencing artifact that doesn't exist: {:?}",
-                        infect.artifact
-                    )
-                })?;
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&infect.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
 
                 let mut out = Vec::new();
                 infect::deb::infect(&infect.config, artifact.as_bytes(), &mut out)?;
+                Ok(out)
+            }
+            InfectArtifact::Apk(infect) => {
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&infect.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
+
+                let mut out = Vec::new();
+                infect::apk::infect(
+                    &infect.config,
+                    &plot_extras.signing_keys,
+                    artifact.as_bytes(),
+                    &mut out,
+                )?;
                 Ok(out)
             }
         }
@@ -261,53 +289,82 @@ pub struct InfectDebArtifact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "tamper")]
+pub struct InfectApkArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: infect::apk::Infect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "tamper", rename_all = "kebab-case")]
 pub enum TamperArtifact {
-    #[serde(rename = "patch-apt-release")]
     PatchAptRelease(PatchAptReleaseArtifact),
-    #[serde(rename = "patch-apt-package-list")]
     PatchAptPackageList(PatchPkgDatabaseArtifact),
+    PatchApkIndex(PatchApkIndexArtifact),
 }
 
 impl TamperArtifact {
-    pub fn resolve(
-        &self,
-        artifacts: &mut Artifacts,
-        signing_keys: &SigningKeys,
-    ) -> Result<Vec<u8>> {
+    pub fn resolve(&self, plot_extras: &mut PlotExtras) -> Result<Vec<u8>> {
         match self {
             TamperArtifact::PatchAptRelease(tamper) => {
-                let bytes = artifacts.get(&tamper.artifact).with_context(|| {
-                    anyhow!(
-                        "Referencing artifact that doesn't exist: {:?}",
-                        tamper.artifact
-                    )
-                })?;
+                let bytes = plot_extras
+                    .artifacts
+                    .get(&tamper.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            tamper.artifact
+                        )
+                    })?;
 
                 let mut out = Vec::new();
                 tamper::apt_release::patch(
                     &tamper.config,
-                    artifacts,
-                    signing_keys,
+                    &plot_extras.artifacts,
+                    &plot_extras.signing_keys,
                     bytes.as_bytes(),
                     &mut out,
                 )?;
                 Ok(out)
             }
             TamperArtifact::PatchAptPackageList(tamper) => {
-                let artifact = artifacts.get(&tamper.artifact).with_context(|| {
-                    anyhow!(
-                        "Referencing artifact that doesn't exist: {:?}",
-                        tamper.artifact
-                    )
-                })?;
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&tamper.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            tamper.artifact
+                        )
+                    })?;
 
                 let mut out = Vec::new();
                 tamper::apt_package_list::patch(
                     &tamper.config,
                     tamper.compression,
-                    artifacts,
-                    signing_keys,
+                    &plot_extras.artifacts,
+                    artifact.as_bytes(),
+                    &mut out,
+                )?;
+                Ok(out)
+            }
+            TamperArtifact::PatchApkIndex(tamper) => {
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&tamper.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            tamper.artifact
+                        )
+                    })?;
+
+                let mut out = Vec::new();
+                tamper::apk::patch(
+                    &tamper.config,
+                    &plot_extras,
+                    &tamper.signing_key,
+                    &tamper.signing_key_name,
                     artifact.as_bytes(),
                     &mut out,
                 )?;
@@ -330,6 +387,15 @@ pub struct PatchPkgDatabaseArtifact {
     pub compression: Option<CompressedWith>,
     #[serde(flatten)]
     pub config: PatchPkgDatabaseConfig<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchApkIndexArtifact {
+    pub artifact: String,
+    pub signing_key: String,
+    pub signing_key_name: String,
+    #[serde(flatten)]
+    pub config: PatchPkgDatabaseConfig<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

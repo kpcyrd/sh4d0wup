@@ -253,8 +253,8 @@ async fn patch_apt_package_list_response(
 
     let bytes = response.bytes().await.map_err(http_error)?;
 
-    let response =
-        apt_package_list::modify_response(&args.config, &ctx.extras, &bytes).map_err(http_error)?;
+    let response = apt_package_list::modify_response(&args.config, &ctx.extras.artifacts, &bytes)
+        .map_err(http_error)?;
 
     Ok(http::Response::builder()
         .status(200)

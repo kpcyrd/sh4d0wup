@@ -163,6 +163,7 @@ pub enum Tamper {
     PacmanDb(TamperPacman),
     AptRelease(TamperAptRelease),
     AptPackageList(TamperAptPackageList),
+    ApkIndex(TamperApkIndex),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -215,6 +216,23 @@ pub struct TamperAptPackageList {
     pub out: String,
     #[clap(flatten)]
     pub config: TamperPackageDatabaseConfig,
+}
+
+/// Patch an alpine apk `APKINDEX.tar.gz` file
+#[derive(Debug, Clone, Parser)]
+pub struct TamperApkIndex {
+    /// The input database to modify
+    pub path: String,
+    /// Path to write the patched database to
+    pub out: String,
+    #[clap(flatten)]
+    pub config: TamperPackageDatabaseConfig,
+    /// Path to the key to sign the package with
+    #[arg(short = 'S', long)]
+    pub signing_key: String,
+    /// The name of the signing key (eg. alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub)
+    #[arg(short = 'N', long)]
+    pub signing_key_name: String,
 }
 
 /// Generate signing keys with the given parameters

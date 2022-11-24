@@ -78,8 +78,25 @@ async fn main() -> Result<()> {
         }
         SubCommand::Infect(Infect::Apk(infect)) => {
             let pkg = fs::read(&infect.path)?;
+            let signing_key = OpensslEmbedded::read_from_disk(&infect.signing_key)?;
+
             let mut out = File::create(&infect.out)?;
-            infect::apk::infect(&infect, &pkg, &mut out)?;
+
+            let mut plot_extras = PlotExtras::default();
+            plot_extras
+                .signing_keys
+                .insert("openssl".to_string(), EmbeddedKey::Openssl(signing_key));
+
+            infect::apk::infect(
+                &infect::apk::Infect {
+                    signing_key: "openssl".to_string(),
+                    signing_key_name: infect.signing_key_name,
+                    payload: infect.payload,
+                },
+                &plot_extras.signing_keys,
+                &pkg,
+                &mut out,
+            )?;
         }
         SubCommand::Infect(Infect::Elf(infect)) => {
             let elf = fs::read(&infect.path)?;
@@ -144,11 +161,25 @@ async fn main() -> Result<()> {
 
             let plot_extras = PlotExtras::default();
             let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
-            tamper::apt_package_list::patch(
+            tamper::apt_package_list::patch(&config, None, &plot_extras.artifacts, &db, &mut out)?;
+        }
+        SubCommand::Tamper(Tamper::ApkIndex(tamper)) => {
+            let db = fs::read(&tamper.path)?;
+            let mut out = File::create(&tamper.out)?;
+
+            let signing_key = OpensslEmbedded::read_from_disk(tamper.signing_key)?;
+
+            let mut plot_extras = PlotExtras::default();
+            plot_extras
+                .signing_keys
+                .insert("openssl".to_string(), EmbeddedKey::Openssl(signing_key));
+
+            let config = PatchPkgDatabaseConfig::<String>::from_args(tamper.config)?;
+            tamper::apk::patch(
                 &config,
-                None,
-                &plot_extras.artifacts,
-                &plot_extras.signing_keys,
+                &plot_extras,
+                "openssl",
+                &tamper.signing_key_name,
                 &db,
                 &mut out,
             )?;

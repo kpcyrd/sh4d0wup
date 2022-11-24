@@ -1,6 +1,6 @@
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
-use crate::plot::{self, Artifacts, PkgRef, PlotExtras, SigningKeys};
+use crate::plot::{self, Artifacts, PkgRef};
 use indexmap::IndexMap;
 use std::fmt;
 use std::io::prelude::*;
@@ -149,7 +149,6 @@ pub fn patch<W: Write>(
     config: &PatchPkgDatabaseConfig,
     compression: Option<CompressedWith>,
     artifacts: &Artifacts,
-    _signing_keys: &SigningKeys,
     bytes: &[u8],
     out: &mut W,
 ) -> Result<()> {
@@ -201,18 +200,11 @@ pub fn patch<W: Write>(
 
 pub fn modify_response(
     config: &PatchPkgDatabaseConfig,
-    plot_extras: &PlotExtras,
+    artifacts: &Artifacts,
     bytes: &[u8],
 ) -> Result<Bytes> {
     let mut out = Vec::new();
-    patch(
-        config,
-        None,
-        &plot_extras.artifacts,
-        &plot_extras.signing_keys,
-        bytes,
-        &mut out,
-    )?;
+    patch(config, None, artifacts, bytes, &mut out)?;
     Ok(Bytes::from(out))
 }
 

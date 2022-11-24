@@ -227,7 +227,7 @@ impl Plot {
         Ok(&route.action)
     }
 
-    pub async fn resolve_extras(&mut self, mut artifacts: Artifacts) -> Result<PlotExtras> {
+    pub async fn resolve_extras(&mut self, artifacts: Artifacts) -> Result<PlotExtras> {
         debug!("Resolving signing keys...");
         let signing_keys = if let Some(keys) = self.signing_keys.take() {
             keys.into_iter()
@@ -237,30 +237,34 @@ impl Plot {
             BTreeMap::new()
         };
 
+        let mut extras = PlotExtras {
+            signing_keys,
+            artifacts,
+        };
+
         debug!("Resolving artifacts...");
         for (k, v) in &mut self.artifacts {
-            if artifacts.contains_key(k) {
+            if extras.artifacts.contains_key(k) {
                 debug!("Artifact {:?} is already registered, skipping...", k);
                 continue;
             }
 
             debug!("Resolving artifact {:?}...", k);
-            if let Some(buf) = v.resolve(&mut artifacts, &signing_keys).await? {
-                artifacts.insert(k.to_string(), HashedArtifact::new(buf));
+            if let Some(buf) = v.resolve(&mut extras).await? {
+                extras
+                    .artifacts
+                    .insert(k.to_string(), HashedArtifact::new(buf));
             }
         }
 
         debug!("Updating path templates...");
         for route in &mut self.routes {
             route
-                .resolve_path_template(&artifacts)
+                .resolve_path_template(&extras.artifacts)
                 .context("Failed to resolve path for route")?;
         }
 
-        Ok(PlotExtras {
-            signing_keys,
-            artifacts,
-        })
+        Ok(extras)
     }
 }
 

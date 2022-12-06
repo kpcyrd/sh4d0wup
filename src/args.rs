@@ -27,6 +27,8 @@ pub enum SubCommand {
     Keygen(Keygen),
     #[command(subcommand)]
     Sign(Sign),
+    #[command(subcommand)]
+    Hsm(Hsm),
     Build(Build),
     Check(Check),
     Completions(Completions),
@@ -345,6 +347,36 @@ pub struct SignInToto {
     /// Build output for the attestation (format: name=/path/to/file.txt)
     #[arg(long)]
     pub product: Vec<VirtualEntry>,
+}
+
+/// Interact with hardware signing keys
+#[derive(Debug, Subcommand)]
+pub enum Hsm {
+    #[clap(subcommand)]
+    Pgp(HsmPgp),
+}
+
+/// Interact with pgp hardware signing keys
+#[derive(Debug, Subcommand)]
+pub enum HsmPgp {
+    Access(HsmAccess),
+}
+
+/// Attempt to access the hardware signing key without signing anything yet
+#[derive(Debug, Parser)]
+pub struct HsmAccess {
+    #[clap(flatten)]
+    pub pin: HsmPin,
+}
+
+#[derive(Debug, Parser)]
+pub struct HsmPin {
+    /// The pw1 pin to unlock signing operations
+    #[arg(short = 'p', long = "pin")]
+    pub value: Option<String>,
+    /// Path to read pw1 pin from
+    #[arg(long = "pin-file")]
+    pub file: Option<PathBuf>,
 }
 
 /// Compile an attack based on a plot

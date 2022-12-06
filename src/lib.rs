@@ -4,6 +4,7 @@ pub mod build;
 pub mod check;
 pub mod compression;
 pub mod errors;
+pub mod hsm;
 pub mod httpd;
 pub mod infect;
 pub mod keygen;

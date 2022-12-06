@@ -1,10 +1,11 @@
 use clap::Parser;
 use env_logger::Env;
 use openssl::hash::MessageDigest;
-use sh4d0wup::args::{self, Args, Infect, Keygen, Sign, SubCommand, Tamper};
+use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand, Tamper};
 use sh4d0wup::build;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
+use sh4d0wup::hsm;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen::in_toto::InTotoEmbedded;
@@ -302,6 +303,7 @@ async fn main() -> Result<()> {
             sig.push(b'\n');
             io::stdout().write_all(&sig)?;
         }
+        SubCommand::Hsm(Hsm::Pgp(HsmPgp::Access(access))) => hsm::pgp::access(&access)?,
         SubCommand::Build(build) => build::run(build).await?,
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;

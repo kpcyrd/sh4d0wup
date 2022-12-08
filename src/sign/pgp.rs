@@ -103,7 +103,8 @@ mod tests {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .context("Failed to execute sq binary")?;
         {
             let mut stdin = child.stdin.take().unwrap();
             stdin.write_all(data)?;

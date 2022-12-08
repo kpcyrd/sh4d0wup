@@ -54,7 +54,7 @@ pub fn read_pin(args: &HsmPin) -> Result<Option<Vec<u8>>> {
     if let Some(pin) = &args.value {
         Ok(Some(pin.as_bytes().to_vec()))
     } else if let Some(path) = &args.file {
-        let mut buf = fs::read_to_string(&path)
+        let mut buf = fs::read_to_string(path)
             .with_context(|| anyhow!("Failed to read pin from file: {:?}", path))?;
         buf.truncate(buf.trim_end().len());
         Ok(Some(buf.into_bytes()))
@@ -107,13 +107,19 @@ pub fn access(args: &HsmAccess) -> Result<()> {
 
     let pin = read_pin(&args.pin)?;
     if let Some(pin) = pin {
-        write_info("Hardware signing pw1 pin is valid", if let Err(err) = card.verify_pw1_signing(pin) {
-            Status::Error(err)
-        } else {
-            Status::Ok
-        })?;
+        write_info(
+            "Hardware signing pw1 pin is valid",
+            if let Err(err) = card.verify_pw1_signing(pin) {
+                Status::Error(err)
+            } else {
+                Status::Ok
+            },
+        )?;
     } else {
-        write_info("Hardware signing pw1 pin is valid", Status::Other("-".to_string()))?;
+        write_info(
+            "Hardware signing pw1 pin is valid",
+            Status::Other("-".to_string()),
+        )?;
     }
 
     card.disconnect()?;

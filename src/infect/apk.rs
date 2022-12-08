@@ -21,7 +21,7 @@ pub fn patch_signature_buf(
         .with_context(|| anyhow!("Invalid signing key reference: {:?}", infect.signing_key))?
         .openssl()?;
 
-    let signature = sign::openssl::sign(&key, pkg, MessageDigest::sha1())?;
+    let signature = sign::openssl::sign(key, pkg, MessageDigest::sha1())?;
     let key_algo_id = key.key_algo_id().unwrap_or("XXX");
 
     utils::apk::patch_signature_container(

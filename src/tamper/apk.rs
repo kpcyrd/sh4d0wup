@@ -88,10 +88,10 @@ impl Pkg {
 
 // https://wiki.alpinelinux.org/wiki/Apk_spec#Index_Format_V2
 pub fn calculate_pkg_data_body(pkg: &[u8]) -> Result<String> {
-    let mut reader = &pkg[..];
+    let mut reader = pkg;
     let _sig = utils::apk::read_gzip_to_end(&mut reader)?;
     let res = hash(MessageDigest::sha1(), reader)?;
-    Ok(format!("Q1{}", base64::encode(&res)))
+    Ok(format!("Q1{}", base64::encode(res)))
 }
 
 pub fn patch_index_buf(
@@ -181,7 +181,7 @@ pub fn patch<W: Write>(
     let mut index = Vec::new();
     debug!("Reading compressed index buffer...");
     let index_buf = utils::apk::read_gzip_to_end(&mut reader)?;
-    let index_buf = patch_index_buf(config, &plot_extras, &index_buf)?;
+    let index_buf = patch_index_buf(config, plot_extras, &index_buf)?;
     utils::apk::write_compressed(&mut &index_buf[..], &mut index)?;
 
     info!("Signing index...");

@@ -362,7 +362,7 @@ impl TamperArtifact {
                 let mut out = Vec::new();
                 tamper::apk::patch(
                     &tamper.config,
-                    &plot_extras,
+                    plot_extras,
                     &tamper.signing_key,
                     &tamper.signing_key_name,
                     artifact.as_bytes(),

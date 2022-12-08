@@ -63,20 +63,35 @@ pub fn read_pin(args: &HsmPin) -> Result<Option<Vec<u8>>> {
     }
 }
 
-pub fn write_info(label: &str, error: Option<Error>) -> Result<()> {
+#[derive(Debug)]
+pub enum Status {
+    Ok,
+    Error(Error),
+    Other(String),
+}
+
+pub fn write_info(label: &str, status: Status) -> Result<()> {
     let stdout = BufferWriter::stdout(ColorChoice::Auto);
 
     let mut buffer = stdout.buffer();
     write!(buffer, "{:50}", label)?;
-    if let Some(err) = error {
-        buffer.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-        write!(buffer, "ERR")?;
-        buffer.reset()?;
-        writeln!(buffer, " {:#}", err)?;
-    } else {
-        buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
-        writeln!(buffer, "OK")?;
-        buffer.reset()?;
+    match status {
+        Status::Ok => {
+            buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
+            writeln!(buffer, "OK")?;
+            buffer.reset()?;
+        }
+        Status::Error(err) => {
+            buffer.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
+            write!(buffer, "ERR")?;
+            buffer.reset()?;
+            writeln!(buffer, " {:#}", err)?;
+        }
+        Status::Other(text) => {
+            buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true))?;
+            writeln!(buffer, "{}", text)?;
+            buffer.reset()?;
+        }
     }
     stdout.print(&buffer)?;
 
@@ -86,14 +101,19 @@ pub fn write_info(label: &str, error: Option<Error>) -> Result<()> {
 pub fn access(args: &HsmAccess) -> Result<()> {
     let card = Card::connect()?;
 
-    write_info("Detected smart card", None)?;
+    write_info("Detected smart card", Status::Ok)?;
     card.select_openpgp()?;
-    write_info("Selected openpgp key", None)?;
+    write_info("Selected openpgp key", Status::Ok)?;
 
     let pin = read_pin(&args.pin)?;
     if let Some(pin) = pin {
-        let pin_error = card.verify_pw1_signing(pin).err();
-        write_info("Hardware signing pw1 pin is valid", pin_error)?;
+        write_info("Hardware signing pw1 pin is valid", if let Err(err) = card.verify_pw1_signing(pin) {
+            Status::Error(err)
+        } else {
+            Status::Ok
+        })?;
+    } else {
+        write_info("Hardware signing pw1 pin is valid", Status::Other("-".to_string()))?;
     }
 
     card.disconnect()?;

@@ -1,9 +1,13 @@
 [package]
 name = "sh4d0wup"
 version = "0.1.0"
+description = "Signing-key abuse and update exploitation framework"
+authors = ["kpcyrd <git@rxv.cc>"]
+license = "GPL-3.0"
+repository = "https://github.com/kpcyrd/sh4d0wup"
+categories = ["command-line-utilities"]
+readme = "README.md"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.63"

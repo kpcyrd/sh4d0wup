@@ -3,6 +3,7 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -33,7 +34,19 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Push the image to `edge`
-      if: github.event_name != 'pull_request'
+      if: github.event_name == 'push' && github.ref_name == 'main'
       run: |
-        docker tag sh4d0wup ghcr.io/kpcyrd/sh4d0wup:edge
-        docker push ghcr.io/kpcyrd/sh4d0wup:edge
+        docker tag sh4d0wup ghcr.io/${{ github.repository }}:edge
+        docker push ghcr.io/${{ github.repository }}:edge
+
+    - name: Push the image to `${{ github.ref_name }}`
+      if: github.ref_type == 'tag'
+      run: |
+        docker tag sh4d0wup ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+
+    - name: Push the image to `latest`
+      if: github.ref_type == 'tag'
+      run: |
+        docker tag sh4d0wup ghcr.io/${{ github.repository }}:latest
+        docker push ghcr.io/${{ github.repository }}:latest

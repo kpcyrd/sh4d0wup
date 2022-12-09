@@ -8,9 +8,39 @@ use std::path::Path;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum KeygenSsh {
+    Embedded(SshEmbedded),
+    Generate(SshGenerate),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SshEmbedded {
     pub public_key: Option<String>,
     pub secret_key: String,
+}
+
+impl SshEmbedded {
+    pub fn read_from_disk<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        debug!("Reading ssh key from path: {:?}", path);
+        let secret_key = fs::read_to_string(path)
+            .with_context(|| anyhow!("Failed to read from file {:?}", path))?;
+        Ok(SshEmbedded {
+            public_key: None,
+            secret_key,
+        })
+    }
+
+    pub fn to_cert(&self) -> Result<Vec<u8>> {
+        let seckey = KeyPair::from_keystr(&self.secret_key, None)
+            .context("Failed to parse secret ssh key")?;
+        let pubkey = seckey
+            .clone_public_key()
+            .context("Failed to derive public key from secret key")?;
+        let public_key = pubkey.serialize()?;
+        Ok(public_key.into_bytes())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

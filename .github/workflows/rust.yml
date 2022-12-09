@@ -13,18 +13,90 @@ env:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
+
+    - name: Set up cargo cache
+      uses: actions/cache@v3
+      continue-on-error: false
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-release-
+
+    - name: Install dependencies (apt)
+      run: sudo apt-get install libpcsclite-dev nettle-dev
+
+    - name: Build
+      run: cargo build --release --verbose
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: bin
+        path: target/release/sh4d0wup
+
+  integration-test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        plot:
+          - contrib/plot-alpine.yaml
+          - contrib/plot-archlinux-replaces.yaml
+          - contrib/plot-archlinux-resign.yaml
+          - contrib/plot-archlinux.yaml
+          - contrib/plot-debian.yaml
+          # this doesn't work
+          #- contrib/plot-docker.yaml
+          - contrib/plot-helm.yaml
+          - contrib/plot-terraform.yaml
+
+    name: ${{ matrix.plot }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+      - name: Install dependencies (apt)
+        run: sudo apt-get install libpcsclite-dev nettle-dev
+      - name: 🦝 Run a plot
+        run: chmod +x bin/sh4d0wup && bin/sh4d0wup check ${{ matrix.plot }}
+
+  unit-test:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up cargo cache
+      uses: actions/cache@v3
+      continue-on-error: false
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-debug-
 
     - name: Install dependencies (apt)
       run: sudo apt-get install libpcsclite-dev nettle-dev sq
 
-    - name: Build
-      run: cargo build --verbose
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
     - name: Run tests
       run: cargo test --verbose
-    - name: Run clippy
-      run: cargo clippy --verbose
+
+  fmt:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run cargo fmt
+      run: cargo fmt --all -- --check

@@ -84,7 +84,7 @@ where
         cmd.stdout(Stdio::piped());
     }
     debug!("Spawning child process: podman {:?}", args);
-    let mut child = cmd.spawn()?;
+    let mut child = cmd.spawn().context("Failed to execute podman binary")?;
 
     if let Some(data) = stdin {
         debug!("Sending {} bytes to child process...", data.len());

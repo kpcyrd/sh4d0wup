@@ -1,5 +1,6 @@
 Dockerfile
 .dockerignore
 .git
+.github
 .gitignore
 target/

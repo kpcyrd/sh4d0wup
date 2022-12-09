@@ -406,7 +406,7 @@ pub struct Build {
     pub cache_from: CacheFrom,
 }
 
-/// Ensure a provided attack can still execute correctly
+/// Check if the plot can still execute correctly against the configured image
 #[derive(Debug, Clone, Parser)]
 pub struct Check {
     /// Path to the plot to execute

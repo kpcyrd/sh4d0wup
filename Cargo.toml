@@ -1,6 +1,6 @@
 [package]
 name = "sh4d0wup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Signing-key abuse and update exploitation framework"
 authors = ["kpcyrd <git@rxv.cc>"]
 license = "GPL-3.0"

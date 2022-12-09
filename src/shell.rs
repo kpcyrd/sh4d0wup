@@ -2,7 +2,7 @@ use crate::errors::*;
 
 pub fn supports_injection(header: &str) -> bool {
     let header = if let Some(header) = header.strip_prefix("#!") {
-        header
+        header.trim()
     } else {
         return false;
     };
@@ -125,5 +125,23 @@ echo hello world
             "id",
         );
         assert!(r.is_err());
+    }
+
+    #[test]
+    pub fn space_before_shell() {
+        let patched = inject_into_script(
+            "#! /bin/sh
+set -e
+",
+            "id",
+        )
+        .unwrap();
+        assert_eq!(
+            patched,
+            "#! /bin/sh
+id
+set -e
+"
+        );
     }
 }

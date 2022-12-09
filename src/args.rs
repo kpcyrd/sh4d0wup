@@ -1,4 +1,5 @@
 use crate::errors::*;
+use crate::keygen;
 use crate::plot::{PkgFilter, PkgPatchValues};
 use crate::sign::in_toto::VirtualEntry;
 use clap::{ArgAction, CommandFactory, Parser, Subcommand};
@@ -242,6 +243,7 @@ pub struct TamperApkIndex {
 pub enum Keygen {
     Tls(KeygenTls),
     Pgp(KeygenPgp),
+    Ssh(KeygenSsh),
     Openssl(KeygenOpenssl),
     InToto(KeygenInToto),
 }
@@ -256,6 +258,16 @@ pub struct KeygenTls {
 #[derive(Debug, Clone, Parser)]
 pub struct KeygenPgp {
     pub uids: Vec<String>,
+}
+
+/// Generate an ssh keypair
+#[derive(Debug, Clone, Parser)]
+pub struct KeygenSsh {
+    #[arg(short = 't', long = "type")]
+    pub keytype: keygen::ssh::KeypairType,
+    /// Number of bits to use for the keypair
+    #[arg(short, long)]
+    pub bits: usize,
 }
 
 /// Generate an openssl keypair

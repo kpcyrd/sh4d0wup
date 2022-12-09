@@ -230,6 +230,14 @@ async fn main() -> Result<()> {
                 print!("{}", rev);
             }
         }
+        SubCommand::Keygen(Keygen::Ssh(ssh)) => {
+            let ssh =
+                keygen::ssh::generate(&ssh.try_into()?).context("Failed to generate ssh key")?;
+            if let Some(public_key) = ssh.public_key {
+                println!("{}", public_key);
+            }
+            print!("{}", ssh.secret_key);
+        }
         SubCommand::Keygen(Keygen::Openssl(openssl)) => {
             let openssl = keygen::openssl::generate(&openssl.try_into()?)
                 .context("Failed to generate openssl key")?;

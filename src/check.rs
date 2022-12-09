@@ -216,6 +216,7 @@ impl Container {
 
             let cert = match key {
                 EmbeddedKey::Pgp(pgp) => pgp.to_cert(install.binary)?,
+                EmbeddedKey::Ssh(ssh) => ssh.to_cert()?,
                 EmbeddedKey::Openssl(openssl) => openssl.to_cert(install.binary)?,
                 EmbeddedKey::InToto(_in_toto) => {
                     bail!("Installing in-toto keys into the container isn't supported yet")

@@ -1,6 +1,7 @@
 pub mod in_toto;
 pub mod openssl;
 pub mod pgp;
+pub mod ssh;
 pub mod tls;
 
 use self::in_toto::KeygenInToto;

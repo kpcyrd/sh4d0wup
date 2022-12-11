@@ -668,6 +668,7 @@ pub struct Check {
     pub install_keys: Vec<InstallKey>,
     #[serde(default)]
     pub register_hosts: Vec<String>,
+    pub expose_fuse: bool,
     pub cmds: Vec<Cmd>,
     pub init: Option<Vec<String>>,
 }

@@ -126,7 +126,10 @@ async fn proxy_forward_request(
     };
     let proxy_uri = url.to_string();
 
-    debug!("Sending request upstream to {:?}", &proxy_uri);
+    debug!(
+        "Sending request upstream to {:?}, headers={:?}",
+        &proxy_uri, headers
+    );
     proxy_to_and_forward_response(proxy_uri, uri, params, method, headers, body).await
 }
 

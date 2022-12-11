@@ -1,0 +1,24 @@
+---
+
+upstreams:
+  ghcr:
+    url: https://ghcr.io/
+
+tls:
+  names: ["ghcr.io", "example.com"]
+
+check:
+  image: quay.io/podman/stable
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    # redirecting ghcr.io to localhost breaks the auth-token retrieval from `https://ghcr.io/token`
+    # use a different domain instead
+    - example.com
+  expose_fuse: true
+  cmds:
+    - "sudo -u podman podman run --rm example.com:${SH4D0WUP_BOUND_PORT}/kpcyrd/sh4d0wup:edge --help"
+
+routes:
+  - type: proxy
+    args:
+      upstream: ghcr

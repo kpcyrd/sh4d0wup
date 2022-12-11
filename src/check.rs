@@ -112,7 +112,12 @@ pub struct Container {
 }
 
 impl Container {
-    pub async fn create(image: &str, init: &[String], addr: SocketAddr) -> Result<Container> {
+    pub async fn create(
+        image: &str,
+        init: &[String],
+        addr: SocketAddr,
+        expose_fuse: bool,
+    ) -> Result<Container> {
         let bin = init
             .first()
             .context("Command for container can't be empty")?;
@@ -125,11 +130,15 @@ impl Container {
             "--rm",
             "--network=host",
             "-v=/usr/bin/catatonit:/__:ro",
-            &entrypoint,
-            "--",
-            image,
         ];
+        if expose_fuse {
+            debug!("Mapping /dev/fuse into the container");
+            podman_args.push("--device=/dev/fuse");
+        }
+
+        podman_args.extend([&entrypoint, "--", image]);
         podman_args.extend(cmd_args.iter().map(|s| s.as_str()));
+
         let mut out = podman(&podman_args, true, None).await?;
         if let Some(idx) = memchr::memchr(b'\n', &out) {
             out.truncate(idx);
@@ -275,7 +284,7 @@ pub async fn run(
     }
 
     info!("Creating container...");
-    let container = Container::create(image, &init, addr).await?;
+    let container = Container::create(image, &init, addr, check_config.expose_fuse).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
         result = container.run_check(&check_config, &ctx.extras, tls) => result,

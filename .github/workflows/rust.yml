@@ -71,6 +71,17 @@ jobs:
       - name: 🦝 Run a plot
         run: chmod +x bin/sh4d0wup && bin/sh4d0wup check ${{ matrix.plot }}
 
+  make-plots:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+      - name: Install dependencies (apt)
+        run: sudo apt-get install libpcsclite-dev nettle-dev
+      - name: Compile all plots
+        run: chmod +x bin/sh4d0wup && make sh4d0wup=bin/sh4d0wup -j8
+
   unit-test:
     runs-on: ubuntu-22.04
     steps:

@@ -1,6 +1,7 @@
-Dockerfile
-.dockerignore
-.git
-.github
-.gitignore
-target/
+/Dockerfile
+/.dockerignore
+/.git
+/.github
+/.gitignore
+/target/
+/build/

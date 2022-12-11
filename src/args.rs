@@ -61,7 +61,7 @@ pub struct Bait {
     #[arg(long)]
     pub tls_key: Option<PathBuf>,
     /// Path to the plot to execute
-    pub plot: String,
+    pub plot: PathBuf,
     /// Setup the attack but exit instead of serving requests
     #[arg(short, long)]
     pub no_bind: bool,
@@ -139,7 +139,7 @@ pub struct InfectApkPkg {
     pub set: Vec<String>,
     /// Path to the key to sign the package with
     #[arg(short = 'S', long)]
-    pub signing_key: String,
+    pub signing_key: PathBuf,
     /// The name of the signing key (eg. alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub)
     #[arg(short = 'N', long)]
     pub signing_key_name: String,
@@ -183,9 +183,9 @@ pub struct TamperPackageDatabaseConfig {
 #[derive(Debug, Clone, Parser)]
 pub struct TamperPacman {
     /// The input database to modify
-    pub path: String,
+    pub path: PathBuf,
     /// Path to write the patched database to
-    pub out: String,
+    pub out: PathBuf,
     #[clap(flatten)]
     pub config: TamperPackageDatabaseConfig,
 }
@@ -194,9 +194,9 @@ pub struct TamperPacman {
 #[derive(Debug, Clone, Parser)]
 pub struct TamperAptRelease {
     /// The input database to modify
-    pub path: String,
+    pub path: PathBuf,
     /// Path to write the patched database to
-    pub out: String,
+    pub out: PathBuf,
     /// Patch a metadata field on the release instead of a checksum
     #[arg(long)]
     pub release_set: Vec<String>,
@@ -214,9 +214,9 @@ pub struct TamperAptRelease {
 #[derive(Debug, Clone, Parser)]
 pub struct TamperAptPackageList {
     /// The input database to modify
-    pub path: String,
+    pub path: PathBuf,
     /// Path to write the patched database to
-    pub out: String,
+    pub out: PathBuf,
     #[clap(flatten)]
     pub config: TamperPackageDatabaseConfig,
 }
@@ -225,14 +225,14 @@ pub struct TamperAptPackageList {
 #[derive(Debug, Clone, Parser)]
 pub struct TamperApkIndex {
     /// The input database to modify
-    pub path: String,
+    pub path: PathBuf,
     /// Path to write the patched database to
-    pub out: String,
+    pub out: PathBuf,
     #[clap(flatten)]
     pub config: TamperPackageDatabaseConfig,
     /// Path to the key to sign the package with
     #[arg(short = 'S', long)]
-    pub signing_key: String,
+    pub signing_key: PathBuf,
     /// The name of the signing key (eg. alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub)
     #[arg(short = 'N', long)]
     pub signing_key_name: String,
@@ -410,7 +410,7 @@ pub struct Build {
 #[derive(Debug, Clone, Parser)]
 pub struct Check {
     /// Path to the plot to execute
-    pub plot: String,
+    pub plot: PathBuf,
     /// Address to bind to
     #[arg(short = 'B', long, env = "SH4D0WUP_BIND")]
     pub bind: Option<SocketAddr>,

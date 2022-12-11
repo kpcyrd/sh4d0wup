@@ -1,0 +1,34 @@
+---
+
+upstreams:
+  hub:
+    url: https://index.docker.io/
+
+tls:
+  names: ["index.docker.io", "example.com"]
+
+check:
+  image: quay.io/podman/stable
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    - index.docker.io
+  expose_fuse: true
+  cmds:
+    - "sudo -u podman podman run --rm index.docker.io:${SH4D0WUP_BOUND_PORT}/library/alpine echo hello world"
+
+artifacts:
+  manifest_upstream:
+    url: https://index.docker.io/v2/library/alpine/manifests/latest
+    oci_auth:
+      url: https://index.docker.io/v2/
+      scopes:
+        - repository:library/alpine:pull
+
+routes:
+  - path: /v2/library/alpine/manifests/latest
+    type: static
+    args:
+      artifact: manifest_upstream
+  - type: proxy
+    args:
+      upstream: hub

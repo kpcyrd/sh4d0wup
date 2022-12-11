@@ -67,6 +67,7 @@ pub async fn run(build: args::Build) -> Result<()> {
     let PlotExtras {
         mut artifacts,
         signing_keys,
+        sessions: _,
     } = plot
         .resolve_extras(artifacts)
         .await

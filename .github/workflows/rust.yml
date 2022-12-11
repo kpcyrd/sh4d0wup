@@ -53,9 +53,9 @@ jobs:
           - contrib/plot-archlinux-resign.yaml
           - contrib/plot-archlinux.yaml
           - contrib/plot-debian.yaml
-          # this doesn't work
-          #- contrib/plot-docker.yaml
           - contrib/plot-helm.yaml
+          - contrib/plot-podman-docker-hub.yaml
+          - contrib/plot-podman-ghcr.yaml
           - contrib/plot-terraform.yaml
 
     name: ${{ matrix.plot }}

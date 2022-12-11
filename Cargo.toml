@@ -36,7 +36,7 @@ osshkeys = { version = "0.6.2", features = ["rustcrypto-cipher"], default-featur
 pcsc = "2.7.0"
 peekread = "0.1.1"
 rcgen = "0.10.0"
-reqwest = { version = "0.11.12", features = ["stream"] }
+reqwest = { version = "0.11.12", features = ["json", "stream"] }
 rust-lzma = "0.5.1"
 sequoia-openpgp = "1.10.0"
 serde = { version = "1.0.144", features = ["derive"] }

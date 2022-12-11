@@ -1,10 +1,10 @@
 use crate::errors::*;
 use http::Method;
+use http::{HeaderMap, HeaderValue};
 use once_cell::sync::{Lazy, OnceCell};
 use reqwest::redirect::Policy;
 use unicase::Ascii;
 use url::Url;
-use warp::http::{HeaderMap, HeaderValue};
 use warp::hyper::Body;
 use warp::path::FullPath;
 use warp::{hyper::body::Bytes, Rejection};
@@ -21,13 +21,19 @@ fn default_reqwest_client() -> reqwest::Client {
         .expect("Default reqwest client couldn't build")
 }
 
-pub async fn send_req(method: Method, url: Url) -> Result<reqwest::Response> {
+pub async fn send_req(
+    method: Method,
+    url: Url,
+    headers: Option<HeaderMap>,
+) -> Result<reqwest::Response> {
     debug!("Sending request to {:?}", url.to_string());
-    let response = CLIENT
+    let mut request = CLIENT
         .get_or_init(default_reqwest_client)
-        .request(method, url)
-        .send()
-        .await?;
+        .request(method, url);
+    if let Some(headers) = headers {
+        request = request.headers(headers);
+    }
+    let response = request.send().await?;
 
     trace!("Upstream http response: {:?}", response);
     debug!(

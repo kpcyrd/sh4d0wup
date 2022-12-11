@@ -2,10 +2,12 @@ use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::infect;
 use crate::plot::{Artifacts, PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
+use crate::sessions::OciAuth;
+use crate::sessions::Sessions;
 use crate::sign;
 use crate::tamper;
 use crate::upstream;
-use http::Method;
+use http::{HeaderMap, HeaderValue, Method};
 use maplit::hashset;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
@@ -85,7 +87,7 @@ impl Artifact {
                     artifact.url.to_string()
                 );
                 let buf = artifact
-                    .download()
+                    .download(&mut plot_extras.sessions)
                     .await
                     .context("Failed to resolve url artifact")?;
                 *self = Artifact::Memory;
@@ -94,6 +96,7 @@ impl Artifact {
             Artifact::Inline(inline) => {
                 let data = mem::take(&mut inline.data);
                 let bytes = data.into_bytes();
+                *self = Artifact::Memory;
                 Ok(Some(bytes))
             }
             Artifact::Signature(artifact) => {
@@ -136,12 +139,26 @@ pub struct PathArtifact {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UrlArtifact {
     pub url: Url,
+    pub oci_auth: Option<OciAuth>,
     pub sha256: Option<String>,
 }
 
 impl UrlArtifact {
-    pub async fn download(&self) -> Result<warp::hyper::body::Bytes> {
-        let response = upstream::send_req(Method::GET, self.url.clone())
+    pub async fn download(&self, sessions: &mut Sessions) -> Result<warp::hyper::body::Bytes> {
+        let mut headers = HeaderMap::<HeaderValue>::default();
+
+        if let Some(oci_auth) = &self.oci_auth {
+            let token = sessions.create_oci_auth_session(oci_auth).await?;
+            if let Some(token) = token {
+                let value = format!("Bearer {}", token);
+                let value = value
+                    .parse()
+                    .context("Failed to convert data to Authorization header")?;
+                headers.insert("Authorization", value);
+            }
+        }
+
+        let response = upstream::send_req(Method::GET, self.url.clone(), Some(headers))
             .await?
             .error_for_status()?;
         let buf = response.bytes().await?;

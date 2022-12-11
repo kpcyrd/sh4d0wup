@@ -18,7 +18,21 @@ check:
   cmds:
     - "sudo -u podman podman run --rm example.com:${SH4D0WUP_BOUND_PORT}/kpcyrd/sh4d0wup:edge --help"
 
+artifacts:
+  manifest_upstream:
+    url: https://ghcr.io/v2/kpcyrd/sh4d0wup/manifests/edge
+    oci_auth:
+      url: https://ghcr.io/v2/
+      scopes:
+        - repository:kpcyrd/sh4d0wup:pull
+
 routes:
+  - path: /v2/kpcyrd/sh4d0wup/manifests/edge
+    type: static
+    args:
+      headers:
+        Content-Type: application/vnd.docker.distribution.manifest.v2+json
+      artifact: manifest_upstream
   - type: proxy
     args:
       upstream: ghcr

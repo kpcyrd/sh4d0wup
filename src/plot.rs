@@ -4,6 +4,7 @@ use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
+use crate::sessions::Sessions;
 use handlebars::Handlebars;
 use indexmap::IndexMap;
 use peekread::BufPeekReader;
@@ -240,6 +241,7 @@ impl Plot {
         let mut extras = PlotExtras {
             signing_keys,
             artifacts,
+            ..Default::default()
         };
 
         debug!("Resolving artifacts...");
@@ -272,6 +274,7 @@ impl Plot {
 pub struct PlotExtras {
     pub signing_keys: SigningKeys,
     pub artifacts: Artifacts,
+    pub sessions: Sessions,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

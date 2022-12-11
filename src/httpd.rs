@@ -113,7 +113,7 @@ async fn proxy_forward_request(
                     .map(|(_, x)| x)
                     .unwrap_or(&upstream_host);
                 *value = HeaderValue::from_str(v).map_err(http_error)?;
-                debug!("Updating host header to {:?}", value);
+                trace!("Updating host header to {:?}", value);
             }
         }
     }

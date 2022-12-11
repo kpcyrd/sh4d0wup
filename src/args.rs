@@ -9,6 +9,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
+#[command(version)]
 pub struct Args {
     /// Turn debugging information on
     #[arg(short, long, global = true, action(ArgAction::Count))]

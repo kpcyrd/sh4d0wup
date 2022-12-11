@@ -54,7 +54,10 @@ jobs:
           - contrib/plot-archlinux.yaml
           - contrib/plot-debian.yaml
           - contrib/plot-helm.yaml
+          - contrib/plot-podman-cgr.yaml
           - contrib/plot-podman-docker-hub.yaml
+          - contrib/plot-podman-ecr.yaml
+          - contrib/plot-podman-gcr.yaml
           - contrib/plot-podman-ghcr.yaml
           - contrib/plot-terraform.yaml
 

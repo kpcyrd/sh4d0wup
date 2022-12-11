@@ -1,40 +1,40 @@
 ---
 
 upstreams:
-  ghcr:
-    url: https://ghcr.io/
+  ecr:
+    url: https://public.ecr.aws/
 
 tls:
-  names: ["ghcr.io", "example.com"]
+  names: ["public.ecr.aws", "example.com"]
 
 check:
   image: quay.io/podman/stable
   install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
   register_hosts:
-    # redirecting ghcr.io to localhost breaks the auth-token retrieval from `https://ghcr.io/token`
+    # redirecting public.ecr.aws to localhost breaks the auth-token retrieval from `https://public.ecr.aws/token/`
     # use a different domain instead
     - example.com
   expose_fuse: true
   cmds:
-    - "sudo -u podman podman run --rm example.com:${SH4D0WUP_BOUND_PORT}/kpcyrd/sh4d0wup:edge --version"
+    - "sudo -u podman podman run --rm example.com:${SH4D0WUP_BOUND_PORT}/ubuntu/redis echo hello world"
 
 artifacts:
   manifest_upstream:
-    url: https://ghcr.io/v2/kpcyrd/sh4d0wup/manifests/edge
+    url: https://public.ecr.aws/v2/ubuntu/redis/manifests/latest
     oci_auth:
-      url: https://ghcr.io/v2/
+      url: https://public.ecr.aws/v2/
       scopes:
-        - repository:kpcyrd/sh4d0wup:pull
+        - repository:ubuntu/redis:pull
     headers:
       Accept: application/vnd.docker.distribution.manifest.v1+json,application/vnd.docker.distribution.manifest.v1+prettyjws,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json
 
 routes:
-  - path: /v2/kpcyrd/sh4d0wup/manifests/edge
+  - path: /v2/ubuntu/redis/manifests/latest
     type: static
     args:
       headers:
-        Content-Type: application/vnd.docker.distribution.manifest.v2+json
+        Content-Type: application/vnd.oci.image.index.v1+json
       artifact: manifest_upstream
   - type: proxy
     args:
-      upstream: ghcr
+      upstream: ecr

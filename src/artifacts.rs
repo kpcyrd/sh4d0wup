@@ -7,11 +7,13 @@ use crate::sessions::Sessions;
 use crate::sign;
 use crate::tamper;
 use crate::upstream;
-use http::{HeaderMap, HeaderValue, Method};
+use http::header::{HeaderMap, HeaderName, HeaderValue};
+use http::Method;
 use maplit::hashset;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::mem;
 use std::path::PathBuf;
@@ -140,6 +142,8 @@ pub struct PathArtifact {
 pub struct UrlArtifact {
     pub url: Url,
     pub oci_auth: Option<OciAuth>,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
     pub sha256: Option<String>,
 }
 
@@ -151,11 +155,21 @@ impl UrlArtifact {
             let token = sessions.create_oci_auth_session(oci_auth).await?;
             if let Some(token) = token {
                 let value = format!("Bearer {}", token);
-                let value = value
-                    .parse()
-                    .context("Failed to convert data to Authorization header")?;
+                let value = value.parse().with_context(|| {
+                    anyhow!("Failed to convert input to http header value: {:?}", value)
+                })?;
                 headers.insert("Authorization", value);
             }
+        }
+
+        for (k, v) in &self.headers {
+            let k: HeaderName = k
+                .parse()
+                .with_context(|| anyhow!("Failed to convert input to http header key: {:?}", k))?;
+            let v = v.parse().with_context(|| {
+                anyhow!("Failed to convert input to http header value: {:?}", v)
+            })?;
+            headers.insert(k, v);
         }
 
         let response = upstream::send_req(Method::GET, self.url.clone(), Some(headers))

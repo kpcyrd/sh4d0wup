@@ -44,6 +44,7 @@ You can find examples here:
 
 - [`contrib/plot-archlinux.yaml`](contrib/plot-archlinux.yaml)
 - [`contrib/plot-debian.yaml`](contrib/plot-debian.yaml)
+- [`contrib/plot-rustup.yaml`](contrib/plot-rustup.yaml)
 
 ## 🧪 Infect an artifact
 

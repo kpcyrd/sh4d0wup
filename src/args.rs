@@ -162,6 +162,12 @@ pub struct InfectElf {
     /// The command to inject into the binary
     #[arg(short = 'c', long)]
     pub payload: String,
+    /// Instead of unpacking to memory, replace the binary on disk with the input executable
+    #[arg(long)]
+    pub self_replace: bool,
+    /// Instead of detecting the local path with readlink(/proc/self/exe), hard-code a value
+    #[arg(long)]
+    pub assume_path: Option<String>,
 }
 
 /// Low level tampering, patch a package database to add malicious packages, cause updates or influence dependency resolution

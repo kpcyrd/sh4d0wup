@@ -52,6 +52,7 @@ jobs:
           - contrib/plot-archlinux-replaces.yaml
           - contrib/plot-archlinux-resign.yaml
           - contrib/plot-archlinux.yaml
+          - contrib/plot-curl-sh.yaml
           - contrib/plot-debian.yaml
           - contrib/plot-helm.yaml
           - contrib/plot-podman-cgr.yaml
@@ -59,6 +60,7 @@ jobs:
           - contrib/plot-podman-ecr.yaml
           - contrib/plot-podman-gcr.yaml
           - contrib/plot-podman-ghcr.yaml
+          - contrib/plot-rustup.yaml
           - contrib/plot-terraform.yaml
 
     name: ${{ matrix.plot }}

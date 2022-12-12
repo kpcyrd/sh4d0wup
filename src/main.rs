@@ -101,7 +101,8 @@ async fn main() -> Result<()> {
         }
         SubCommand::Infect(Infect::Elf(infect)) => {
             let elf = fs::read(&infect.path)?;
-            infect::elf::infect(&infect, &elf, &infect.out).await?;
+            let mut out = tokio::fs::File::create(&infect.out).await?;
+            infect::elf::infect(&infect.try_into()?, &elf, &mut out).await?;
         }
         SubCommand::Tamper(Tamper::PacmanDb(tamper)) => {
             let db = fs::read(&tamper.path)?;

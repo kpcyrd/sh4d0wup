@@ -48,6 +48,9 @@ impl Artifact {
             Artifact::Infect(InfectArtifact::Apk(infect)) => {
                 Some(hashset![infect.artifact.as_str()])
             }
+            Artifact::Infect(InfectArtifact::Elf(infect)) => {
+                Some(hashset![infect.artifact.as_str()])
+            }
             Artifact::Tamper(TamperArtifact::PatchAptRelease(tamper)) => {
                 let mut set = hashset![tamper.artifact.as_str()];
                 for patch in &tamper.config.checksums.patch {
@@ -111,6 +114,7 @@ impl Artifact {
                 info!("Infecting artifact...");
                 let buf = artifact
                     .resolve(plot_extras)
+                    .await
                     .context("Failed to infect artifact")?;
                 Ok(Some(buf))
             }
@@ -246,10 +250,11 @@ pub enum InfectArtifact {
     Pacman(InfectPacmanArtifact),
     Deb(InfectDebArtifact),
     Apk(InfectApkArtifact),
+    Elf(InfectElfArtifact),
 }
 
 impl InfectArtifact {
-    pub fn resolve(&self, plot_extras: &mut PlotExtras) -> Result<Vec<u8>> {
+    pub async fn resolve(&self, plot_extras: &mut PlotExtras) -> Result<Vec<u8>> {
         match self {
             InfectArtifact::Pacman(infect) => {
                 let artifact = plot_extras
@@ -301,6 +306,21 @@ impl InfectArtifact {
                 )?;
                 Ok(out)
             }
+            InfectArtifact::Elf(infect) => {
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&infect.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
+
+                let mut out = Vec::new();
+                infect::elf::infect(&infect.config, artifact.as_bytes(), &mut out).await?;
+                Ok(out)
+            }
         }
     }
 }
@@ -324,6 +344,13 @@ pub struct InfectApkArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: infect::apk::Infect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InfectElfArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: infect::elf::Infect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

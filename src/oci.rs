@@ -4,7 +4,7 @@ pub mod tests {
 
     #[test]
     fn test_parse_manifest() {
-        let data = br#"{
+        let _data = br#"{
    "schemaVersion": 2,
    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
    "config": {

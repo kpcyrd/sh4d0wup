@@ -215,6 +215,16 @@ pub fn write_patch_layer<W: Write>(
     }
 }
 
+pub fn layer_id_from_filename(filename: &str) -> Result<&str> {
+    if let Some(id) = filename.strip_suffix("/layer.tar") {
+        Ok(id)
+    } else if let Some(id) = filename.strip_suffix(".tar") {
+        Ok(id)
+    } else {
+        bail!("Can't detect id of parent layer")
+    }
+}
+
 pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut archive = Archive::new(pkg);
     let mut builder = tar::Builder::new(out);
@@ -250,12 +260,12 @@ pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Resu
                     &manifest.config, config
                 );
 
-                let parent = manifest
-                    .layers
-                    .last()
-                    .context("Image manifest has no layers")?
-                    .strip_suffix("/layer.tar")
-                    .context("Can't detect id of parent layer")?;
+                let parent = layer_id_from_filename(
+                    manifest
+                        .layers
+                        .last()
+                        .context("Image manifest has no layers")?,
+                )?;
 
                 let (config_path, layer_path) =
                     write_patch_layer(&mut builder, args, config, parent)
@@ -333,5 +343,22 @@ mod tests {
             hook,
             "#!/bin/sh\necho hello world\nexec echo 'hello $world\n' \"$@\"\n"
         );
+    }
+
+    #[test]
+    fn test_layer_id_from_filename() -> Result<()> {
+        assert_eq!(
+            layer_id_from_filename(
+                "2f7048230bc73ff091490aa5764f9c160d1a4efe04935da731a22e8d5fcccfcc.tar"
+            )?,
+            "2f7048230bc73ff091490aa5764f9c160d1a4efe04935da731a22e8d5fcccfcc"
+        );
+        assert_eq!(
+            layer_id_from_filename(
+                "df829f9c635ceba6eeeac38345533af768999a177e86a235aaf650529affc415/layer.tar"
+            )?,
+            "df829f9c635ceba6eeeac38345533af768999a177e86a235aaf650529affc415"
+        );
+        Ok(())
     }
 }

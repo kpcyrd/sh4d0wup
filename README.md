@@ -50,6 +50,7 @@ You can find examples here:
 - [`sh4d0wup infect elf`](#sh4d0wup-infect-elf)
 - [`sh4d0wup infect pacman`](#sh4d0wup-infect-pacman)
 - [`sh4d0wup infect deb`](#sh4d0wup-infect-deb)
+- [`sh4d0wup infect oci`](#sh4d0wup-infect-oci)
 
 ### `sh4d0wup infect elf`
 

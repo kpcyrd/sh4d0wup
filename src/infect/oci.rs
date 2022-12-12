@@ -261,6 +261,11 @@ pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Resu
                     write_patch_layer(&mut builder, args, config, parent)
                         .context("Failed to add patch layer")?;
 
+                if !args.tags.is_empty() {
+                    info!("Updating tags of image to {:?}", args.tags);
+                    manifest.repo_tags = args.tags.clone();
+                }
+
                 info!("Writing modified manifest...");
                 manifest.config = config_path;
                 if let Some(layer_path) = layer_path {

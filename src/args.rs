@@ -126,6 +126,9 @@ pub struct InfectOci {
     /// The command to inject into the package that's executed once during install
     #[arg(short = 'c', long)]
     pub payload: Option<String>,
+    /// Change the tags of the modified images
+    #[arg(short = 't', long = "tag")]
+    pub tags: Vec<String>,
 }
 
 /// Infect an alpine apk package

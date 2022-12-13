@@ -2,7 +2,9 @@ use crate::errors::*;
 use bzip2::read::BzDecoder;
 use bzip2::write::BzEncoder;
 use flate2::read::GzDecoder;
+use flate2::read::ZlibDecoder;
 use flate2::write::GzEncoder;
+use flate2::write::ZlibEncoder;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::io::prelude::*;
@@ -18,6 +20,8 @@ pub enum CompressedWith {
     Bzip2,
     // .xz
     Xz,
+    // .z
+    Zlib,
     // .zstd
     Zstd,
     None,
@@ -31,6 +35,7 @@ pub fn detect_compression(bytes: &[u8]) -> CompressedWith {
         "application/gzip" => CompressedWith::Gzip,
         "application/x-bzip" => CompressedWith::Bzip2,
         "application/x-xz" => CompressedWith::Xz,
+        "application/zlib" => CompressedWith::Zlib,
         "application/zstd" => CompressedWith::Zstd,
         _ => CompressedWith::None,
     }
@@ -44,6 +49,7 @@ pub fn stream_decompress<'a, R: Read + 'a>(
         CompressedWith::Gzip => Ok(Box::new(GzDecoder::new(r))),
         CompressedWith::Bzip2 => Ok(Box::new(BzDecoder::new(r))),
         CompressedWith::Xz => Ok(Box::new(XzDecoder::new(r))),
+        CompressedWith::Zlib => Ok(Box::new(ZlibDecoder::new(r))),
         CompressedWith::Zstd => Ok(Box::new(zstd::Decoder::new(r)?)),
         CompressedWith::None => Ok(Box::new(r)),
     }
@@ -53,6 +59,7 @@ pub enum Compressor<'a, W: Write> {
     Gzip(GzEncoder<W>),
     Bzip2(BzEncoder<W>),
     Xz(XzEncoder<W>),
+    Zlib(ZlibEncoder<W>),
     Zstd(zstd::Encoder<'a, W>),
     Passthru(W),
 }
@@ -67,6 +74,9 @@ impl<W: Write> Compressor<'_, W> {
                 w.finish()?;
             }
             Compressor::Xz(w) => {
+                w.finish()?;
+            }
+            Compressor::Zlib(w) => {
                 w.finish()?;
             }
             Compressor::Zstd(w) => {
@@ -84,6 +94,7 @@ impl<W: Write> Write for Compressor<'_, W> {
             Compressor::Gzip(w) => w.write(buf),
             Compressor::Bzip2(w) => w.write(buf),
             Compressor::Xz(w) => w.write(buf),
+            Compressor::Zlib(w) => w.write(buf),
             Compressor::Zstd(w) => w.write(buf),
             Compressor::Passthru(w) => w.write(buf),
         }
@@ -94,6 +105,7 @@ impl<W: Write> Write for Compressor<'_, W> {
             Compressor::Gzip(w) => w.flush(),
             Compressor::Bzip2(w) => w.flush(),
             Compressor::Xz(w) => w.flush(),
+            Compressor::Zlib(w) => w.flush(),
             Compressor::Zstd(w) => w.flush(),
             Compressor::Passthru(w) => w.flush(),
         }
@@ -111,6 +123,10 @@ pub fn stream_compress<W: Write>(w: W, comp: CompressedWith) -> Result<Compresso
             bzip2::Compression::default(),
         ))),
         CompressedWith::Xz => Ok(Compressor::Xz(XzEncoder::new(w, 6))),
+        CompressedWith::Zlib => Ok(Compressor::Zlib(ZlibEncoder::new(
+            w,
+            flate2::Compression::default(),
+        ))),
         CompressedWith::Zstd => Ok(Compressor::Zstd(zstd::Encoder::new(
             w,
             zstd::DEFAULT_COMPRESSION_LEVEL,
@@ -135,6 +151,11 @@ pub fn compress(comp: CompressedWith, bytes: &[u8]) -> Result<Vec<u8>> {
         }
         CompressedWith::Xz => {
             let mut e = XzEncoder::new(out, 6);
+            e.write_all(bytes)?;
+            out = e.finish()?;
+        }
+        CompressedWith::Zlib => {
+            let mut e = ZlibEncoder::new(out, flate2::Compression::default());
             e.write_all(bytes)?;
             out = e.finish()?;
         }

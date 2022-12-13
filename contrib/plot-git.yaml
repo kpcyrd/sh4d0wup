@@ -1,0 +1,55 @@
+---
+
+upstreams:
+  github:
+    url: https://github.com/
+
+check:
+  image: cgr.dev/chainguard/git
+  cmds:
+    - 'git clone http://${SH4D0WUP_BOUND_ADDR}/kpcyrd/sh4d0wup'
+    - 'ls -la sh4d0wup'
+
+artifacts:
+  commit:
+    data: "commit 201\x00tree 14e41dda390b0ec5a35a42f3ecadb97ca18ff32e\n\
+parent e98fe89d6eef1a8da9663dda20317eebebffe57b\n\
+author kpcyrd <git@rxv.cc> 1637076383 +0100\n\
+committer kpcyrd <git@rxv.cc> 1637076383 +0100\n\
+\n\
+Release v0.3.0\n\
+"
+  commit_zlib:
+    compression: zlib
+    artifact: commit
+
+routes:
+  - path: '/kpcyrd/sh4d0wup/info/refs'
+    type: static
+    args:
+      data: |
+        248bc188602dc3552b1c15634afd7592b88ed4bd	refs/heads/main
+  - path: '/kpcyrd/sh4d0wup/HEAD'
+    type: static
+    args:
+      data: |
+        ref: refs/heads/main
+  - path: '/kpcyrd/sh4d0wup/objects/info/packs'
+    type: static
+    args:
+      data: "\n"
+  - path: '/kpcyrd/sh4d0wup/objects/info/http-alternates'
+    type: static
+    args:
+      data: "\n"
+  - path: '/kpcyrd/sh4d0wup/objects/info/alternates'
+    type: static
+    args:
+      data: "\n"
+  - path: '/kpcyrd/sh4d0wup/objects/24/8bc188602dc3552b1c15634afd7592b88ed4bd'
+    type: static
+    args:
+      artifact: commit_zlib
+  - type: proxy
+    args:
+      upstream: github

@@ -36,6 +36,7 @@ osshkeys = { version = "0.6.2", features = ["rustcrypto-cipher"], default-featur
 pcsc = "2.7.0"
 peekread = "0.1.1"
 rcgen = "0.10.0"
+regex = "1.7.0"
 reqwest = { version = "0.11.12", features = ["json", "stream"] }
 rust-lzma = "0.5.1"
 sequoia-openpgp = "1.10.0"
@@ -55,6 +56,7 @@ url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "0.5.0"
 xz = "0.1.0"
+zip = { version = "0.6.3", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = { version = "0.12", features = ["pkg-config"] }
 
 [dev-dependencies]

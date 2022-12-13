@@ -24,6 +24,20 @@ check:
 tls:
   names: ["registry.terraform.io"]
 
+artifacts:
+  kubernetes_provider_zip_upstream:
+    url: https://releases.hashicorp.com/terraform-provider-kubernetes/2.16.1/terraform-provider-kubernetes_2.16.1_linux_amd64.zip
+    sha256: 06224975f5910d41e73b35a4d5079861da2c24f9353e3ebb015fbb3b3b996b1c
+  kubernetes_provider_elf_upstream:
+    type: zip
+    extract:
+      artifact: kubernetes_provider_zip_upstream
+  kubernetes_provider_elf_infected:
+    type: elf
+    infect:
+      artifact: kubernetes_provider_elf_upstream
+      payload: id
+
 routes:
   - type: proxy
     args:

@@ -1,0 +1,15 @@
+---
+
+upstreams:
+  gentoo:
+    url: http://distfiles.gentoo.org
+
+check:
+  image: docker.io/gentoo/stage3
+  cmds:
+    - 'GENTOO_MIRRORS="http://${SH4D0WUP_BOUND_ADDR}" emerge-webrsync'
+
+routes:
+  - type: proxy
+    args:
+      upstream: gentoo

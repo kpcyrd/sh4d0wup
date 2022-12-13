@@ -541,7 +541,7 @@ impl ExtractArtifact {
                     return Ok(buf);
                 }
 
-                bail!("Archive did not contain any files");
+                bail!("Archive did not contain any matching file");
             }
         }
     }

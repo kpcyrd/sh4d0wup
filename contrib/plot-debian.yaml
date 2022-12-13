@@ -14,7 +14,6 @@ artifacts:
     url: https://deb.debian.org/debian/dists/stable/InRelease
   index_upstream:
     url: https://deb.debian.org/debian/dists/stable/main/binary-amd64/Packages.xz
-    sha256: c21a4111128e3f286b5a0b9543641c86bc111d4e2d0a41b0bb8db1ea4845ff68
   pkg_upstream:
     url: https://deb.debian.org/debian/pool/main/l/lsb/lsb-base_11.1.0_all.deb
     sha256: 89ed6332074d827a65305f9a51e591dff20641d61ff5e11f4e1822a9987e96fe

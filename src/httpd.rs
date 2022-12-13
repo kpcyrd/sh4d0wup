@@ -54,18 +54,26 @@ pub mod log {
         }
     }
 
-    pub fn log_request(method: &Method, uri: &FullPath, headers: &HeaderMap) {
+    pub fn url_to_string(uri: &FullPath, params: &QueryParameters) -> String {
+        let mut url = uri.as_str().to_string();
+        if let Some(query) = params {
+            write!(url, "?{}", query).ok();
+        }
+        url
+    }
+
+    pub fn log_request(method: &Method, url: &str, headers: &HeaderMap) {
         let fields = Fields::default()
             .append_header(headers, "host")
             .append_header(headers, "user-agent")
             .append_header(headers, "if-match")
             .append_header(headers, "if-modified-since")
             .into_string();
-        info!("Received: {:?} {:?}{}", method, uri, fields);
+        info!("Received: {:?} {:?}{}", method, url, fields);
     }
 
     pub async fn log_response(
-        uri: String,
+        url: String,
         response: http::Response<Body>,
     ) -> Result<impl Reply, Rejection> {
         let headers = response.headers();
@@ -77,7 +85,7 @@ pub mod log {
             .append_header(headers, "etag")
             .append_header(headers, "last-modified")
             .into_string();
-        info!("Sending: {:?} {:?} -{}", uri, response.status(), fields);
+        info!("Sending: {:?} {:?} -{}", url, response.status(), fields);
         debug!("Response headers: {:?}", headers);
         trace!("Sending response: {:?}", response);
         Ok(response)
@@ -345,7 +353,9 @@ async fn serve_request(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<(String, http::Response<Body>), Rejection> {
-    log::log_request(&method, &uri, &headers);
+    let url = log::url_to_string(&uri, &params);
+
+    log::log_request(&method, &url, &headers);
 
     let route_action = ctx
         .plot
@@ -353,7 +363,6 @@ async fn serve_request(
         .context("Failed to select route")
         .map_err(http_error)?;
 
-    let path = uri.as_str().to_string();
     let response = match route_action {
         RouteAction::Proxy(args) => {
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
@@ -370,7 +379,7 @@ async fn serve_request(
         RouteAction::Append(args) => append_response(args, &ctx.plot, uri).await?,
     };
 
-    Ok((path, response))
+    Ok((url, response))
 }
 
 #[derive(Debug, Clone)]

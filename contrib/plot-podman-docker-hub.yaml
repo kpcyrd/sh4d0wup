@@ -18,6 +18,7 @@ check:
 
 artifacts:
   manifest_upstream:
+    type: url
     url: https://index.docker.io/v2/library/alpine/manifests/latest
     oci_auth:
       url: https://index.docker.io/v2/

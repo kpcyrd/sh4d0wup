@@ -20,6 +20,7 @@ check:
 
 artifacts:
   manifest_upstream:
+    type: url
     url: https://cgr.dev/v2/chainguard/apko/manifests/latest
     oci_auth:
       url: https://cgr.dev/v2/

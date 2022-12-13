@@ -167,7 +167,7 @@ async fn generate_static_response(
             .map_err(http_error)?;
 
         match config {
-            Artifact::Path(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
+            Artifact::File(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
             Artifact::Url(_) => {
                 return Err(http_error(anyhow!(
                     "Url artifacts are expected to be loaded into memory at this point"

@@ -20,6 +20,7 @@ check:
 
 artifacts:
   manifest_upstream:
+    type: url
     url: https://ghcr.io/v2/kpcyrd/sh4d0wup/manifests/edge
     oci_auth:
       url: https://ghcr.io/v2/

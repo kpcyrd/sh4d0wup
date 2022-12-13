@@ -74,7 +74,7 @@ pub async fn run(build: args::Build) -> Result<()> {
         .context("Failed to resolve plot into runtime state")?;
 
     for (key, value) in &mut plot.artifacts {
-        if let Artifact::Path(artifact) = value {
+        if let Artifact::File(artifact) = value {
             info!("Reading artifact from disk: {:?}", artifact.path);
             let buf = fs::read(&artifact.path)?;
             artifacts.insert(key.to_string(), HashedArtifact::new(buf));

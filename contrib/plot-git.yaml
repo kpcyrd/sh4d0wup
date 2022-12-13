@@ -12,6 +12,7 @@ check:
 
 artifacts:
   commit:
+    type: inline
     data: "commit 201\x00tree 14e41dda390b0ec5a35a42f3ecadb97ca18ff32e\n\
 parent e98fe89d6eef1a8da9663dda20317eebebffe57b\n\
 author kpcyrd <git@rxv.cc> 1637076383 +0100\n\
@@ -20,8 +21,32 @@ committer kpcyrd <git@rxv.cc> 1637076383 +0100\n\
 Release v0.3.0\n\
 "
   commit_zlib:
+    type: compress
     compression: zlib
     artifact: commit
+  commit2:
+    type: git
+    git: commit
+    tree:
+      Sha1: [0x14, 0xe4, 0x1d, 0xda, 0x39, 0x0b, 0x0e, 0xc5, 0xa3, 0x5a, 0x42, 0xf3, 0xec, 0xad, 0xb9, 0x7c, 0xa1, 0x8f, 0xf3, 0x2e]
+    parents:
+      - Sha1: [0xe9, 0x8f, 0xe8, 0x9d, 0x6e, 0xef, 0x1a, 0x8d, 0xa9, 0x66, 0x3d, 0xda, 0x20, 0x31, 0x7e, 0xeb, 0xeb, 0xff, 0xe5, 0x7b]
+    author:
+      name: kpcyrd
+      email: git@rxv.cc
+      time:
+        seconds_since_unix_epoch: 1637076383
+        offset_in_seconds: 3600
+        sign: Plus
+    committer:
+      name: kpcyrd
+      email: git@rxv.cc
+      time:
+        seconds_since_unix_epoch: 1637076383
+        offset_in_seconds: 3600
+        sign: Plus
+    message: "Release v0.3.0\n"
+    extra_headers: []
 
 routes:
   - path: '/kpcyrd/sh4d0wup/info/refs'

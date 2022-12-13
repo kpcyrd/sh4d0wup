@@ -11,49 +11,54 @@ signing_keys:
 
 artifacts:
   release_upstream:
+    type: url
     url: https://deb.debian.org/debian/dists/stable/InRelease
   index_upstream:
+    type: url
     url: https://deb.debian.org/debian/dists/stable/main/binary-amd64/Packages.xz
   pkg_upstream:
+    type: url
     url: https://deb.debian.org/debian/pool/main/l/lsb/lsb-base_11.1.0_all.deb
     sha256: 89ed6332074d827a65305f9a51e591dff20641d61ff5e11f4e1822a9987e96fe
 
   pkg_infected:
-    type: deb
-    infect:
-      artifact: pkg_upstream
-      payload: id
+    type: infect
+    infect: deb
+    artifact: pkg_upstream
+    payload: id
   index_patched:
-    type: patch-apt-package-list
-    tamper:
-      artifact: index_upstream
-      compression: none
-      patch:
-        - name: lsb-base
-          artifact: pkg_infected
-          set:
-            Version:
-              - 11.1337.0
-            Filename:
-              - pool/main/l/lsb/lsb-base_11.1337.0_all.deb
+    type: tamper
+    tamper: patch-apt-package-list
+    artifact: index_upstream
+    compression: none
+    patch:
+      - name: lsb-base
+        artifact: pkg_infected
+        set:
+          Version:
+            - 11.1337.0
+          Filename:
+            - pool/main/l/lsb/lsb-base_11.1337.0_all.deb
   index_patched_gz:
+    type: compress
     compression: gzip
     artifact: index_patched
   index_patched_xz:
+    type: compress
     compression: xz
     artifact: index_patched
   release_patched:
-    type: patch-apt-release
-    tamper:
-      artifact: release_upstream
-      signing_key: apt
-      patch:
-        - name: main/binary-amd64/Packages
-          artifact: index_patched
-        - name: main/binary-amd64/Packages.gz
-          artifact: index_patched_gz
-        - name: main/binary-amd64/Packages.xz
-          artifact: index_patched_xz
+    type: tamper
+    tamper: patch-apt-release
+    artifact: release_upstream
+    signing_key: apt
+    patch:
+      - name: main/binary-amd64/Packages
+        artifact: index_patched
+      - name: main/binary-amd64/Packages.gz
+        artifact: index_patched_gz
+      - name: main/binary-amd64/Packages.xz
+        artifact: index_patched_xz
 
 check:
   image: debian:stable

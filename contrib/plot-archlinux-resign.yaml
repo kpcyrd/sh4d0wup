@@ -11,8 +11,10 @@ signing_keys:
 
 artifacts:
   pkg:
+    type: url
     url: https://geo.mirror.pkgbuild.com/core/os/x86_64/shadow-4.12.3-2-x86_64.pkg.tar.zst
   sig:
+    type: signature
     artifact: pkg
     sign_with: pwn
 

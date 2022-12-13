@@ -20,6 +20,7 @@ check:
 
 artifacts:
   manifest_upstream:
+    type: url
     url: https://public.ecr.aws/v2/ubuntu/redis/manifests/latest
     oci_auth:
       url: https://public.ecr.aws/v2/

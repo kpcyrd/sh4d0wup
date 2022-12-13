@@ -7,6 +7,7 @@ use crate::sessions::Sessions;
 use crate::sign;
 use crate::tamper;
 use crate::upstream;
+use git_object::WriteTo;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::Method;
 use maplit::hashset;
@@ -22,9 +23,9 @@ use std::path::PathBuf;
 use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Artifact {
-    Path(PathArtifact),
+    File(PathArtifact),
     Url(UrlArtifact),
     Inline(InlineArtifact),
     Signature(SignatureArtifact),
@@ -32,13 +33,14 @@ pub enum Artifact {
     Tamper(TamperArtifact),
     Compress(CompressArtifact),
     Extract(ExtractArtifact),
+    Git(GitArtifact),
     Memory,
 }
 
 impl Artifact {
     pub fn depends_on(&self) -> Option<HashSet<&str>> {
         match self {
-            Artifact::Path(_) => None,
+            Artifact::File(_) => None,
             Artifact::Url(_) => None,
             Artifact::Inline(_) => None,
             Artifact::Signature(sign) => Some(hashset![sign.artifact.as_str()]),
@@ -85,13 +87,14 @@ impl Artifact {
             Artifact::Extract(ExtractArtifact::Zip(extract)) => {
                 Some(hashset![extract.artifact.as_str()])
             }
+            Artifact::Git(GitArtifact::Commit(_git)) => None,
             Artifact::Memory => None,
         }
     }
 
     pub async fn resolve(&mut self, plot_extras: &mut PlotExtras) -> Result<Option<Vec<u8>>> {
         match self {
-            Artifact::Path(_) => Ok(None),
+            Artifact::File(_) => Ok(None),
             Artifact::Url(artifact) => {
                 info!(
                     "Downloading artifact into memory: {:?}",
@@ -145,6 +148,12 @@ impl Artifact {
                 let buf = extract
                     .resolve(&mut plot_extras.artifacts)
                     .context("Failed to extract from artifact")?;
+                Ok(Some(buf))
+            }
+            Artifact::Git(git) => {
+                let buf = git
+                    .resolve(&mut plot_extras.artifacts)
+                    .context("Failed to build git object")?;
                 Ok(Some(buf))
             }
             Artifact::Memory => Ok(None),
@@ -260,7 +269,7 @@ impl SignatureArtifact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "infect", rename_all = "kebab-case")]
+#[serde(tag = "infect", rename_all = "kebab-case")]
 pub enum InfectArtifact {
     Pacman(InfectPacmanArtifact),
     Deb(InfectDebArtifact),
@@ -369,7 +378,7 @@ pub struct InfectElfArtifact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "tamper", rename_all = "kebab-case")]
+#[serde(tag = "tamper", rename_all = "kebab-case")]
 pub enum TamperArtifact {
     PatchAptRelease(PatchAptReleaseArtifact),
     PatchAptPackageList(PatchPkgDatabaseArtifact),
@@ -490,7 +499,7 @@ impl CompressArtifact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "extract", rename_all = "kebab-case")]
+#[serde(tag = "extract", rename_all = "kebab-case")]
 pub enum ExtractArtifact {
     Zip(GenericExtractArtifact),
 }
@@ -585,6 +594,28 @@ impl GenericExtractArtifact {
         } else {
             Ok(true)
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "git", rename_all = "kebab-case")]
+pub enum GitArtifact {
+    Commit(git_object::Commit),
+}
+
+impl GitArtifact {
+    pub fn resolve(&self, _artifacts: &mut Artifacts) -> Result<Vec<u8>> {
+        let mut out = Vec::new();
+        match self {
+            GitArtifact::Commit(commit) => {
+                out.extend(&git_object::encode::loose_header(
+                    commit.kind(),
+                    commit.size(),
+                ));
+                commit.write_to(&mut out)?;
+            }
+        }
+        Ok(out)
     }
 }
 

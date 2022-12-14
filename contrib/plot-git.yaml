@@ -8,52 +8,59 @@ check:
   image: cgr.dev/chainguard/git
   cmds:
     - 'git clone http://${SH4D0WUP_BOUND_ADDR}/kpcyrd/sh4d0wup'
-    - 'ls -la sh4d0wup'
+    - ['ls', '-la', 'sh4d0wup']
+    - ['./sh4d0wup/configure']
 
 artifacts:
+  blob:
+    type: git
+    git: blob
+    data: |
+      #!/bin/sh
+      id
+  blob_zlib:
+    type: compress
+    compression: zlib
+    artifact: blob
+
+  tree:
+    type: git
+    git: tree
+    entries:
+      - mode: blob-executable
+        filename: configure
+        oid:
+          artifact: blob
+  tree_zlib:
+    type: compress
+    compression: zlib
+    artifact: tree
+
   commit:
-    type: inline
-    data: "commit 201\x00tree 14e41dda390b0ec5a35a42f3ecadb97ca18ff32e\n\
-parent e98fe89d6eef1a8da9663dda20317eebebffe57b\n\
-author kpcyrd <git@rxv.cc> 1637076383 +0100\n\
-committer kpcyrd <git@rxv.cc> 1637076383 +0100\n\
-\n\
-Release v0.3.0\n\
-"
+    type: git
+    git: commit
+    tree:
+      artifact: tree
+    author: kpcyrd <git@rxv.cc> 1637076383 +0100
+    committer: kpcyrd <git@rxv.cc> 1637076383 +0100
+    message: "Release v0.3.0\n"
   commit_zlib:
     type: compress
     compression: zlib
     artifact: commit
-  commit2:
+
+  refs:
     type: git
-    git: commit
-    tree:
-      Sha1: [0x14, 0xe4, 0x1d, 0xda, 0x39, 0x0b, 0x0e, 0xc5, 0xa3, 0x5a, 0x42, 0xf3, 0xec, 0xad, 0xb9, 0x7c, 0xa1, 0x8f, 0xf3, 0x2e]
-    parents:
-      - Sha1: [0xe9, 0x8f, 0xe8, 0x9d, 0x6e, 0xef, 0x1a, 0x8d, 0xa9, 0x66, 0x3d, 0xda, 0x20, 0x31, 0x7e, 0xeb, 0xeb, 0xff, 0xe5, 0x7b]
-    author:
-      name: kpcyrd
-      email: git@rxv.cc
-      time:
-        seconds_since_unix_epoch: 1637076383
-        offset_in_seconds: 3600
-        sign: Plus
-    committer:
-      name: kpcyrd
-      email: git@rxv.cc
-      time:
-        seconds_since_unix_epoch: 1637076383
-        offset_in_seconds: 3600
-        sign: Plus
-    message: "Release v0.3.0\n"
-    extra_headers: []
+    git: ref-list
+    refs:
+      refs/heads/main:
+        artifact: commit
 
 routes:
   - path: '/kpcyrd/sh4d0wup/info/refs'
     type: static
     args:
-      data: |
-        248bc188602dc3552b1c15634afd7592b88ed4bd	refs/heads/main
+      artifact: refs
   - path: '/kpcyrd/sh4d0wup/HEAD'
     type: static
     args:
@@ -71,10 +78,19 @@ routes:
     type: static
     args:
       data: "\n"
-  - path: '/kpcyrd/sh4d0wup/objects/24/8bc188602dc3552b1c15634afd7592b88ed4bd'
+  - path: '/kpcyrd/sh4d0wup/objects/ce/127f2ede2e312b99bc78ec9d30f8a8d42605e0'
     type: static
     args:
       artifact: commit_zlib
+  - path: '/kpcyrd/sh4d0wup/objects/a9/5908311efdf5c082197df65740f4f51619a8f2'
+    type: static
+    args:
+      artifact: tree_zlib
+  - path: '/kpcyrd/sh4d0wup/objects/80/5f5820711d9fab9b795ce7cd45a89aea535a6c'
+    type: static
+    args:
+      artifact: blob_zlib
+
   - type: proxy
     args:
       upstream: github

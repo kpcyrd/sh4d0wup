@@ -988,7 +988,6 @@ dependencies = [
  "itoa 1.0.4",
  "nom 7.1.1",
  "quick-error 2.0.1",
- "serde",
 ]
 
 [[package]]
@@ -999,7 +998,6 @@ checksum = "e33db9f4462b565a33507aee113f3383bf16b988d2c573f07691e34302b7aa0a"
 dependencies = [
  "bstr",
  "itoa 1.0.4",
- "serde",
  "thiserror",
  "time 0.3.17",
 ]
@@ -1022,7 +1020,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1532d82bf830532f8d545c5b7b568e311e3593f16cf7ee9dd0ce03c74b12b99d"
 dependencies = [
  "hex",
- "serde",
  "thiserror",
 ]
 
@@ -1041,7 +1038,6 @@ dependencies = [
  "hex",
  "itoa 1.0.4",
  "nom 7.1.1",
- "serde",
  "smallvec",
  "thiserror",
 ]
@@ -2561,6 +2557,8 @@ dependencies = [
  "clap_complete",
  "env_logger",
  "flate2",
+ "git-actor",
+ "git-hash",
  "git-object",
  "handlebars",
  "hex",
@@ -2586,6 +2584,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha1",
  "sha2 0.10.6",
  "shell-escape",
  "talktosc",
@@ -2712,9 +2711,6 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "socket2"

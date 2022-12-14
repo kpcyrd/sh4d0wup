@@ -81,7 +81,40 @@ impl Artifact {
             Artifact::Extract(extract::ExtractArtifact::Zip(extract)) => {
                 Some(hashset![extract.artifact.as_str()])
             }
-            Artifact::Git(git::GitArtifact::Commit(_git)) => None,
+            Artifact::Git(git::GitArtifact::Commit(git)) => {
+                let mut set = HashSet::new();
+                if let git::Oid::Artifact(oid) = &git.tree {
+                    set.insert(oid.artifact.as_str());
+                }
+                for parent in &git.parents {
+                    if let git::Oid::Artifact(oid) = parent {
+                        set.insert(oid.artifact.as_str());
+                    }
+                }
+                Some(set)
+            }
+            Artifact::Git(git::GitArtifact::Tree(git)) => {
+                let mut set = HashSet::new();
+                for entry in &git.entries {
+                    if let git::Oid::Artifact(oid) = &entry.oid {
+                        set.insert(oid.artifact.as_str());
+                    }
+                }
+                Some(set)
+            }
+            Artifact::Git(git::GitArtifact::Blob(git)) => git
+                .artifact
+                .as_ref()
+                .map(|artifact| hashset![artifact.as_str()]),
+            Artifact::Git(git::GitArtifact::RefList(git)) => {
+                let mut set = HashSet::new();
+                for (_, r) in &git.refs {
+                    if let git::Oid::Artifact(oid) = r {
+                        set.insert(oid.artifact.as_str());
+                    }
+                }
+                Some(set)
+            }
             Artifact::Memory => None,
         }
     }

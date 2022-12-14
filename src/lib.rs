@@ -10,6 +10,7 @@ pub mod infect;
 pub mod keygen;
 pub mod oci;
 pub mod plot;
+pub mod selectors;
 pub mod sessions;
 pub mod shell;
 pub mod sign;

@@ -1,0 +1,83 @@
+---
+
+check:
+  image: archlinux
+  cmds:
+    - "curl -sS -H 'X-Foo: abc' http://${SH4D0WUP_BOUND_ADDR}/"
+    - "curl -sS -H 'X-Foo: abc' http://${SH4D0WUP_BOUND_ADDR}/hello/world"
+    - curl -sS http://${SH4D0WUP_BOUND_ADDR}/addr
+    - curl -sS http://${SH4D0WUP_BOUND_ADDR}/all
+    - curl -sS http://${SH4D0WUP_BOUND_ADDR}/not-any
+    - curl -sS http://${SH4D0WUP_BOUND_ADDR}/c
+
+selectors:
+  foo:
+    type: header
+    key: X-Foo
+    value: abc
+
+  localhost:
+    type: ipaddr
+    ipaddr: 127.0.0.1
+
+  leet:
+    type: ipaddr
+    ipaddr: 1.3.3.7
+
+  has-agent:
+    type: header
+    key: user-agent
+
+  all:
+    type: all
+    selectors:
+      - has-agent
+      - localhost
+
+  not-any:
+    type: not
+    selector:
+      type: any
+      selectors:
+        - has-agent
+        - leet
+
+routes:
+  - type: static
+    selector: foo
+    args:
+      data: |
+        selector foo conditions matched
+  - path: /addr
+    type: static
+    selector: localhost
+    args:
+      data: |
+        request from localhost
+  - path: /addr
+    type: static
+    selector: leet
+    args:
+      data: |
+        request from very cool ip
+  - path: /addr
+    type: static
+    args:
+      data: |
+        request from unknown ip
+  - path: /all
+    type: static
+    selector: all
+    args:
+      data: |
+        selector all conditions matched
+  - path: /not-any
+    type: static
+    selector: not-any
+    args:
+      data: |
+        selector not-any conditions matched
+  - type: static
+    args:
+      data: |
+        catch-all

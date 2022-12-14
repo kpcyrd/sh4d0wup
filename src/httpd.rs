@@ -347,6 +347,7 @@ async fn append_response(
 
 async fn serve_request(
     ctx: Arc<plot::Ctx>,
+    addr: Option<SocketAddr>,
     uri: FullPath,
     params: QueryParameters,
     method: Method,
@@ -359,7 +360,7 @@ async fn serve_request(
 
     let route_action = ctx
         .plot
-        .select_route(uri.as_str())
+        .select_route(uri.as_str(), addr.as_ref(), &headers)
         .context("Failed to select route")
         .map_err(http_error)?;
 
@@ -416,14 +417,16 @@ pub async fn run(bind: SocketAddr, tls: Option<Tls>, ctx: plot::Ctx) -> Result<(
 
     let ctx = Arc::new(ctx);
     let app = warp::any()
+        .and(warp::filters::addr::remote())
         .and(request_filter)
         .and_then(
-            move |uri: FullPath,
+            move |addr: Option<SocketAddr>,
+                  uri: FullPath,
                   params: QueryParameters,
                   method: Method,
                   headers: HeaderMap,
                   body: Bytes| {
-                serve_request(ctx.clone(), uri, params, method, headers, body)
+                serve_request(ctx.clone(), addr, uri, params, method, headers, body)
             },
         )
         .untuple_one()

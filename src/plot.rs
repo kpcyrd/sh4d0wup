@@ -4,8 +4,10 @@ use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
+use crate::selectors::Selectors;
 use crate::sessions::Sessions;
 use handlebars::Handlebars;
+use http::HeaderMap;
 use indexmap::IndexMap;
 use peekread::BufPeekReader;
 use peekread::PeekRead;
@@ -16,6 +18,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::Read;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -166,6 +169,8 @@ pub struct Plot {
     pub signing_keys: Option<BTreeMap<String, Keygen>>,
     #[serde(default)]
     pub artifacts: IndexMap<String, Artifact>,
+    #[serde(default)]
+    pub selectors: Selectors,
     pub tls: Option<KeygenTls>,
     pub routes: Vec<Route>,
     pub check: Option<Check>,
@@ -210,22 +215,30 @@ impl Plot {
         Ok(())
     }
 
-    pub fn select_route(&self, request_path: &str) -> Result<&RouteAction> {
-        let mut default_route = None;
-
+    pub fn select_route(
+        &self,
+        request_path: &str,
+        addr: Option<&SocketAddr>,
+        headers: &HeaderMap,
+    ) -> Result<&RouteAction> {
         for route in &self.routes {
             if let Some(path) = &route.path {
-                if path == request_path {
-                    return Ok(&route.action);
+                if path != request_path {
+                    continue;
                 }
-            } else {
-                default_route = Some(route);
             }
+            if let Some(selector) = &route.selector {
+                let selector = self.selectors.get(selector).with_context(|| {
+                    anyhow!("Referenced selector {:?} does not exist", selector)
+                })?;
+                if !selector.matches(&self.selectors, addr, headers)? {
+                    continue;
+                }
+            }
+            return Ok(&route.action);
         }
 
-        let route = default_route.context("Could not find matching route and no default set")?;
-
-        Ok(&route.action)
+        bail!("Could not find any matching route for request")
     }
 
     pub async fn resolve_extras(&mut self, artifacts: Artifacts) -> Result<PlotExtras> {
@@ -288,6 +301,7 @@ pub struct Upstream {
 pub struct Route {
     pub path: Option<String>,
     pub path_template: Option<String>,
+    pub selector: Option<String>,
     #[serde(flatten)]
     pub action: RouteAction,
 }

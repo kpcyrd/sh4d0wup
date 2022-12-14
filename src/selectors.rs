@@ -1,5 +1,6 @@
 use crate::errors::*;
 use http::HeaderMap;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::net;
@@ -46,7 +47,7 @@ impl Selector {
                 let selector = not.selector.resolve(selectors)?;
                 Ok(!selector.matches(selectors, addr, headers)?)
             }
-            Selector::Header(header) => Ok(header.matches(headers)),
+            Selector::Header(header) => header.matches(headers),
             Selector::Ipaddr(ipaddr) => Ok(ipaddr.matches(addr)),
         }
     }
@@ -92,18 +93,23 @@ pub struct Not {
 pub struct Header {
     pub key: String,
     pub value: Option<String>,
+    pub regex: Option<String>,
 }
 
 impl Header {
-    pub fn matches(&self, headers: &HeaderMap) -> bool {
+    pub fn matches(&self, headers: &HeaderMap) -> Result<bool> {
         if let Some(header) = headers.get(&self.key) {
             if let Some(value) = &self.value {
-                header == value
+                Ok(header == value)
+            } else if let Some(regex) = &self.regex {
+                let re = Regex::new(regex)
+                    .with_context(|| anyhow!("Failed to compile regex: {:?}", regex))?;
+                Ok(re.is_match(header.to_str()?))
             } else {
-                true
+                Ok(true)
             }
         } else {
-            false
+            Ok(false)
         }
     }
 }

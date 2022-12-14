@@ -1,5 +1,6 @@
 use crate::errors::*;
 use http::HeaderMap;
+use ipnetwork::IpNetwork;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -116,15 +117,20 @@ impl Header {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IpAddr {
-    pub ipaddr: net::IpAddr,
+    pub ipaddr: IpNetwork,
 }
 
 impl IpAddr {
     pub fn matches(&self, addr: Option<&net::SocketAddr>) -> bool {
         if let Some(addr) = addr {
-            addr.ip() == self.ipaddr
+            self.ipaddr.contains(addr.ip())
         } else {
             false
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetMask {
+    pub ipaddr: net::IpAddr,
 }

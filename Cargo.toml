@@ -27,6 +27,7 @@ hex = "0.4.3"
 http = "0.2.8"
 in-toto = "0.3.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
+ipnetwork = "0.20.0"
 log = "0.4.17"
 maplit = "1.0.2"
 md-5 = "0.10.5"

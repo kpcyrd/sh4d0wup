@@ -21,6 +21,12 @@ Options:
   -h, --help        Print help information
 ```
 
+## 👻 What are shadow updates?
+
+Have you ever wondered if the update you downloaded is the same one everybody else gets or did you get a different one that was made _just for you_? Shadow updates are updates that officially don't exist but carry valid signatures and would get accepted by clients as genuine. This may happen if the signing key is compromised by hackers or if a release engineer with legitimate access turns grimy.
+
+`sh4d0wup` is a malicious http/https update server that acts as a reverse proxy in front of a legitimate server and can infect + sign various artifact formats. Attacks are configured in `plots` that describe how http request routing works, how artifacts are patched/generated, how they should be signed and with which key. A route can have `selectors` so it matches only if eg. the user-agent matches a pattern or if the client is connecting from a specific ip address. For development and testing, mock signing keys/certificates can be generated and marked as trusted.
+
 ## 📦 Compile a plot
 
 Some plots are more complex to run than others, to avoid long startup time due
@@ -47,7 +53,7 @@ You can find examples here:
 - [`contrib/plot-rustup.yaml`](contrib/plot-rustup.yaml)
 - [`contrib/plot-curl-sh.yaml`](contrib/plot-curl-sh.yaml)
 
-## 🧪 Infect an artifact
+## 🪄 Infect an artifact
 
 - [`sh4d0wup infect elf`](#sh4d0wup-infect-elf)
 - [`sh4d0wup infect pacman`](#sh4d0wup-infect-pacman)

@@ -4,9 +4,9 @@ use crate::compression::{self, CompressedWith};
 use crate::errors::*;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
+use crate::route_templates;
 use crate::selectors::Selectors;
 use crate::sessions::Sessions;
-use handlebars::Handlebars;
 use http::HeaderMap;
 use indexmap::IndexMap;
 use peekread::BufPeekReader;
@@ -309,31 +309,20 @@ pub struct Route {
 impl Route {
     pub fn resolve_path_template(&mut self, artifacts: &Artifacts) -> Result<()> {
         if let Some(path_template) = &self.path_template {
-            let mut handlebars = Handlebars::new();
-            handlebars
-                .register_template_string("t", path_template)
-                .with_context(|| anyhow!("Failed to parse path_template: {:?}", path_template))?;
-
-            let mut data = BTreeMap::new();
-
-            let artifact = if let RouteAction::Static(action) = &self.action {
+            if let RouteAction::Static(action) = &self.action {
                 let artifact = action
                     .artifact
                     .as_ref()
                     .context("Static route with undefined artifact reference")?;
-                artifacts
+                let artifact = artifacts
                     .get(artifact)
-                    .with_context(|| anyhow!("Reference to undefined artifact: {:?}", artifact))?
+                    .with_context(|| anyhow!("Reference to undefined artifact: {:?}", artifact))?;
+
+                let rendered = route_templates::render(path_template, artifact)?;
+                self.path = Some(rendered);
             } else {
                 bail!("Path templates are only available to routes of type `static`");
             };
-
-            data.insert("sha256".to_string(), artifact.sha256.clone());
-
-            let rendered = handlebars
-                .render("t", &data)
-                .context("Failed to render path_template")?;
-            self.path = Some(rendered);
         }
         Ok(())
     }
@@ -384,6 +373,7 @@ pub struct StaticRoute {
     pub content_type: Option<String>,
     pub data: Option<String>,
     pub artifact: Option<String>,
+    pub compress: Option<CompressedWith>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
 }

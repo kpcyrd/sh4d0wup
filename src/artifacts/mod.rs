@@ -11,6 +11,7 @@ use crate::plot::PlotExtras;
 use maplit::hashset;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
+use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::mem;
@@ -202,6 +203,7 @@ pub struct InlineArtifact {
 pub struct HashedArtifact {
     pub bytes: Vec<u8>,
     pub sha256: String,
+    pub sha1: String,
     pub md5: String,
 }
 
@@ -217,7 +219,17 @@ impl HashedArtifact {
         hasher.update(&bytes);
         let sha256 = hex::encode(hasher.finalize());
 
-        HashedArtifact { bytes, sha256, md5 }
+        debug!("Computing sha1sum for artifact...");
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let sha1 = hex::encode(hasher.finalize());
+
+        HashedArtifact {
+            bytes,
+            sha256,
+            md5,
+            sha1,
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::artifacts::Artifact;
+use crate::compression;
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
@@ -11,6 +12,7 @@ use crate::upstream::proxy_to_and_forward_response;
 use http::Method;
 use http::{HeaderMap, HeaderValue};
 use serde::Serialize;
+use std::borrow::Cow;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -157,7 +159,7 @@ async fn generate_static_response(
     }
 
     let data = if let Some(data) = &args.data {
-        data.as_bytes().to_vec()
+        Cow::Borrowed(data.as_bytes())
     } else if let Some(artifact) = &args.artifact {
         let config = ctx
             .plot
@@ -167,7 +169,10 @@ async fn generate_static_response(
             .map_err(http_error)?;
 
         match config {
-            Artifact::File(artifact) => fs::read(&artifact.path).await.map_err(http_error)?,
+            Artifact::File(artifact) => {
+                let data = fs::read(&artifact.path).await.map_err(http_error)?;
+                Cow::Owned(data)
+            }
             Artifact::Url(_) => {
                 return Err(http_error(anyhow!(
                     "Url artifacts are expected to be loaded into memory at this point"
@@ -180,17 +185,26 @@ async fn generate_static_response(
                 ))
                 .into())
             }
-            _ => ctx
-                .extras
-                .artifacts
-                .get(artifact)
-                .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
-                .map_err(http_error)?
-                .bytes
-                .clone(),
+            _ => {
+                let artifact = ctx
+                    .extras
+                    .artifacts
+                    .get(artifact)
+                    .with_context(|| {
+                        anyhow!("Undefined reference to artifact object: {:?}", artifact)
+                    })
+                    .map_err(http_error)?;
+                Cow::Borrowed(&artifact.bytes[..])
+            }
         }
     } else {
         return Err(http_error(anyhow!("No data or artifact configured for static route")).into());
+    };
+
+    let data = if let Some(compress) = args.compress {
+        compression::compress(compress, &data).map_err(http_error)?
+    } else {
+        data.into_owned()
     };
 
     Ok(builder.body(Body::from(data)).unwrap())

@@ -80,7 +80,7 @@ fn filtered_data_to_request(
 
     CLIENT
         .get_or_init(default_reqwest_client)
-        .request(method, &proxy_uri)
+        .request(method, proxy_uri)
         .headers(headers)
         .body(body)
         .build()

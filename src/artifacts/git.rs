@@ -221,7 +221,7 @@ mod tests {
 
         let mut sha1 = Sha1::new();
         sha1.update(&out);
-        let hash = hex::encode(&sha1.finalize());
+        let hash = hex::encode(sha1.finalize());
         assert_eq!(hash, "248bc188602dc3552b1c15634afd7592b88ed4bd");
     }
 }

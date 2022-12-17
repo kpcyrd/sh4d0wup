@@ -120,7 +120,7 @@ mod tests {
     fn temp_put<B: AsRef<[u8]>>(dir: &TempDir, name: &str, data: B) -> Result<String> {
         let path = dir.path().join(name);
         let path = path.to_str().context("Path contains invalid utf8")?;
-        fs::write(&path, data)?;
+        fs::write(path, data)?;
         Ok(path.to_string())
     }
 
@@ -134,7 +134,7 @@ mod tests {
 
         let dir = tempfile::tempdir()?;
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
-        let sig_path = temp_put(&dir, "sig.txt", &sig)?;
+        let sig_path = temp_put(&dir, "sig.txt", sig)?;
 
         let output = sq_verify(
             &[
@@ -160,7 +160,7 @@ mod tests {
 
         let dir = tempfile::tempdir()?;
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
-        let sig_path = temp_put(&dir, "sig.txt", &sig)?;
+        let sig_path = temp_put(&dir, "sig.txt", sig)?;
 
         let output = sq_verify(
             &[
@@ -186,7 +186,7 @@ mod tests {
 
         let dir = tempfile::tempdir()?;
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
-        let msg_path = temp_put(&dir, "msg.txt", &msg)?;
+        let msg_path = temp_put(&dir, "msg.txt", msg)?;
 
         let output = sq_verify(&["verify", "--signer-cert", &cert_path, &msg_path], data)?;
         assert_eq!(output, data);

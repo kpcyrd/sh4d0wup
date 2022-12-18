@@ -1,5 +1,6 @@
 use clap::Parser;
 use env_logger::Env;
+use http::header::{HeaderMap, HeaderName, HeaderValue};
 use openssl::hash::MessageDigest;
 use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand, Tamper};
 use sh4d0wup::build;
@@ -12,7 +13,7 @@ use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::keygen::{self, EmbeddedKey};
-use sh4d0wup::plot::{Ctx, PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
+use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::collections::BTreeMap;
@@ -36,8 +37,7 @@ async fn main() -> Result<()> {
 
     match args.subcommand {
         SubCommand::Bait(bait) => {
-            info!("Loading plot from {:?}...", bait.plot);
-            let ctx = Ctx::load_from_path(&bait.plot, bait.cache_from.path.as_deref()).await?;
+            let ctx = bait.plot.load_into_context().await?;
 
             let tls = if let Some(path) = bait.tls_cert {
                 let cert = fs::read(&path)
@@ -187,8 +187,7 @@ async fn main() -> Result<()> {
             )?;
         }
         SubCommand::Check(check) => {
-            info!("Loading plot from {:?}...", check.plot);
-            let ctx = Ctx::load_from_path(&check.plot, check.cache_from.path.as_deref()).await?;
+            let ctx = check.plot.load_into_context().await?;
             match check.no_exec {
                 0 => {
                     check::spawn(check, ctx).await?;
@@ -314,6 +313,27 @@ async fn main() -> Result<()> {
         }
         SubCommand::Hsm(Hsm::Pgp(HsmPgp::Access(access))) => hsm::pgp::access(&access)?,
         SubCommand::Build(build) => build::run(build).await?,
+        SubCommand::Req(req) => {
+            let ctx = req.plot.load_into_context().await?;
+
+            let mut headers = HeaderMap::new();
+            for header in &req.headers {
+                let (k, v) = header.split_once(':').with_context(|| {
+                    anyhow!("Configured header has no value (missing `:`): {:?}", header)
+                })?;
+                let v = v.strip_prefix(' ').unwrap_or(v);
+                headers.insert(
+                    HeaderName::from_bytes(k.as_bytes())?,
+                    HeaderValue::try_from(v)?,
+                );
+            }
+
+            let route_action = ctx
+                .plot
+                .select_route(&req.req_path, req.addr.as_ref(), &headers)
+                .context("Failed to select route")?;
+            info!("Selected route: {:?}", route_action);
+        }
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;
         }

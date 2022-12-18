@@ -44,11 +44,10 @@ impl<W: Write> ArchiveBuilder<W> {
 }
 
 pub async fn run(build: args::Build) -> Result<()> {
-    info!("Loading plot from {:?}...", build.plot);
-    let mut plot = Plot::load_from_path(&build.plot)?;
+    let mut plot = Plot::load_from_path(&build.plot.path)?;
 
     let mut artifacts = BTreeMap::new();
-    if let Some(path) = build.cache_from.path {
+    if let Some(path) = build.plot.cache_from {
         info!("Loading existing plot as cache: {:?}", path);
         Ctx::load_as_download_cache(&path, &plot, &mut artifacts)
             .await

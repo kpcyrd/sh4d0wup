@@ -22,7 +22,7 @@ impl Selector {
     pub fn matches(
         &self,
         selectors: &Selectors,
-        addr: Option<&net::SocketAddr>,
+        addr: Option<&net::IpAddr>,
         headers: &HeaderMap,
     ) -> Result<bool> {
         match self {
@@ -121,9 +121,9 @@ pub struct IpAddr {
 }
 
 impl IpAddr {
-    pub fn matches(&self, addr: Option<&net::SocketAddr>) -> bool {
+    pub fn matches(&self, addr: Option<&net::IpAddr>) -> bool {
         if let Some(addr) = addr {
-            self.ipaddr.contains(addr.ip())
+            self.ipaddr.contains(*addr)
         } else {
             false
         }

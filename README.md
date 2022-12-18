@@ -13,12 +13,14 @@ Commands:
   hsm          Interact with hardware signing keys
   build        Compile an attack based on a plot
   check        Check if the plot can still execute correctly against the configured image
+  req          Emulate a http request to test routing and selectors
   completions  Generate shell completions
   help         Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Turn debugging information on
   -h, --help        Print help information
+  -V, --version     Print version information
 ```
 
 ## 👻 What are shadow updates?

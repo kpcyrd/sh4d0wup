@@ -18,7 +18,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::Read;
-use std::net::SocketAddr;
+use std::net::IpAddr;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -185,6 +185,7 @@ impl Plot {
 
     pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
+        info!("Loading plot from {:?}...", path);
         let s =
             fs::read_to_string(path).with_context(|| anyhow!("Failed to read file: {:?}", path))?;
         let plot = Plot::load_from_str(&s).context("Failed to deserialize plot")?;
@@ -218,7 +219,7 @@ impl Plot {
     pub fn select_route(
         &self,
         request_path: &str,
-        addr: Option<&SocketAddr>,
+        addr: Option<&IpAddr>,
         headers: &HeaderMap,
     ) -> Result<&RouteAction> {
         for route in &self.routes {

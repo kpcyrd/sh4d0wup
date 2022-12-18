@@ -374,7 +374,7 @@ async fn serve_request(
 
     let route_action = ctx
         .plot
-        .select_route(uri.as_str(), addr.as_ref(), &headers)
+        .select_route(uri.as_str(), addr.map(|a| a.ip()).as_ref(), &headers)
         .context("Failed to select route")
         .map_err(http_error)?;
 

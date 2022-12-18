@@ -1,10 +1,12 @@
 use crate::errors::*;
 use crate::keygen;
+use crate::plot;
 use crate::plot::{PkgFilter, PkgPatchValues};
 use crate::sign::in_toto::VirtualEntry;
 use clap::{ArgAction, CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
 use std::io::stdout;
+use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -33,12 +35,32 @@ pub enum SubCommand {
     Hsm(Hsm),
     Build(Build),
     Check(Check),
+    Req(Req),
     Completions(Completions),
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct Plot {
+    /// Path to the plot to execute
+    #[arg(value_name = "PLOT-PATH")]
+    pub path: PathBuf,
+    /// Use artifacts from compiled plot as download cache
+    #[arg(long = "cache-from")]
+    pub cache_from: Option<PathBuf>,
+}
+
+impl Plot {
+    pub async fn load_into_context(&self) -> Result<plot::Ctx> {
+        info!("Loading plot from {:?}...", self.path);
+        plot::Ctx::load_from_path(&self.path, self.cache_from.as_deref()).await
+    }
 }
 
 /// Start a malicious update server
 #[derive(Debug, Clone, Parser)]
 pub struct Bait {
+    #[clap(flatten)]
+    pub plot: Plot,
     /// Address to bind to
     #[arg(
         short = 'B',
@@ -61,13 +83,9 @@ pub struct Bait {
     /// Path to certificate private key (if not bundled with the cert)
     #[arg(long)]
     pub tls_key: Option<PathBuf>,
-    /// Path to the plot to execute
-    pub plot: PathBuf,
     /// Setup the attack but exit instead of serving requests
     #[arg(short, long)]
     pub no_bind: bool,
-    #[clap(flatten)]
-    pub cache_from: CacheFrom,
 }
 
 /// High level tampering, inject additional commands into a package
@@ -404,23 +422,21 @@ pub struct HsmPin {
 /// Compile an attack based on a plot
 #[derive(Debug, Clone, Parser)]
 pub struct Build {
-    /// Path to plot configuration file
-    pub plot: PathBuf,
+    #[clap(flatten)]
+    pub plot: Plot,
     /// Run the build in this directory
     #[arg(short = 'C', long)]
     pub context: Option<PathBuf>,
     /// Output the compiled plot here
     #[arg(short, long)]
     pub output: PathBuf,
-    #[clap(flatten)]
-    pub cache_from: CacheFrom,
 }
 
 /// Check if the plot can still execute correctly against the configured image
 #[derive(Debug, Clone, Parser)]
 pub struct Check {
-    /// Path to the plot to execute
-    pub plot: PathBuf,
+    #[clap(flatten)]
+    pub plot: Plot,
     /// Address to bind to
     #[arg(short = 'B', long, env = "SH4D0WUP_BIND")]
     pub bind: Option<SocketAddr>,
@@ -430,15 +446,27 @@ pub struct Check {
     /// Only load the plot but don't execute it
     #[arg(short, long, action(ArgAction::Count))]
     pub no_exec: u8,
-    #[clap(flatten)]
-    pub cache_from: CacheFrom,
 }
 
+/// Emulate a http request to test routing and selectors
 #[derive(Debug, Clone, Parser)]
-pub struct CacheFrom {
-    /// Use artifacts from compiled plot as download cache
-    #[arg(long = "cache-from")]
-    pub path: Option<PathBuf>,
+pub struct Req {
+    #[clap(flatten)]
+    pub plot: Plot,
+    /// The path of the emulated http request
+    #[arg(value_name = "PATH")]
+    pub req_path: String,
+    /// The http method to use
+    #[arg(short = 'X', long, default_value = "GET")]
+    pub method: String,
+    #[arg(short = 'H', long = "header")]
+    pub headers: Vec<String>,
+    /*
+    #[arg(long, default_value="::1")]
+    pub addr: IpAddr,
+    */
+    #[arg(long)]
+    pub addr: Option<IpAddr>,
 }
 
 /// Generate shell completions

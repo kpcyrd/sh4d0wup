@@ -1,5 +1,3 @@
-use crate::artifacts::Artifact;
-use crate::compression;
 use crate::errors::*;
 use crate::keygen::tls;
 use crate::plot::{
@@ -12,11 +10,9 @@ use crate::upstream::proxy_to_and_forward_response;
 use http::Method;
 use http::{HeaderMap, HeaderValue};
 use serde::Serialize;
-use std::borrow::Cow;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::fs;
 use warp::hyper::body::HttpBody;
 use warp::hyper::Body;
 use warp::path::FullPath;
@@ -147,67 +143,7 @@ async fn generate_static_response(
     args: &StaticRoute,
     ctx: &Ctx,
 ) -> Result<http::Response<Body>, Rejection> {
-    let status = args.status.unwrap_or(200);
-    let mut builder = http::Response::builder().status(status);
-
-    if let Some(value) = &args.content_type {
-        builder = builder.header("Content-Type", value);
-    }
-
-    for (key, value) in &args.headers {
-        builder = builder.header(key, value);
-    }
-
-    let data = if let Some(data) = &args.data {
-        Cow::Borrowed(data.as_bytes())
-    } else if let Some(artifact) = &args.artifact {
-        let config = ctx
-            .plot
-            .artifacts
-            .get(artifact)
-            .with_context(|| anyhow!("Undefined reference to artifact object: {:?}", artifact))
-            .map_err(http_error)?;
-
-        match config {
-            Artifact::File(artifact) => {
-                let data = fs::read(&artifact.path).await.map_err(http_error)?;
-                Cow::Owned(data)
-            }
-            Artifact::Url(_) => {
-                return Err(http_error(anyhow!(
-                    "Url artifacts are expected to be loaded into memory at this point"
-                ))
-                .into())
-            }
-            Artifact::Inline(_) => {
-                return Err(http_error(anyhow!(
-                    "Inline artifacts are expected to be loaded into memory at this point"
-                ))
-                .into())
-            }
-            _ => {
-                let artifact = ctx
-                    .extras
-                    .artifacts
-                    .get(artifact)
-                    .with_context(|| {
-                        anyhow!("Undefined reference to artifact object: {:?}", artifact)
-                    })
-                    .map_err(http_error)?;
-                Cow::Borrowed(&artifact.bytes[..])
-            }
-        }
-    } else {
-        return Err(http_error(anyhow!("No data or artifact configured for static route")).into());
-    };
-
-    let data = if let Some(compress) = args.compress {
-        compression::compress(compress, &data).map_err(http_error)?
-    } else {
-        data.into_owned()
-    };
-
-    Ok(builder.body(Body::from(data)).unwrap())
+    Ok(args.generate_response(ctx).await.map_err(http_error)?)
 }
 
 async fn fetch_upstream(

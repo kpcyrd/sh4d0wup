@@ -1,5 +1,6 @@
 use clap::Parser;
 use env_logger::Env;
+use futures_util::StreamExt;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use openssl::hash::MessageDigest;
 use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand, Tamper};
@@ -13,6 +14,7 @@ use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::keygen::{self, EmbeddedKey};
+use sh4d0wup::plot::RouteAction;
 use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
@@ -21,6 +23,7 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::Write;
+use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -333,6 +336,40 @@ async fn main() -> Result<()> {
                 .select_route(&req.req_path, req.addr.as_ref(), &headers)
                 .context("Failed to select route")?;
             info!("Selected route: {:?}", route_action);
+
+            if req.show_response || req.show_status || req.show_headers || req.show_content {
+                let response = match route_action {
+                    RouteAction::Static(route) => route.generate_response(&ctx).await?,
+                    _ => bail!("Emulation of this route is currently not supported"),
+                };
+
+                let mut stdout = tokio::io::stdout();
+                let mut preceding_data = false;
+                if req.show_response || req.show_status {
+                    let status = format!("{}\n", response.status());
+                    stdout.write_all(status.as_bytes()).await?;
+                    preceding_data = true;
+                }
+                if req.show_response || req.show_headers {
+                    for (k, v) in response.headers() {
+                        let mut buf = Vec::new();
+                        write!(buf, "{}: ", k)?;
+                        buf.extend(v.as_bytes());
+                        buf.push(b'\n');
+                        stdout.write_all(&buf).await?;
+                    }
+                    preceding_data = true;
+                }
+                if preceding_data {
+                    stdout.write_all(b"\n").await?;
+                }
+                if req.show_response || req.show_content {
+                    let mut body = response.into_body();
+                    while let Some(chunk) = body.next().await {
+                        stdout.write_all(&chunk?).await?;
+                    }
+                }
+            }
         }
         SubCommand::Completions(completions) => {
             args::gen_completions(&completions)?;

@@ -461,12 +461,20 @@ pub struct Req {
     pub method: String,
     #[arg(short = 'H', long = "header")]
     pub headers: Vec<String>,
-    /*
-    #[arg(long, default_value="::1")]
-    pub addr: IpAddr,
-    */
     #[arg(long)]
     pub addr: Option<IpAddr>,
+    /// Show the full generated response for the emulated request
+    #[arg(short = 'r', long = "response")]
+    pub show_response: bool,
+    /// Show the generated status code for the emulated request
+    #[arg(short = 's', long = "status")]
+    pub show_status: bool,
+    /// Show the generated headers for the emulated request
+    #[arg(long = "headers")]
+    pub show_headers: bool,
+    /// Show the generated response for the emulated request
+    #[arg(short = 'c', long = "content")]
+    pub show_content: bool,
 }
 
 /// Generate shell completions

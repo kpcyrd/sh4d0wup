@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use peekread::BufPeekReader;
 use peekread::PeekRead;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
@@ -21,6 +22,7 @@ use std::io::Read;
 use std::net::IpAddr;
 use std::path::Path;
 use std::str::FromStr;
+use warp::hyper::Body;
 
 pub type Artifacts = BTreeMap<String, HashedArtifact>;
 pub type SigningKeys = BTreeMap<String, EmbeddedKey>;
@@ -377,6 +379,58 @@ pub struct StaticRoute {
     pub compress: Option<CompressedWith>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
+}
+
+impl StaticRoute {
+    pub async fn generate_response(&self, ctx: &Ctx) -> Result<http::Response<Body>> {
+        let status = self.status.unwrap_or(200);
+        let mut builder = http::Response::builder().status(status);
+
+        if let Some(value) = &self.content_type {
+            builder = builder.header("Content-Type", value);
+        }
+
+        for (key, value) in &self.headers {
+            builder = builder.header(key, value);
+        }
+
+        let data = if let Some(data) = &self.data {
+            Cow::Borrowed(data.as_bytes())
+        } else if let Some(artifact) = &self.artifact {
+            let config = ctx.plot.artifacts.get(artifact).with_context(|| {
+                anyhow!("Undefined reference to artifact object: {:?}", artifact)
+            })?;
+
+            match config {
+                Artifact::File(artifact) => {
+                    let data = tokio::fs::read(&artifact.path).await?;
+                    Cow::Owned(data)
+                }
+                Artifact::Url(_) => {
+                    bail!("Url artifacts are expected to be loaded into memory at this point");
+                }
+                Artifact::Inline(_) => {
+                    bail!("Inline artifacts are expected to be loaded into memory at this point");
+                }
+                _ => {
+                    let artifact = ctx.extras.artifacts.get(artifact).with_context(|| {
+                        anyhow!("Undefined reference to artifact object: {:?}", artifact)
+                    })?;
+                    Cow::Borrowed(&artifact.bytes[..])
+                }
+            }
+        } else {
+            bail!("No data or artifact configured for static route");
+        };
+
+        let data = if let Some(compress) = self.compress {
+            compression::compress(compress, &data)?
+        } else {
+            data.into_owned()
+        };
+
+        Ok(builder.body(Body::from(data)).unwrap())
+    }
 }
 
 pub trait PkgRef {

@@ -2557,6 +2557,7 @@ dependencies = [
  "clap_complete",
  "env_logger",
  "flate2",
+ "futures-util",
  "git-actor",
  "git-hash",
  "git-object",

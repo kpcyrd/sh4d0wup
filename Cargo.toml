@@ -12,7 +12,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.63"
 ar = "0.9.0"
-base64 = "0.13.1"
+base64 = "0.20"
 blake2 = "0.10.4"
 bzip2 = "0.4.3"
 clap = { version = "4", features = ["derive", "env"] }

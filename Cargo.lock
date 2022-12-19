@@ -984,9 +984,9 @@ checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 
 [[package]]
 name = "git-actor"
-version = "0.14.1"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9fb99c934ed45a62d9ae1e7b21949f2d869d1b82a07dcbf16ed61daa665870"
+checksum = "7def29b46f25f95a2e196323cfb336eae9965e0a3c7c35ad9506f295c3a8e234"
 dependencies = [
  "bstr",
  "btoi",
@@ -998,9 +998,9 @@ dependencies = [
 
 [[package]]
 name = "git-date"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e33db9f4462b565a33507aee113f3383bf16b988d2c573f07691e34302b7aa0a"
+checksum = "8a2874ce2f3a77cb144167901ea830969e5c991eac7bfee85e6e3f53ef9fcdf2"
 dependencies = [
  "bstr",
  "itoa 1.0.5",
@@ -1010,9 +1010,9 @@ dependencies = [
 
 [[package]]
 name = "git-features"
-version = "0.24.1"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7bdbe755d2129bc609437b6b18af1116f146128dda6070c15c0aa50201ac17c"
+checksum = "510591428bb22671eb60f56430975718af88fdae55a1489d403005f74c0d3c25"
 dependencies = [
  "git-hash",
  "libc",
@@ -1031,9 +1031,9 @@ dependencies = [
 
 [[package]]
 name = "git-object"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce0f14f9cd8f0782e843898a2fb7b0c2f5a6e37bd4cdff4409bb8ec698597dad"
+checksum = "35b658f1e3e149d88cb3e0a2234be749bb0cab65887405975dbe6f3190cf6571"
 dependencies = [
  "bstr",
  "btoi",
@@ -1050,9 +1050,9 @@ dependencies = [
 
 [[package]]
 name = "git-validate"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdf83bae632fc064ca938ebfb987364d9083b7f98b1476805f0a2d5eebb48686"
+checksum = "0431cf9352c596dc7c8ec9066ee551ce54e63c86c3c767e5baf763f6019ff3c2"
 dependencies = [
  "bstr",
  "thiserror",
@@ -3268,9 +3268,9 @@ dependencies = [
 
 [[package]]
 name = "warp-reverse-proxy"
-version = "0.5.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21bb86f4c86d0fb386acf34fa5360ea0e8a082835e05296da2286c38a3316283"
+checksum = "948552bbb7a5fb4ba3169fd09b6c1ab53c1b2fdd82603295df550f7a1ec644c0"
 dependencies = [
  "hyper",
  "once_cell",

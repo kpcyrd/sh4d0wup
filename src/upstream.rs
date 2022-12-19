@@ -134,5 +134,5 @@ async fn response_to_reply(
     }
     let status = response.status();
     let body = Body::wrap_stream(response.bytes_stream());
-    builder.status(status).body(body).map_err(ProxyError::HTTP)
+    builder.status(status).body(body).map_err(ProxyError::Http)
 }

@@ -20,9 +20,9 @@ clap_complete = "4.0.3"
 env_logger = "0.10"
 flate2 = "1.0.24"
 futures-util = "0.3.25"
-git-actor = "0.14.1"
+git-actor = "0.15"
 git-hash = "0.10.1"
-git-object = "0.23.0"
+git-object = "0.24"
 handlebars = "4.3.5"
 hex = "0.4.3"
 http = "0.2.8"
@@ -60,7 +60,7 @@ tree_magic_mini = "3.0.3"
 unicase = "2.6.0"
 url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
-warp-reverse-proxy = "0.5.0"
+warp-reverse-proxy = "1"
 xz = "0.1.0"
 zip = { version = "0.6.3", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = { version = "0.12", features = ["pkg-config"] }

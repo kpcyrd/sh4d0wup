@@ -16,6 +16,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::mem;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -203,7 +205,7 @@ pub struct InlineArtifact {
 pub struct HashedArtifact {
     pub bytes: Vec<u8>,
     pub sha256: String,
-    pub sha1: String,
+    sha1: RwLock<Option<Arc<String>>>,
     pub md5: String,
 }
 
@@ -219,21 +221,42 @@ impl HashedArtifact {
         hasher.update(&bytes);
         let sha256 = hex::encode(hasher.finalize());
 
-        debug!("Computing sha1sum for artifact...");
-        let mut hasher = Sha1::new();
-        hasher.update(&bytes);
-        let sha1 = hex::encode(hasher.finalize());
-
         HashedArtifact {
             bytes,
             sha256,
             md5,
-            sha1,
+            sha1: RwLock::new(None),
         }
     }
-}
 
-impl HashedArtifact {
+    fn lazy_init_hash<D: Digest>(
+        &self,
+        ptr: &RwLock<Option<Arc<String>>>,
+        hash_name: &str,
+    ) -> Arc<String> {
+        {
+            let lock = ptr.read().expect("rw lock panic");
+            if let Some(hash) = lock.as_ref() {
+                return hash.clone();
+            }
+        }
+        let mut lock = ptr.write().expect("rw lock panic");
+        if let Some(hash) = lock.as_ref() {
+            hash.clone()
+        } else {
+            debug!("Computing {} for artifact...", hash_name);
+            let mut hasher = D::new();
+            hasher.update(&self.bytes);
+            let hash = Arc::new(hex::encode(hasher.finalize()));
+            *lock = Some(hash.clone());
+            hash
+        }
+    }
+
+    pub fn sha1(&self) -> Arc<String> {
+        self.lazy_init_hash::<Sha1>(&self.sha1, "sha1sum")
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }

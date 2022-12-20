@@ -1,10 +1,43 @@
 use crate::artifacts::HashedArtifact;
 use crate::errors::*;
 use handlebars::{
-    Context, Handlebars, Helper, HelperResult, Output, PathAndJson, RenderContext, RenderError,
+    Context, Handlebars, Helper, HelperDef, HelperResult, Output, PathAndJson, RenderContext,
+    RenderError,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
+
+#[derive(Debug)]
+enum HashType {
+    Sha1,
+}
+
+struct HashHelper<'a> {
+    artifact: &'a HashedArtifact,
+    hash: HashType,
+}
+
+impl<'a> HashHelper<'a> {
+    fn new(artifact: &HashedArtifact, hash: HashType) -> HashHelper {
+        HashHelper { artifact, hash }
+    }
+}
+
+impl<'a> HelperDef for HashHelper<'a> {
+    fn call<'_reg: '_rc, '_rc>(
+        &self,
+        _: &Helper,
+        _: &'_reg Handlebars,
+        _: &Context,
+        _: &mut RenderContext,
+        out: &mut dyn Output,
+    ) -> Result<(), RenderError> {
+        let hash = match self.hash {
+            HashType::Sha1 => self.artifact.sha1(),
+        };
+        out.write(&hash).map_err(RenderError::from)
+    }
+}
 
 pub fn render(path_template: &str, artifact: &HashedArtifact) -> Result<String> {
     let mut handlebars = Handlebars::new();
@@ -15,9 +48,10 @@ pub fn render(path_template: &str, artifact: &HashedArtifact) -> Result<String> 
     handlebars.register_helper("slice-until", Box::new(slice_until));
     handlebars.register_helper("slice-after", Box::new(slice_after));
 
+    handlebars.register_helper("sha1", Box::new(HashHelper::new(artifact, HashType::Sha1)));
+
     let mut data = BTreeMap::new();
     data.insert("sha256".to_string(), artifact.sha256.clone());
-    data.insert("sha1".to_string(), artifact.sha1.clone());
 
     let rendered = handlebars
         .render("t", &data)

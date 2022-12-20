@@ -5,11 +5,12 @@ use handlebars::{
     RenderError,
 };
 use serde_json::Value;
-use std::collections::BTreeMap;
 
 #[derive(Debug)]
 enum HashType {
+    Sha256,
     Sha1,
+    Md5,
 }
 
 struct HashHelper<'a> {
@@ -33,7 +34,9 @@ impl<'a> HelperDef for HashHelper<'a> {
         out: &mut dyn Output,
     ) -> Result<(), RenderError> {
         let hash = match self.hash {
+            HashType::Sha256 => self.artifact.sha256(),
             HashType::Sha1 => self.artifact.sha1(),
+            HashType::Md5 => self.artifact.md5(),
         };
         out.write(&hash).map_err(RenderError::from)
     }
@@ -48,13 +51,15 @@ pub fn render(path_template: &str, artifact: &HashedArtifact) -> Result<String> 
     handlebars.register_helper("slice-until", Box::new(slice_until));
     handlebars.register_helper("slice-after", Box::new(slice_after));
 
+    handlebars.register_helper(
+        "sha256",
+        Box::new(HashHelper::new(artifact, HashType::Sha256)),
+    );
     handlebars.register_helper("sha1", Box::new(HashHelper::new(artifact, HashType::Sha1)));
-
-    let mut data = BTreeMap::new();
-    data.insert("sha256".to_string(), artifact.sha256.clone());
+    handlebars.register_helper("md5", Box::new(HashHelper::new(artifact, HashType::Md5)));
 
     let rendered = handlebars
-        .render("t", &data)
+        .render("t", &())
         .context("Failed to render path_template")?;
     debug!("Rendered path for route: {:?}", rendered);
     Ok(rendered)

@@ -204,21 +204,16 @@ pub struct InlineArtifact {
 #[derive(Debug)]
 pub struct HashedArtifact {
     pub bytes: Vec<u8>,
-    pub sha256: String,
+    sha256: RwLock<Option<Arc<String>>>,
     sha1: RwLock<Option<Arc<String>>>,
     md5: RwLock<Option<Arc<String>>>,
 }
 
 impl HashedArtifact {
     pub fn new(bytes: Vec<u8>) -> HashedArtifact {
-        debug!("Computing sha256sum for artifact...");
-        let mut hasher = Sha256::new();
-        hasher.update(&bytes);
-        let sha256 = hex::encode(hasher.finalize());
-
         HashedArtifact {
             bytes,
-            sha256,
+            sha256: RwLock::new(None),
             md5: RwLock::new(None),
             sha1: RwLock::new(None),
         }
@@ -246,6 +241,10 @@ impl HashedArtifact {
             *lock = Some(hash.clone());
             hash
         }
+    }
+
+    pub fn sha256(&self) -> Arc<String> {
+        self.lazy_init_hash::<Sha256>(&self.sha256, "sha256sum")
     }
 
     pub fn sha1(&self) -> Arc<String> {

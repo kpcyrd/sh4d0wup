@@ -171,7 +171,7 @@ pub fn patch<W: Write>(
                     pkg.set_key("%CSIZE%".to_string(), vec![artifact.len().to_string()])
                         .context("Failed to patch package")?;
 
-                    pkg.set_key("%MD5SUM%".to_string(), vec![artifact.md5.clone()])
+                    pkg.set_key("%MD5SUM%".to_string(), vec![artifact.md5().to_string()])
                         .context("Failed to patch package")?;
 
                     pkg.set_key("%SHA256SUM%".to_string(), vec![artifact.sha256.clone()])

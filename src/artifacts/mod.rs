@@ -206,16 +206,11 @@ pub struct HashedArtifact {
     pub bytes: Vec<u8>,
     pub sha256: String,
     sha1: RwLock<Option<Arc<String>>>,
-    pub md5: String,
+    md5: RwLock<Option<Arc<String>>>,
 }
 
 impl HashedArtifact {
     pub fn new(bytes: Vec<u8>) -> HashedArtifact {
-        debug!("Computing md5sum for artifact...");
-        let mut hasher = Md5::new();
-        hasher.update(&bytes);
-        let md5 = hex::encode(hasher.finalize());
-
         debug!("Computing sha256sum for artifact...");
         let mut hasher = Sha256::new();
         hasher.update(&bytes);
@@ -224,7 +219,7 @@ impl HashedArtifact {
         HashedArtifact {
             bytes,
             sha256,
-            md5,
+            md5: RwLock::new(None),
             sha1: RwLock::new(None),
         }
     }
@@ -255,6 +250,10 @@ impl HashedArtifact {
 
     pub fn sha1(&self) -> Arc<String> {
         self.lazy_init_hash::<Sha1>(&self.sha1, "sha1sum")
+    }
+
+    pub fn md5(&self) -> Arc<String> {
+        self.lazy_init_hash::<Md5>(&self.md5, "md5sum")
     }
 
     pub fn as_bytes(&self) -> &[u8] {

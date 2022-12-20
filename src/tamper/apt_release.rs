@@ -195,8 +195,9 @@ pub fn patch<W: Write>(
 
                 match checksum.namespace.as_str() {
                     "MD5Sum" => {
-                        debug!("Patching md5 for {:?} to {:?}", checksum.path, artifact.md5);
-                        checksum.hash = artifact.md5.clone();
+                        let md5 = artifact.md5().to_string();
+                        debug!("Patching md5 for {:?} to {:?}", checksum.path, md5);
+                        checksum.hash = md5;
                     }
                     "SHA256" => {
                         debug!(

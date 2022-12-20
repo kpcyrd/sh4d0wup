@@ -29,11 +29,13 @@ use tokio::io::AsyncWriteExt;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let log_level = match args.verbose {
-        0 => "sh4d0wup=info",
-        1 => "info,sh4d0wup=debug",
-        2 => "debug",
-        3 => "debug,sh4d0wup=trace",
+    let log_level = match (args.quiet, args.verbose) {
+        (0, 0) => "warn,sh4d0wup=info",
+        (1, 0) => "warn",
+        (_, 0) => "error",
+        (_, 1) => "info,sh4d0wup=debug",
+        (_, 2) => "debug",
+        (_, 3) => "debug,sh4d0wup=trace",
         _ => "trace",
     };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));

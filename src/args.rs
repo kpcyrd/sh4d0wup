@@ -13,9 +13,12 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(version)]
 pub struct Args {
-    /// Turn debugging information on
+    /// Increase logging output (can be used multiple times)
     #[arg(short, long, global = true, action(ArgAction::Count))]
     pub verbose: u8,
+    /// Reduce logging output (can be used multiple times)
+    #[arg(short, long, global = true, action(ArgAction::Count))]
+    pub quiet: u8,
     #[command(subcommand)]
     pub subcommand: SubCommand,
 }

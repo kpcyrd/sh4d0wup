@@ -18,7 +18,8 @@ Commands:
   help         Print this message or the help of the given subcommand(s)
 
 Options:
-  -v, --verbose...  Turn debugging information on
+  -v, --verbose...  Increase logging output (can be used multiple times)
+  -q, --quiet...    Reduce logging output (can be used multiple times)
   -h, --help        Print help information
   -V, --version     Print version information
 ```
@@ -65,7 +66,11 @@ You can find examples here:
 ### `sh4d0wup infect elf`
 
 ```
-% RUST_LOG=warn sh4d0wup infect elf /usr/bin/sh4d0wup -c id a.out
+% sh4d0wup infect elf /usr/bin/sh4d0wup -c id a.out
+[2022-12-19T23:50:52Z INFO  sh4d0wup::infect::elf] Spawning C compiler...
+[2022-12-19T23:50:52Z INFO  sh4d0wup::infect::elf] Generating source code...
+[2022-12-19T23:50:57Z INFO  sh4d0wup::infect::elf] Waiting for compile to finish...
+[2022-12-19T23:51:01Z INFO  sh4d0wup::infect::elf] Successfully generated binary
 % ./a.out help
 uid=1000(user) gid=1000(user) groups=1000(user),212(rebuilderd),973(docker),998(wheel)
 Usage: a.out [OPTIONS] <COMMAND>

@@ -50,7 +50,7 @@ impl Oid {
                         oid.artifact
                     )
                 })?;
-                Oid::hash(artifact.as_ref())
+                Oid::hash(artifact.as_bytes())
             }
         };
         Ok(oid)
@@ -179,7 +179,7 @@ impl Blob {
                 let artifact = artifacts.get(artifact).with_context(|| {
                     anyhow!("Referencing artifact that doesn't exist: {:?}", artifact)
                 })?;
-                Ok(artifact.as_ref())
+                Ok(artifact.as_bytes())
             }
             (None, None) => bail!("Git blob has neither data nor artifact reference"),
         }

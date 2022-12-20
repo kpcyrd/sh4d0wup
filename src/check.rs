@@ -10,6 +10,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::net::SocketAddr;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -263,9 +264,13 @@ pub async fn run(
     addr: SocketAddr,
     check: args::Check,
     tls: Option<&httpd::Tls>,
-    ctx: plot::Ctx,
+    ctx: Arc<plot::Ctx>,
 ) -> Result<()> {
-    let check_config = ctx.plot.check.context("No test configured in this plot")?;
+    let check_config = ctx
+        .plot
+        .check
+        .as_ref()
+        .context("No test configured in this plot")?;
     wait_for_server(&addr).await?;
 
     let image = &check_config.image;
@@ -287,7 +292,7 @@ pub async fn run(
     let container = Container::create(image, &init, addr, check_config.expose_fuse).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
-        result = container.run_check(&check_config, &ctx.extras, tls) => result,
+        result = container.run_check(check_config, &ctx.extras, tls) => result,
         _ = signal::ctrl_c() => Err(anyhow!("Ctrl-c received")),
     };
     info!("Removing container...");
@@ -314,6 +319,7 @@ pub async fn spawn(check: args::Check, ctx: plot::Ctx) -> Result<()> {
         None
     };
 
+    let ctx = Arc::new(ctx);
     let httpd = httpd::run(addr, tls.clone(), ctx.clone());
     let check = run(addr, check, tls.as_ref(), ctx);
 

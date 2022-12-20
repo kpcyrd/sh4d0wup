@@ -362,10 +362,9 @@ impl From<tls::TlsEmbedded> for Tls {
     }
 }
 
-pub async fn run(bind: SocketAddr, tls: Option<Tls>, ctx: plot::Ctx) -> Result<()> {
+pub async fn run(bind: SocketAddr, tls: Option<Tls>, ctx: Arc<plot::Ctx>) -> Result<()> {
     let request_filter = extract_request_data_filter();
 
-    let ctx = Arc::new(ctx);
     let app = warp::any()
         .and(warp::filters::addr::remote())
         .and(request_filter)

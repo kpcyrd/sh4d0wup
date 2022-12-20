@@ -27,7 +27,7 @@ use warp::hyper::Body;
 pub type Artifacts = BTreeMap<String, HashedArtifact>;
 pub type SigningKeys = BTreeMap<String, EmbeddedKey>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Ctx {
     pub plot: Plot,
     pub extras: PlotExtras,
@@ -286,7 +286,7 @@ impl Plot {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Default)]
 pub struct PlotExtras {
     pub signing_keys: SigningKeys,
     pub artifacts: Artifacts,

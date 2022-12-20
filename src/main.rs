@@ -23,6 +23,7 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::Write;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
@@ -64,7 +65,7 @@ async fn main() -> Result<()> {
             };
 
             if !bait.no_bind {
-                httpd::run(bait.bind, tls, ctx).await?;
+                httpd::run(bait.bind, tls, Arc::new(ctx)).await?;
             }
         }
         SubCommand::Infect(Infect::Pacman(infect)) => {

@@ -182,7 +182,7 @@ pub fn patch<W: Write>(
                     let signature = plot_extras.artifacts.get(signature).with_context(|| {
                         anyhow!("Referencing undefined artifact: {:?}", signature)
                     })?;
-                    let encoded = base64::encode(signature);
+                    let encoded = base64::encode(signature.as_bytes());
                     pkg.set_key("%PGPSIG%".to_string(), vec![encoded])
                         .context("Failed to patch package")?;
                 }

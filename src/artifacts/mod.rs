@@ -199,7 +199,7 @@ pub struct InlineArtifact {
     pub data: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct HashedArtifact {
     pub bytes: Vec<u8>,
     pub sha256: String,

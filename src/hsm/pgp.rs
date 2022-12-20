@@ -71,6 +71,9 @@ pub enum Status {
 }
 
 pub fn write_info(label: &str, status: Status) -> Result<()> {
+    if !log::log_enabled!(log::Level::Info) {
+        return Ok(());
+    }
     let stdout = BufferWriter::stdout(ColorChoice::Auto);
 
     let mut buffer = stdout.buffer();
@@ -106,21 +109,23 @@ pub fn access(args: &HsmAccess) -> Result<()> {
     write_info("Selected openpgp key", Status::Ok)?;
 
     let pin = read_pin(&args.pin)?;
-    if let Some(pin) = pin {
-        write_info(
-            "Hardware signing pw1 pin is valid",
+    write_info(
+        "Hardware signing pw1 pin is valid",
+        if let Some(pin) = pin {
             if let Err(err) = card.verify_pw1_signing(pin) {
+                // Only log the warning if we're not going to print it anyways
+                if !log::log_enabled!(log::Level::Info) {
+                    warn!("{:#}", err);
+                }
+
                 Status::Error(err)
             } else {
                 Status::Ok
-            },
-        )?;
-    } else {
-        write_info(
-            "Hardware signing pw1 pin is valid",
-            Status::Other("-".to_string()),
-        )?;
-    }
+            }
+        } else {
+            Status::Other("-".to_string())
+        },
+    )?;
 
     card.disconnect()?;
 

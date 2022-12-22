@@ -196,6 +196,13 @@ impl Plot {
         Ok(plot)
     }
 
+    pub fn ensure_artifact_exists(&self, artifact: &str) -> Result<()> {
+        if self.artifacts.get(artifact).is_none() {
+            bail!("Reference to undefined artifact object: {:?}", artifact);
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<()> {
         for route in &self.routes {
             if let Some(upstream) = route.action.upstream() {
@@ -204,15 +211,19 @@ impl Plot {
                 }
             }
             if let RouteAction::Static(route) = &route.action {
-                match (&route.data, &route.artifact) {
-                    (None, None) => bail!("Static route is missing both data and artifact reference"),
-                    (Some(_), Some(_)) => bail!("Static route has both data and artifact reference but they are mutually exclusive"),
-                    (None, Some(artifact)) => {
-                        if self.artifacts.get(artifact).is_none() {
-                            bail!("Reference to undefined artifact object: {:?}", artifact);
+                match &route.source {
+                    StaticSource::Data(_) => (),
+                    StaticSource::Artifact(artifact) => self.ensure_artifact_exists(artifact)?,
+                    StaticSource::Artifacts(artifacts) => {
+                        for artifact in artifacts {
+                            self.ensure_artifact_exists(artifact)?;
                         }
                     }
-                    _ => (),
+                    StaticSource::HashBucket(bucket) => {
+                        for artifact in bucket.values() {
+                            self.ensure_artifact_exists(artifact)?;
+                        }
+                    }
                 }
             }
         }
@@ -226,11 +237,14 @@ impl Plot {
         headers: &HeaderMap,
     ) -> Result<&RouteAction> {
         for route in &self.routes {
+            // if the route is for a specific path, verify it matches our request
             if let Some(path) = &route.path {
                 if path != request_path {
                     continue;
                 }
             }
+
+            // if a selector is selected and our request matches
             if let Some(selector) = &route.selector {
                 let selector = self.selectors.get(selector).with_context(|| {
                     anyhow!("Referenced selector {:?} does not exist", selector)
@@ -239,6 +253,17 @@ impl Plot {
                     continue;
                 }
             }
+
+            // if the route is a static route with an artifact_hash_bucket for our request
+            if let RouteAction::Static(action) = &route.action {
+                if let StaticSource::HashBucket(bucket) = &action.source {
+                    if !bucket.contains_key(request_path) {
+                        continue;
+                    }
+                }
+            }
+
+            // The request matches this route
             return Ok(&route.action);
         }
 
@@ -304,7 +329,6 @@ pub struct Upstream {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     pub path: Option<String>,
-    pub path_template: Option<String>,
     pub selector: Option<String>,
     #[serde(flatten)]
     pub action: RouteAction,
@@ -312,22 +336,39 @@ pub struct Route {
 
 impl Route {
     pub fn resolve_path_template(&mut self, artifacts: &Artifacts) -> Result<()> {
-        if let Some(path_template) = &self.path_template {
-            if let RouteAction::Static(action) = &self.action {
-                let artifact = action
-                    .artifact
-                    .as_ref()
-                    .context("Static route with undefined artifact reference")?;
-                let artifact = artifacts
-                    .get(artifact)
-                    .with_context(|| anyhow!("Reference to undefined artifact: {:?}", artifact))?;
+        if let RouteAction::Static(action) = &mut self.action {
+            match &action.source {
+                StaticSource::Artifact(artifact) => {
+                    if let Some(path_template) = &action.path_template {
+                        let artifact = artifacts.get(artifact).with_context(|| {
+                            anyhow!("Reference to undefined artifact: {:?}", artifact)
+                        })?;
 
-                let rendered = route_templates::render(path_template, artifact)?;
-                self.path = Some(rendered);
-            } else {
-                bail!("Path templates are only available to routes of type `static`");
-            };
+                        let rendered = route_templates::render(path_template, artifact)?;
+                        self.path = Some(rendered);
+                    }
+                }
+                StaticSource::Artifacts(list) => {
+                    let path_template = action
+                        .path_template
+                        .as_ref()
+                        .context("List of artifacts configured but no path template")?;
+
+                    let mut hash_bucket = HashMap::new();
+                    for artifact_name in list {
+                        let artifact = artifacts.get(artifact_name).with_context(|| {
+                            anyhow!("Reference to undefined artifact: {:?}", artifact_name)
+                        })?;
+
+                        let rendered = route_templates::render(path_template, artifact)?;
+                        hash_bucket.insert(rendered, artifact_name.to_string());
+                    }
+                    action.source = StaticSource::HashBucket(hash_bucket);
+                }
+                _ => (),
+            }
         }
+
         Ok(())
     }
 }
@@ -372,18 +413,64 @@ pub struct ProxyRoute {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StaticSource {
+    Data(String),
+    Artifact(String),
+    Artifacts(Vec<String>),
+    HashBucket(HashMap<String, String>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticRoute {
+    pub path_template: Option<String>,
+
     pub status: Option<u16>,
     pub content_type: Option<String>,
-    pub data: Option<String>,
-    pub artifact: Option<String>,
     pub compress: Option<CompressedWith>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
+
+    #[serde(flatten)]
+    pub source: StaticSource,
 }
 
 impl StaticRoute {
-    pub async fn generate_response(&self, ctx: &Ctx) -> Result<http::Response<Body>> {
+    pub async fn get_artifact_bytes<'a>(
+        &self,
+        ctx: &'a Ctx,
+        artifact: &str,
+    ) -> Result<Cow<'a, [u8]>> {
+        let config =
+            ctx.plot.artifacts.get(artifact).with_context(|| {
+                anyhow!("Undefined reference to artifact object: {:?}", artifact)
+            })?;
+
+        match config {
+            Artifact::File(artifact) => {
+                let data = tokio::fs::read(&artifact.path).await?;
+                Ok(Cow::Owned(data))
+            }
+            Artifact::Url(_) => {
+                bail!("Url artifacts are expected to be loaded into memory at this point");
+            }
+            Artifact::Inline(_) => {
+                bail!("Inline artifacts are expected to be loaded into memory at this point");
+            }
+            _ => {
+                let artifact = ctx.extras.artifacts.get(artifact).with_context(|| {
+                    anyhow!("Undefined reference to artifact object: {:?}", artifact)
+                })?;
+                Ok(Cow::Borrowed(&artifact.bytes[..]))
+            }
+        }
+    }
+
+    pub async fn generate_response(
+        &self,
+        ctx: &Ctx,
+        request_path: &str,
+    ) -> Result<http::Response<Body>> {
         let status = self.status.unwrap_or(200);
         let mut builder = http::Response::builder().status(status);
 
@@ -395,33 +482,21 @@ impl StaticRoute {
             builder = builder.header(key, value);
         }
 
-        let data = if let Some(data) = &self.data {
-            Cow::Borrowed(data.as_bytes())
-        } else if let Some(artifact) = &self.artifact {
-            let config = ctx.plot.artifacts.get(artifact).with_context(|| {
-                anyhow!("Undefined reference to artifact object: {:?}", artifact)
-            })?;
-
-            match config {
-                Artifact::File(artifact) => {
-                    let data = tokio::fs::read(&artifact.path).await?;
-                    Cow::Owned(data)
-                }
-                Artifact::Url(_) => {
-                    bail!("Url artifacts are expected to be loaded into memory at this point");
-                }
-                Artifact::Inline(_) => {
-                    bail!("Inline artifacts are expected to be loaded into memory at this point");
-                }
-                _ => {
-                    let artifact = ctx.extras.artifacts.get(artifact).with_context(|| {
-                        anyhow!("Undefined reference to artifact object: {:?}", artifact)
-                    })?;
-                    Cow::Borrowed(&artifact.bytes[..])
-                }
+        let data = match &self.source {
+            StaticSource::Data(data) => Cow::Borrowed(data.as_bytes()),
+            StaticSource::Artifact(artifact) => self.get_artifact_bytes(ctx, artifact).await?,
+            StaticSource::Artifacts(_) => {
+                bail!("List of artifacts is expected to be resolved into HashBucket at this point")
             }
-        } else {
-            bail!("No data or artifact configured for static route");
+            StaticSource::HashBucket(bucket) => {
+                let artifact = bucket.get(request_path).with_context(|| {
+                    anyhow!(
+                        "Failed to find entry in hash bucket for key: {:?}",
+                        request_path
+                    )
+                })?;
+                self.get_artifact_bytes(ctx, artifact).await?
+            }
         };
 
         let data = if let Some(compress) = self.compress {

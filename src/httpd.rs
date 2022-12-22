@@ -142,8 +142,12 @@ async fn proxy_forward_request(
 async fn generate_static_response(
     args: &StaticRoute,
     ctx: &Ctx,
+    uri: FullPath,
 ) -> Result<http::Response<Body>, Rejection> {
-    Ok(args.generate_response(ctx).await.map_err(http_error)?)
+    Ok(args
+        .generate_response(ctx, uri.as_str())
+        .await
+        .map_err(http_error)?)
 }
 
 async fn fetch_upstream(
@@ -318,7 +322,7 @@ async fn serve_request(
         RouteAction::Proxy(args) => {
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
-        RouteAction::Static(args) => generate_static_response(args, &ctx).await?,
+        RouteAction::Static(args) => generate_static_response(args, &ctx, uri).await?,
         RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &ctx, uri).await?,
         RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &ctx, uri).await?,
         RouteAction::PatchAptPackageList(args) => {

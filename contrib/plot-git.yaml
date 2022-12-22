@@ -66,20 +66,13 @@ routes:
     type: static
     args:
       data: "\n"
-  - path_template: '/kpcyrd/sh4d0wup/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}'
-    type: static
+  - type: static
     args:
-      artifact: commit
-      compress: zlib
-  - path_template: '/kpcyrd/sh4d0wup/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}'
-    type: static
-    args:
-      artifact: tree
-      compress: zlib
-  - path_template: '/kpcyrd/sh4d0wup/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}'
-    type: static
-    args:
-      artifact: blob
+      path_template: '/kpcyrd/sh4d0wup/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}'
+      artifacts:
+        - commit
+        - tree
+        - blob
       compress: zlib
 
   - type: proxy

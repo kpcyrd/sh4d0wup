@@ -79,11 +79,16 @@ routes:
     args:
       artifact: release_patched
 
-  - path: /debian/dists/stable/main/binary-amd64/Packages
-    type: static
+  - type: static
     args:
-      artifact: index_patched
-  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+      path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+      artifacts:
+        - index_patched
+        - index_patched_gz
+        - index_patched_xz
+        - pkg_infected
+
+  - path: /debian/dists/stable/main/binary-amd64/Packages
     type: static
     args:
       artifact: index_patched
@@ -91,24 +96,12 @@ routes:
     type: static
     args:
       artifact: index_patched_gz
-  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
-    type: static
-    args:
-      artifact: index_patched_gz
   - path: /debian/dists/stable/main/binary-amd64/Packages.xz
-    type: static
-    args:
-      artifact: index_patched_xz
-  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
     type: static
     args:
       artifact: index_patched_xz
 
   - path: /debian/pool/main/l/lsb/lsb-base_11.1337.0_all.deb
-    type: static
-    args:
-      artifact: pkg_infected
-  - path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
     type: static
     args:
       artifact: pkg_infected

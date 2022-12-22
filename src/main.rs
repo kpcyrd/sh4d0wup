@@ -342,7 +342,9 @@ async fn main() -> Result<()> {
 
             if req.show_response || req.show_status || req.show_headers || req.show_content {
                 let response = match route_action {
-                    RouteAction::Static(route) => route.generate_response(&ctx).await?,
+                    RouteAction::Static(route) => {
+                        route.generate_response(&ctx, &req.req_path).await?
+                    }
                     _ => bail!("Emulation of this route is currently not supported"),
                 };
 

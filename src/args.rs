@@ -478,6 +478,9 @@ pub struct Req {
     /// Show the generated response for the emulated request
     #[arg(short = 'c', long = "content")]
     pub show_content: bool,
+    /// When showing the response, use `hexdump -C`
+    #[arg(short = 'C', long)]
+    pub hexdump: bool,
 }
 
 /// Generate shell completions

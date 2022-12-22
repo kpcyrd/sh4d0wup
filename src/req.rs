@@ -4,7 +4,51 @@ use crate::plot::RouteAction;
 use futures_util::StreamExt;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use std::io::Write;
+use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
+
+pub struct Hexdumper {
+    child: tokio::process::Child,
+    stdin: tokio::process::ChildStdin,
+}
+
+impl Hexdumper {
+    pub fn spawn() -> Result<Self> {
+        let mut child = tokio::process::Command::new("hexdump")
+            .arg("-C")
+            .stdin(Stdio::piped())
+            .spawn()
+            .context("Failed to spawn hexdump process")?;
+        let stdin = child.stdin.take().unwrap();
+        Ok(Self { child, stdin })
+    }
+}
+
+pub enum OutputWriter {
+    Stdout(tokio::io::Stdout),
+    Hexdump(Hexdumper),
+}
+
+impl OutputWriter {
+    pub async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        match self {
+            OutputWriter::Stdout(stdout) => stdout.write_all(buf).await?,
+            OutputWriter::Hexdump(hexdump) => hexdump.stdin.write_all(buf).await?,
+        }
+        Ok(())
+    }
+
+    pub async fn wait(self) -> Result<()> {
+        match self {
+            OutputWriter::Stdout(_) => Ok(()),
+            OutputWriter::Hexdump(mut hexdump) => {
+                drop(hexdump.stdin);
+                hexdump.child.wait().await?;
+                Ok(())
+            }
+        }
+    }
+}
 
 pub async fn run(req: &args::Req) -> Result<()> {
     let ctx = req.plot.load_into_context().await?;
@@ -55,8 +99,13 @@ pub async fn run(req: &args::Req) -> Result<()> {
         }
         if req.show_response || req.show_content {
             let mut body = response.into_body();
+            let mut out = if req.hexdump {
+                OutputWriter::Hexdump(Hexdumper::spawn()?)
+            } else {
+                OutputWriter::Stdout(stdout)
+            };
             while let Some(chunk) = body.next().await {
-                stdout.write_all(&chunk?).await?;
+                out.write_all(&chunk?).await?;
             }
         }
     }

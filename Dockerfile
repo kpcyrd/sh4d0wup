@@ -1,6 +1,7 @@
-FROM rust:1-alpine3.16
+FROM rust:1-alpine3.17
 ENV RUSTFLAGS="-C target-feature=-crt-static"
-RUN apk add --no-cache clang-dev musl-dev nettle-dev pcsc-lite-dev openssl-dev shared-mime-info xz-dev zstd-dev
+RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
+    apk add clang-dev musl-dev nettle-dev pcsc-lite-dev openssl-dev shared-mime-info xz-dev zstd-dev
 WORKDIR /app
 COPY ./ /app
 RUN --mount=type=cache,target=/var/cache/buildkit \
@@ -10,7 +11,8 @@ RUN --mount=type=cache,target=/var/cache/buildkit \
     cp -v /var/cache/buildkit/target/release/sh4d0wup .
 RUN strip sh4d0wup
 
-FROM alpine:3.16
-RUN apk add --no-cache clang-libs libgcc nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs
+FROM alpine:3.17
+RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
+    apk add clang-libs gcc libgcc linux-headers musl-dev nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs
 COPY --from=0 /app/sh4d0wup /usr/bin
 ENTRYPOINT ["sh4d0wup"]

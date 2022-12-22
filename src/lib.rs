@@ -10,6 +10,7 @@ pub mod infect;
 pub mod keygen;
 pub mod oci;
 pub mod plot;
+pub mod req;
 pub mod route_templates;
 pub mod selectors;
 pub mod sessions;

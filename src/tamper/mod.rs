@@ -106,24 +106,76 @@ pub fn run(tamper: Tamper) -> Result<()> {
         Tamper::GitCommit(tamper) => {
             let mut out = Vec::new();
 
-            let message = if let Some(mut message) = tamper.message {
-                message.push('\n');
-                BString::new(message.into())
-            } else {
+            let mut tree = None;
+            let mut parents = Vec::new();
+            let mut author = None;
+            let mut committer = None;
+            let mut extra_headers = Vec::new();
+            let mut message = None;
+
+            if tamper.stdin {
+                let mut buf = Vec::new();
+                io::stdin()
+                    .read_to_end(&mut buf)
+                    .context("Failed to read commit from stdin")?;
+
+                let commit = git_object::CommitRef::from_bytes(&buf)
+                    .context("Failed to parse stdin as commit")?;
+
+                tree = Some(git_oid_to_string(commit.tree)?);
+                parents = commit
+                    .parents
+                    .into_iter()
+                    .map(git_oid_to_string)
+                    .collect::<Result<_>>()?;
+                author = Some(git_author_to_string(&commit.author)?);
+                committer = Some(git_author_to_string(&commit.committer)?);
+                extra_headers = commit
+                    .extra_headers
+                    .into_iter()
+                    .map(|(k, v)| (k.into(), v.into_owned()))
+                    .collect();
+                message = Some(commit.message.into());
+            }
+
+            if let Some(value) = tamper.tree {
+                tree = Some(value);
+            }
+
+            if !tamper.parents.is_empty() {
+                parents = tamper.parents;
+            }
+
+            if let Some(value) = tamper.author {
+                author = Some(value);
+            }
+
+            if let Some(value) = tamper.committer {
+                committer = Some(value);
+            }
+
+            if let Some(mut value) = tamper.message {
+                value.push('\n');
+                message = Some(BString::new(value.into()));
+            }
+
+            if tamper.message_stdin {
                 let mut buf = Vec::new();
                 io::stdin().read_to_end(&mut buf)?;
-                BString::new(buf)
-            };
+                message = Some(BString::new(buf));
+            }
 
             let commit = git::Commit {
-                tree: Oid::Inline(tamper.tree),
-                parents: tamper.parents.into_iter().map(Oid::Inline).collect(),
-                author: tamper.author,
-                committer: tamper.committer,
-                message,
+                tree: Oid::Inline(tree.context("Missing value for tree")?),
+                parents: parents.into_iter().map(Oid::Inline).collect(),
+                author: author.context("Missing value for git author")?,
+                committer: committer.context("Missing value for git committer")?,
+                extra_headers,
+                message: message.context("Missing message for git commit")?,
                 collision_prefix: tamper.collision_prefix,
                 nonce: tamper.nonce,
             };
+
             commit.encode(&mut out, &Default::default())?;
             let out = if tamper.strip_header {
                 let (_, _, consumed) = git_object::decode::loose_header(&out)?;
@@ -137,4 +189,16 @@ pub fn run(tamper: Tamper) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn git_oid_to_string(oid: &bstr::BStr) -> Result<String> {
+    let s = std::str::from_utf8(oid)?;
+    Ok(s.to_string())
+}
+
+pub fn git_author_to_string(author: &git_actor::SignatureRef) -> Result<String> {
+    let mut buf = Vec::new();
+    author.write_to(&mut buf)?;
+    let buf = String::from_utf8(buf)?;
+    Ok(buf)
 }

@@ -275,16 +275,16 @@ pub struct TamperApkIndex {
 pub struct TamperGitCommit {
     /// The hash of the tree object this commit should point to
     #[arg(long)]
-    pub tree: String,
+    pub tree: Option<String>,
     /// The parent commit of this commit (can be multiple)
     #[arg(long = "parent")]
     pub parents: Vec<String>,
     /// The author of the commit in the format `John Doe <git@example.com> 1637076383 +0100`
     #[arg(long)]
-    pub author: String,
+    pub author: Option<String>,
     /// The committer of the commit in the format `John Doe <git@example.com> 1637076383 +0100`
     #[arg(long)]
-    pub committer: String,
+    pub committer: Option<String>,
     /// The commit message (if omitted, read from stdin)
     #[arg(long)]
     pub message: Option<String>,
@@ -294,6 +294,12 @@ pub struct TamperGitCommit {
     /// Add an additional value to the commit to influence the hash
     #[arg(long)]
     pub nonce: Option<String>,
+    /// Read a git commit object from stdin and use it as a base
+    #[arg(long)]
+    pub stdin: bool,
+    /// Read a commit message from stdin
+    #[arg(long, conflicts_with_all=&["stdin", "message"])]
+    pub message_stdin: bool,
     /// Remove the loose header to convert it into the format expected by `git hash-object -t commit -w --stdin`
     #[arg(long)]
     pub strip_header: bool,

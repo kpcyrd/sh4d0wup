@@ -81,6 +81,7 @@ pub struct Commit {
     pub parents: Vec<Oid>,
     pub author: String,
     pub committer: String,
+    pub extra_headers: Vec<(BString, BString)>,
     pub message: BString,
     pub collision_prefix: Option<String>,
     pub nonce: Option<String>,
@@ -100,7 +101,7 @@ impl Commit {
             .iter()
             .map(|o| o.resolve_oid(artifacts))
             .collect::<Result<_>>()?;
-        let mut extra_headers = Vec::new();
+        let mut extra_headers = self.extra_headers.clone();
         if let Some(nonce) = &self.nonce {
             extra_headers.push(("nonce".into(), nonce.as_str().into()));
         }
@@ -133,7 +134,7 @@ impl Commit {
         prefix: &str,
         idx: usize,
         nonce: usize,
-    ) -> Result<bool> {
+    ) -> Result<Option<String>> {
         let mut nonce_buf = BString::new(vec![]);
         write!(nonce_buf, "{}", nonce)?;
         commit.extra_headers[idx].1 = nonce_buf;
@@ -158,10 +159,9 @@ impl Commit {
         if short_hash.starts_with(prefix) {
             // hex encode the whole hash this time
             let hash = hex::encode(hash);
-            info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
-            Ok(true)
+            Ok(Some(hash))
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
@@ -217,11 +217,14 @@ impl Commit {
                             idx,
                             nonce,
                         ) {
-                            Ok(true) => {
-                                found_tx.send(commit).ok();
+                            Ok(Some(hash)) => {
+                                debug!("Trying to inform main thread about partial colliding hash: {:?}", hash);
+                                if found_tx.send((hash.clone(), commit)).is_err() {
+                                    debug!("Hash wasn't selected, discarding: {:?}", hash);
+                                }
                                 break 'outer;
                             }
-                            Ok(false) => (),
+                            Ok(None) => (),
                             Err(err) => error!("Error in worker thread: {:#}", err),
                         }
                     }
@@ -229,13 +232,16 @@ impl Commit {
             }));
         }
 
-        let found = found_rx
+        let (hash, found) = found_rx
             .recv()
             .context("Failed to receive result from workers")?;
+        drop(found_rx);
+        info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
 
         ctr_tx
             .send(None)
             .map_err(|_| anyhow!("Failed to send shutdown signal to worker"))?;
+        drop(ctr_tx);
 
         debug!("Waiting for workers to shutdown");
         for worker in workers {
@@ -243,6 +249,7 @@ impl Commit {
                 .join()
                 .map_err(|_| anyhow!("Failed to wait for thread"))?;
         }
+        debug!("All workers have terminated");
 
         *commit = found;
 
@@ -353,6 +360,7 @@ mod tests {
             )],
             author: "kpcyrd <git@rxv.cc> 1637076383 +0100".to_string(),
             committer: "kpcyrd <git@rxv.cc> 1637076383 +0100".to_string(),
+            extra_headers: Vec::new(),
             message: "Release v0.3.0\n".into(),
             collision_prefix: None,
             nonce: None,

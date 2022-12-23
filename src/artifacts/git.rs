@@ -8,6 +8,10 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::io::Write;
+use std::sync::mpsc;
+use std::thread;
+
+const STEP: usize = 10_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "git", rename_all = "kebab-case")]
@@ -123,6 +127,44 @@ impl Commit {
         Ok(())
     }
 
+    pub fn try_nonce_for_commit(
+        commit: &mut git_object::Commit,
+        commit_buf: &mut Vec<u8>,
+        prefix: &str,
+        idx: usize,
+        nonce: usize,
+    ) -> Result<bool> {
+        let mut nonce_buf = BString::new(vec![]);
+        write!(nonce_buf, "{}", nonce)?;
+        commit.extra_headers[idx].1 = nonce_buf;
+
+        commit_buf.clear();
+        commit_buf.extend(&git_object::encode::loose_header(
+            commit.kind(),
+            commit.size(),
+        ));
+        commit.write_to(commit_buf as &mut Vec<u8>)?;
+
+        let mut sha1 = Sha1::new();
+        sha1.update(&commit_buf);
+        let hash = sha1.finalize();
+
+        // only hex encode what we use
+        let mut n = prefix.len();
+        n += n % 2;
+        n /= 2;
+
+        let short_hash = hex::encode(&hash[..n]);
+        if short_hash.starts_with(prefix) {
+            // hex encode the whole hash this time
+            let hash = hex::encode(hash);
+            info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn bruteforce_partial_collision(
         commit: &mut git_object::Commit,
         prefix: &str,
@@ -132,42 +174,79 @@ impl Commit {
             prefix
         );
 
-        let mut commit_buf = Vec::new();
-
-        let mut nonce = 0;
         let idx = commit.extra_headers.len();
         commit.extra_headers.push(("nonce".into(), "".into()));
 
-        loop {
-            let mut nonce_buf = BString::new(vec![]);
-            write!(nonce_buf, "{}", nonce)?;
-            commit.extra_headers[idx].1 = nonce_buf;
-            nonce += 1;
-
-            commit_buf.clear();
-            commit_buf.extend(&git_object::encode::loose_header(
-                commit.kind(),
-                commit.size(),
-            ));
-            commit.write_to(&mut commit_buf)?;
-
-            let mut sha1 = Sha1::new();
-            sha1.update(&commit_buf);
-            let hash = sha1.finalize();
-
-            // only hex encode what we use
-            let mut n = prefix.len();
-            n += n % 2;
-            n /= 2;
-
-            let hash = hex::encode(&hash[..n]);
-            if hash.starts_with(prefix) {
-                // hex encode the whole hash this time
-                let hash = hex::encode(hash);
-                info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
-                return Ok(());
+        let mut workers = Vec::new();
+        let (ctr_tx, ctr_rx) = mpsc::sync_channel::<Option<mpsc::Sender<usize>>>(1);
+        workers.push(thread::spawn(|| {
+            let mut ctr = 0;
+            for req in ctr_rx {
+                if let Some(req) = req {
+                    debug!("Assigning chunk to worker: {:?}", ctr);
+                    req.send(ctr).ok();
+                    ctr += STEP;
+                } else {
+                    // this is our shutdown signal, dropping our sender to shutdown workers
+                    break;
+                }
             }
+        }));
+
+        let (found_tx, found_rx) = mpsc::sync_channel(1);
+        for worker_num in 0..num_cpus::get() {
+            debug!("Starting bruteforce worker #{}", worker_num);
+            let ctr_tx = ctr_tx.clone();
+            let found_tx = found_tx.clone();
+            let mut commit = commit.clone();
+            let prefix = prefix.to_string();
+
+            workers.push(thread::spawn(move || {
+                let mut commit_buf = Vec::new();
+                'outer: loop {
+                    let (tx, rx) = mpsc::channel();
+                    let Ok(()) = ctr_tx.send(Some(tx)) else { break };
+                    let Ok(start) = rx.recv() else { break };
+
+                    let end = start + STEP;
+                    for nonce in start..end {
+                        match Self::try_nonce_for_commit(
+                            &mut commit,
+                            &mut commit_buf,
+                            &prefix,
+                            idx,
+                            nonce,
+                        ) {
+                            Ok(true) => {
+                                found_tx.send(commit).ok();
+                                break 'outer;
+                            }
+                            Ok(false) => (),
+                            Err(err) => error!("Error in worker thread: {:#}", err),
+                        }
+                    }
+                }
+            }));
         }
+
+        let found = found_rx
+            .recv()
+            .context("Failed to receive result from workers")?;
+
+        ctr_tx
+            .send(None)
+            .map_err(|_| anyhow!("Failed to send shutdown signal to worker"))?;
+
+        debug!("Waiting for workers to shutdown");
+        for worker in workers {
+            worker
+                .join()
+                .map_err(|_| anyhow!("Failed to wait for thread"))?;
+        }
+
+        *commit = found;
+
+        Ok(())
     }
 }
 

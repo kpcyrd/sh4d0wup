@@ -2579,6 +2579,7 @@ dependencies = [
  "md-5",
  "memchr",
  "nix",
+ "num_cpus",
  "oci-spec",
  "once_cell",
  "openssl",

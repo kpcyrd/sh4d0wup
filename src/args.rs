@@ -198,6 +198,7 @@ pub enum Tamper {
     AptRelease(TamperAptRelease),
     AptPackageList(TamperAptPackageList),
     ApkIndex(TamperApkIndex),
+    GitCommit(TamperGitCommit),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -267,6 +268,32 @@ pub struct TamperApkIndex {
     /// The name of the signing key (eg. alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub)
     #[arg(short = 'N', long)]
     pub signing_key_name: String,
+}
+
+/// Generate a git commit from the given parameters (optionally bruteforce a hash prefix)
+#[derive(Debug, Clone, Parser)]
+pub struct TamperGitCommit {
+    /// The hash of the tree object this commit should point to
+    #[arg(long)]
+    pub tree: String,
+    /// The parent commit of this commit (can be multiple)
+    #[arg(long = "parent")]
+    pub parents: Vec<String>,
+    /// The author of the commit in the format `John Doe <git@example.com> 1637076383 +0100`
+    #[arg(long)]
+    pub author: String,
+    /// The committer of the commit in the format `John Doe <git@example.com> 1637076383 +0100`
+    #[arg(long)]
+    pub committer: String,
+    /// The commit message (if omitted, read from stdin)
+    #[arg(long)]
+    pub message: Option<String>,
+    /// Add a nonce value to the commit and increment it until the commit object hash matches the prefix
+    #[arg(long)]
+    pub collision_prefix: Option<String>,
+    /// Add an additional value to the commit to influence the hash
+    #[arg(long)]
+    pub nonce: Option<String>,
 }
 
 /// Generate signing keys with the given parameters

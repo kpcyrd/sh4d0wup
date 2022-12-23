@@ -1,7 +1,7 @@
 use clap::Parser;
 use env_logger::Env;
 use openssl::hash::MessageDigest;
-use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand, Tamper};
+use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand};
 use sh4d0wup::build;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
@@ -12,11 +12,10 @@ use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
 use sh4d0wup::keygen::{self, EmbeddedKey};
-use sh4d0wup::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
+use sh4d0wup::plot::PlotExtras;
 use sh4d0wup::req;
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
-use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -107,88 +106,7 @@ async fn main() -> Result<()> {
             let mut out = tokio::fs::File::create(&infect.out).await?;
             infect::elf::infect(&infect.try_into()?, &elf, &mut out).await?;
         }
-        SubCommand::Tamper(Tamper::PacmanDb(tamper)) => {
-            let db = fs::read(&tamper.path)?;
-            let mut out = File::create(&tamper.out)?;
-
-            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
-            let plot_extras = PlotExtras::default();
-            tamper::pacman::patch(&config, &plot_extras, &db, &mut out)?;
-        }
-        SubCommand::Tamper(Tamper::AptRelease(tamper)) => {
-            let db = fs::read(&tamper.path)?;
-            let mut out = File::create(&tamper.out)?;
-
-            let checksum_config = PatchPkgDatabaseConfig::<String>::from_args(tamper.config)?;
-
-            let mut release_fields = BTreeMap::new();
-
-            for s in &tamper.release_set {
-                let (key, value) = s.split_once('=').context("Argument is not an assignment")?;
-                release_fields.insert(key.to_string(), value.to_string());
-            }
-
-            let signing_key = match (tamper.unsigned, tamper.signing_key) {
-                (true, Some(_)) => {
-                    warn!("Using --unsigned and --signing-key together is causing the release to be unsigned");
-                    None
-                }
-                (true, None) => None,
-                (false, Some(path)) => Some(PgpEmbedded::read_from_disk(path)?),
-                (false, None) => bail!("Missing --signing-key and --unsigned wasn't provided"),
-            };
-
-            let mut plot_extras = PlotExtras::default();
-            let signing_key = if let Some(signing_key) = signing_key {
-                plot_extras
-                    .signing_keys
-                    .insert("pgp".to_string(), EmbeddedKey::Pgp(signing_key));
-                Some("pgp".to_string())
-            } else {
-                None
-            };
-            let config = PatchAptReleaseConfig {
-                fields: release_fields,
-                checksums: checksum_config,
-                signing_key,
-            };
-            tamper::apt_release::patch(
-                &config,
-                &plot_extras.artifacts,
-                &plot_extras.signing_keys,
-                &db,
-                &mut out,
-            )?;
-        }
-        SubCommand::Tamper(Tamper::AptPackageList(tamper)) => {
-            let db = fs::read(&tamper.path)?;
-            let mut out = File::create(&tamper.out)?;
-
-            let plot_extras = PlotExtras::default();
-            let config = PatchPkgDatabaseConfig::<Vec<String>>::from_args(tamper.config)?;
-            tamper::apt_package_list::patch(&config, None, &plot_extras.artifacts, &db, &mut out)?;
-        }
-        SubCommand::Tamper(Tamper::ApkIndex(tamper)) => {
-            let db = fs::read(&tamper.path)?;
-            let mut out = File::create(&tamper.out)?;
-
-            let signing_key = OpensslEmbedded::read_from_disk(tamper.signing_key)?;
-
-            let mut plot_extras = PlotExtras::default();
-            plot_extras
-                .signing_keys
-                .insert("openssl".to_string(), EmbeddedKey::Openssl(signing_key));
-
-            let config = PatchPkgDatabaseConfig::<String>::from_args(tamper.config)?;
-            tamper::apk::patch(
-                &config,
-                &plot_extras,
-                "openssl",
-                &tamper.signing_key_name,
-                &db,
-                &mut out,
-            )?;
-        }
+        SubCommand::Tamper(tamper) => tamper::run(tamper)?,
         SubCommand::Check(check) => {
             let ctx = check.plot.load_into_context().await?;
             match check.no_exec {

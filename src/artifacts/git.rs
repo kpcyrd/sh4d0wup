@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::plot::Artifacts;
+use bstr::BString;
 use git_hash::ObjectId;
-use git_object::bstr::BString;
 use git_object::tree::EntryMode;
 use git_object::WriteTo;
 use indexmap::IndexMap;
@@ -77,7 +77,7 @@ pub struct Commit {
     pub parents: Vec<Oid>,
     pub author: String,
     pub committer: String,
-    pub message: String,
+    pub message: BString,
     pub collision_prefix: Option<String>,
     pub nonce: Option<String>,
 }
@@ -105,7 +105,7 @@ impl Commit {
             parents,
             author,
             committer,
-            message: self.message.clone().into(),
+            message: self.message.clone(),
             encoding: None,
             extra_headers,
         };
@@ -162,6 +162,8 @@ impl Commit {
 
             let hash = hex::encode(&hash[..n]);
             if hash.starts_with(prefix) {
+                // hex encode the whole hash this time
+                let hash = hex::encode(hash);
                 info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
                 return Ok(());
             }
@@ -272,7 +274,9 @@ mod tests {
             )],
             author: "kpcyrd <git@rxv.cc> 1637076383 +0100".to_string(),
             committer: "kpcyrd <git@rxv.cc> 1637076383 +0100".to_string(),
-            message: "Release v0.3.0\n".to_string(),
+            message: "Release v0.3.0\n".into(),
+            collision_prefix: None,
+            nonce: None,
         };
         let mut out = Vec::new();
         commit.encode(&mut out, &Default::default()).unwrap();

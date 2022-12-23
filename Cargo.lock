@@ -2558,6 +2558,7 @@ dependencies = [
  "ar",
  "base64 0.20.0",
  "blake2",
+ "bstr",
  "bzip2",
  "clap",
  "clap_complete",

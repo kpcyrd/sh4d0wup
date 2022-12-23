@@ -8,6 +8,8 @@ check:
   image: cgr.dev/chainguard/git
   cmds:
     - 'git clone http://${SH4D0WUP_BOUND_ADDR}/kpcyrd/sh4d0wup'
+    - ['git', '-C', 'sh4d0wup', 'rev-parse', 'HEAD']
+    - ['git', '-C', 'sh4d0wup', 'cat-file', 'commit', 'HEAD']
     - ['ls', '-la', 'sh4d0wup']
     - ['./sh4d0wup/configure']
 
@@ -36,6 +38,9 @@ artifacts:
     author: kpcyrd <git@rxv.cc> 1637076383 +0100
     committer: kpcyrd <git@rxv.cc> 1637076383 +0100
     message: "Release v0.3.0\n"
+    collision_prefix: "dead"
+    #collision_prefix: "deadbeef"
+    #collision_prefix: "eeeeeee"
 
   refs:
     type: git

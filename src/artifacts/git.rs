@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::plot::Artifacts;
 use git_hash::ObjectId;
+use git_object::bstr::BString;
 use git_object::tree::EntryMode;
 use git_object::WriteTo;
 use indexmap::IndexMap;
@@ -77,6 +78,8 @@ pub struct Commit {
     pub author: String,
     pub committer: String,
     pub message: String,
+    pub collision_prefix: Option<String>,
+    pub nonce: Option<String>,
 }
 
 impl Commit {
@@ -93,21 +96,76 @@ impl Commit {
             .iter()
             .map(|o| o.resolve_oid(artifacts))
             .collect::<Result<_>>()?;
-        let commit = git_object::Commit {
+        let mut extra_headers = Vec::new();
+        if let Some(nonce) = &self.nonce {
+            extra_headers.push(("nonce".into(), nonce.as_str().into()));
+        }
+        let mut commit = git_object::Commit {
             tree,
             parents,
             author,
             committer,
             message: self.message.clone().into(),
             encoding: None,
-            extra_headers: Vec::new(),
+            extra_headers,
         };
+
+        if let Some(prefix) = &self.collision_prefix {
+            Self::bruteforce_partial_collision(&mut commit, prefix)?;
+        }
+
         out.extend(&git_object::encode::loose_header(
             commit.kind(),
             commit.size(),
         ));
         commit.write_to(out)?;
+
         Ok(())
+    }
+
+    pub fn bruteforce_partial_collision(
+        commit: &mut git_object::Commit,
+        prefix: &str,
+    ) -> Result<()> {
+        info!(
+            "Starting bruteforce of partial collision for git commit... (prefix={:?})",
+            prefix
+        );
+
+        let mut commit_buf = Vec::new();
+
+        let mut nonce = 0;
+        let idx = commit.extra_headers.len();
+        commit.extra_headers.push(("nonce".into(), "".into()));
+
+        loop {
+            let mut nonce_buf = BString::new(vec![]);
+            write!(nonce_buf, "{}", nonce)?;
+            commit.extra_headers[idx].1 = nonce_buf;
+            nonce += 1;
+
+            commit_buf.clear();
+            commit_buf.extend(&git_object::encode::loose_header(
+                commit.kind(),
+                commit.size(),
+            ));
+            commit.write_to(&mut commit_buf)?;
+
+            let mut sha1 = Sha1::new();
+            sha1.update(&commit_buf);
+            let hash = sha1.finalize();
+
+            // only hex encode what we use
+            let mut n = prefix.len();
+            n += n % 2;
+            n /= 2;
+
+            let hash = hex::encode(&hash[..n]);
+            if hash.starts_with(prefix) {
+                info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
+                return Ok(());
+            }
+        }
     }
 }
 

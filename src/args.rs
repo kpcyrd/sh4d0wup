@@ -294,6 +294,9 @@ pub struct TamperGitCommit {
     /// Add an additional value to the commit to influence the hash
     #[arg(long)]
     pub nonce: Option<String>,
+    /// Remove the loose header to convert it into the format expected by `git hash-object -t commit -w --stdin`
+    #[arg(long)]
+    pub strip_header: bool,
 }
 
 /// Generate signing keys with the given parameters

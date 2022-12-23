@@ -11,7 +11,7 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::thread;
 
-const STEP: usize = 10_000;
+const STEP: usize = 25_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "git", rename_all = "kebab-case")]

@@ -125,8 +125,14 @@ pub fn run(tamper: Tamper) -> Result<()> {
                 nonce: tamper.nonce,
             };
             commit.encode(&mut out, &Default::default())?;
+            let out = if tamper.strip_header {
+                let (_, _, consumed) = git_object::decode::loose_header(&out)?;
+                &out[consumed..]
+            } else {
+                &out[..]
+            };
 
-            io::stdout().write_all(&out)?;
+            io::stdout().write_all(out)?;
         }
     }
 

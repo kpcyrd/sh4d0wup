@@ -81,6 +81,7 @@ pub struct Commit {
     pub parents: Vec<Oid>,
     pub author: String,
     pub committer: String,
+    #[serde(default)]
     pub extra_headers: Vec<(BString, BString)>,
     pub message: BString,
     pub collision_prefix: Option<String>,

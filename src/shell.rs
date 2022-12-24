@@ -1,4 +1,10 @@
 use crate::errors::*;
+use maplit::hashset;
+use std::collections::HashSet;
+
+lazy_static::lazy_static! {
+    static ref SHELLS: HashSet<&'static str> = hashset!["/bin/sh", "/bin/bash", "bash", "sh"];
+}
 
 pub fn supports_injection(header: &str) -> bool {
     let header = if let Some(header) = header.strip_prefix("#!") {
@@ -7,9 +13,34 @@ pub fn supports_injection(header: &str) -> bool {
         return false;
     };
 
-    let prog = header.split_once(' ').map(|x| x.0).unwrap_or(header);
+    let (prog, remaining) = header.split_once(' ').unwrap_or((header, ""));
+    let (first_arg, _remaining) = remaining
+        .split_once(' ')
+        .map(|x| (Some(x.0), x.1))
+        .unwrap_or(if remaining.is_empty() {
+            (None, "")
+        } else {
+            (Some(remaining), "")
+        });
 
-    ["/bin/sh", "/bin/bash"].contains(&prog)
+    if SHELLS.contains(&prog) {
+        debug!("Detected a shell we can inject into: {:?}", prog);
+        true
+    } else if let ("/usr/bin/env", Some(arg)) = (prog, first_arg) {
+        if SHELLS.contains(&arg) {
+            debug!(
+                "Detected a shell (behind {:?}) we can inject into: {:?}",
+                prog, arg
+            );
+            true
+        } else {
+            debug!("Unknown program behind {:?}: {:?}", prog, arg);
+            false
+        }
+    } else {
+        debug!("Unknown program: {:?}", prog);
+        false
+    }
 }
 
 pub fn inject_into_script(script: &str, payload: &str) -> Result<String> {

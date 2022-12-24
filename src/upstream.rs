@@ -12,24 +12,46 @@ use warp_reverse_proxy::errors::Error as ProxyError;
 use warp_reverse_proxy::QueryParameters;
 use warp_reverse_proxy::Request;
 
-pub static CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+// these need to be two different reqwest clients because redirect policies are very global
+pub static CLIENT_REDIRECT: OnceCell<reqwest::Client> = OnceCell::new();
+pub static CLIENT_NOREDIRECT: OnceCell<reqwest::Client> = OnceCell::new();
 
-fn default_reqwest_client() -> reqwest::Client {
+fn default_redirect_client() -> reqwest::Client {
+    reqwest_client(Policy::default())
+}
+
+fn default_noredirect_client() -> reqwest::Client {
+    reqwest_client(Policy::none())
+}
+
+fn reqwest_client(policy: Policy) -> reqwest::Client {
     reqwest::Client::builder()
-        .redirect(Policy::none())
+        .redirect(policy)
         .build()
         .expect("Default reqwest client couldn't build")
+}
+
+pub async fn download(
+    method: Method,
+    url: Url,
+    headers: Option<HeaderMap>,
+) -> Result<reqwest::Response> {
+    send_req(method, url, headers, true).await
 }
 
 pub async fn send_req(
     method: Method,
     url: Url,
     headers: Option<HeaderMap>,
+    follow_redirects: bool,
 ) -> Result<reqwest::Response> {
     debug!("Sending request to {:?}", url.to_string());
-    let mut request = CLIENT
-        .get_or_init(default_reqwest_client)
-        .request(method, url);
+    let client = if follow_redirects {
+        CLIENT_REDIRECT.get_or_init(default_redirect_client)
+    } else {
+        CLIENT_NOREDIRECT.get_or_init(default_noredirect_client)
+    };
+    let mut request = client.request(method, url);
     if let Some(headers) = headers {
         request = request.headers(headers);
     }
@@ -78,8 +100,8 @@ fn filtered_data_to_request(
 
     let headers = remove_hop_headers(&headers);
 
-    CLIENT
-        .get_or_init(default_reqwest_client)
+    CLIENT_NOREDIRECT
+        .get_or_init(default_noredirect_client)
         .request(method, proxy_uri)
         .headers(headers)
         .body(body)
@@ -118,8 +140,8 @@ fn remove_hop_headers(headers: &HeaderMap<HeaderValue>) -> HeaderMap<HeaderValue
 }
 
 async fn proxy_request(request: reqwest::Request) -> Result<reqwest::Response, ProxyError> {
-    CLIENT
-        .get_or_init(default_reqwest_client)
+    CLIENT_NOREDIRECT
+        .get_or_init(default_noredirect_client)
         .execute(request)
         .await
         .map_err(ProxyError::Request)

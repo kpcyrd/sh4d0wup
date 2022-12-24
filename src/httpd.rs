@@ -164,7 +164,7 @@ async fn fetch_upstream(
 
     let url = upstream.url.join(path).context("Failed to join urls")?;
 
-    let response = upstream::send_req(Method::GET, url, None).await?;
+    let response = upstream::send_req(Method::GET, url, None, false).await?;
 
     Ok(response)
 }

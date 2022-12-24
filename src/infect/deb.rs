@@ -174,6 +174,8 @@ pub fn patch_control_tar(args: &Infect, buf: &[u8]) -> Result<Vec<u8>> {
 pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
     let mut archive = ar::Archive::new(pkg);
     let mut builder = ar::Builder::new(out);
+
+    let mut infected_something = false;
     while let Some(entry) = archive.next_entry() {
         let mut entry = entry?;
         let name = String::from_utf8(entry.header().identifier().to_vec())?;
@@ -183,7 +185,7 @@ pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
             entry.header()
         );
 
-        if name == "control.tar.xz" {
+        if name.starts_with("control.tar") {
             info!("Patching {:?}", name);
             let mut buf = Vec::new();
             entry.read_to_end(&mut buf)?;
@@ -193,11 +195,16 @@ pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
             header.set_size(buf.len() as u64);
 
             builder.append(&header, &mut &buf[..])?;
+            infected_something = true;
         } else {
             debug!("Passing through into .deb");
             let header = entry.header().clone();
             builder.append(&header, &mut entry)?;
         }
+    }
+
+    if !infected_something {
+        bail!("We passed through the whole .deb unmodified, infection failed");
     }
 
     Ok(())

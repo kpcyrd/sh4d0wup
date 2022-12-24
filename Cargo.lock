@@ -2574,6 +2574,7 @@ dependencies = [
  "in-toto",
  "indexmap",
  "ipnetwork",
+ "lazy_static",
  "log",
  "maplit",
  "md-5",

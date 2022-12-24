@@ -10,7 +10,7 @@ pub struct Sessions {}
 
 impl Sessions {
     pub async fn create_oci_auth_session(&mut self, auth: &OciAuth) -> Result<Option<String>> {
-        let auth_resp = upstream::send_req(Method::GET, auth.url.clone(), None).await?;
+        let auth_resp = upstream::send_req(Method::GET, auth.url.clone(), None, false).await?;
         if let Some(www_auth) = auth_resp.headers().get("Www-Authenticate") {
             let www_auth = www_auth
                 .to_str()
@@ -36,7 +36,7 @@ impl Sessions {
             }
             realm_url.query_pairs_mut().append_pair("service", &service);
 
-            let resp = upstream::send_req(Method::GET, realm_url, None)
+            let resp = upstream::send_req(Method::GET, realm_url, None, false)
                 .await?
                 .error_for_status()?
                 .json::<TokenResponse>()

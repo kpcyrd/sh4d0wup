@@ -279,6 +279,9 @@ pub struct TamperGitCommit {
     /// The parent commit of this commit (can be multiple)
     #[arg(long = "parent")]
     pub parents: Vec<String>,
+    /// Remove any referenced parent commits from the commit
+    #[arg(long)]
+    pub no_parents: bool,
     /// The author of the commit in the format `John Doe <git@example.com> 1637076383 +0100`
     #[arg(long)]
     pub author: Option<String>,

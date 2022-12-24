@@ -146,6 +146,10 @@ pub fn run(tamper: Tamper) -> Result<()> {
                 parents = tamper.parents;
             }
 
+            if tamper.no_parents {
+                parents.clear();
+            }
+
             if let Some(value) = tamper.author {
                 author = Some(value);
             }

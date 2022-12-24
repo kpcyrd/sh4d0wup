@@ -34,6 +34,13 @@ signing_keys:
     type: pgp
     ## PUT PACKAGER KEY HERE, then remove `uids:`
     uids: ["John Doe <no-reply@example.com>"]
+    # secret_key: |
+    #   -----BEGIN PGP PRIVATE KEY BLOCK-----
+    #   Comment: 5AB2 9B80 E5DD DFF3 3A66  F4B8 8BD9 B381 CC2F E056
+    #
+    #   xVgEY6c7FhYJKwYBBAHaRw8BAQdA9Vw9iHReU5IoDR3Dq34alsBQOB+tmRQlEaU7
+    #   DN9M0uQAAQCMZs/KxBa44U5OhVx41n7s43vPcobz5b5kwHYXIdI50BKcwsALBB8W
+    #   CgB9BY...
 
 artifacts:
   coreutils_upstream:

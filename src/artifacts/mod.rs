@@ -80,6 +80,15 @@ impl Artifact {
                 }
                 Some(set)
             }
+            Artifact::Tamper(tamper::TamperArtifact::PatchPacmanDb(tamper)) => {
+                let mut set = hashset![tamper.artifact.as_str()];
+                for patch in &tamper.config.patch {
+                    if let Some(artifact) = &patch.artifact {
+                        set.insert(artifact);
+                    }
+                }
+                Some(set)
+            }
             Artifact::Compress(compress) => Some(hashset![compress.artifact.as_str()]),
             Artifact::Extract(extract::ExtractArtifact::Zip(extract)) => {
                 Some(hashset![extract.artifact.as_str()])

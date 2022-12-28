@@ -10,6 +10,7 @@ pub enum TamperArtifact {
     PatchAptRelease(PatchAptReleaseArtifact),
     PatchAptPackageList(PatchPkgDatabaseArtifact),
     PatchApkIndex(PatchApkIndexArtifact),
+    PatchPacmanDb(PatchPacmanDbArtifact),
 }
 
 impl TamperArtifact {
@@ -79,6 +80,21 @@ impl TamperArtifact {
                 )?;
                 Ok(out)
             }
+            TamperArtifact::PatchPacmanDb(tamper) => {
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&tamper.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            tamper.artifact
+                        )
+                    })?;
+
+                let mut out = Vec::new();
+                tamper::pacman::patch(&tamper.config, plot_extras, artifact.as_bytes(), &mut out)?;
+                Ok(out)
+            }
         }
     }
 }
@@ -105,4 +121,11 @@ pub struct PatchApkIndexArtifact {
     pub signing_key_name: String,
     #[serde(flatten)]
     pub config: PatchPkgDatabaseConfig<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchPacmanDbArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: PatchPkgDatabaseConfig<Vec<String>>,
 }

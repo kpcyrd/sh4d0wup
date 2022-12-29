@@ -131,20 +131,32 @@ impl Artifact {
         }
     }
 
-    pub async fn resolve(&mut self, plot_extras: &mut PlotExtras) -> Result<Option<Vec<u8>>> {
+    pub async fn resolve(
+        &mut self,
+        plot_extras: &mut PlotExtras,
+        key: &str,
+    ) -> Result<Option<Vec<u8>>> {
+        let existing_artifact = plot_extras.artifacts.get(key);
+
         match self {
             Artifact::File(_) => Ok(None),
             Artifact::Url(artifact) => {
-                info!(
-                    "Downloading artifact into memory: {:?}",
-                    artifact.url.to_string()
-                );
-                let buf = artifact
-                    .download(&mut plot_extras.sessions)
-                    .await
-                    .context("Failed to resolve url artifact")?;
-                *self = Artifact::Memory;
-                Ok(Some(buf.to_vec()))
+                if existing_artifact.is_some() {
+                    debug!("Artifact {:?} is already registered, skipping...", key);
+                    *self = Artifact::Memory;
+                    Ok(None)
+                } else {
+                    info!(
+                        "Downloading artifact into memory: {:?}",
+                        artifact.url.to_string()
+                    );
+                    let buf = artifact
+                        .download(&mut plot_extras.sessions)
+                        .await
+                        .context("Failed to resolve url artifact")?;
+                    *self = Artifact::Memory;
+                    Ok(Some(buf.to_vec()))
+                }
             }
             Artifact::Inline(inline) => {
                 let data = mem::take(&mut inline.data);
@@ -153,6 +165,8 @@ impl Artifact {
                 Ok(Some(bytes))
             }
             Artifact::Signature(artifact) => {
+                // TODO: reuse signature form existing_artifact if it is valid
+
                 let sig = artifact
                     .resolve(plot_extras)
                     .context("Failed to resolve signature artifact")?;

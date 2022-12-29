@@ -288,13 +288,8 @@ impl Plot {
 
         debug!("Resolving artifacts...");
         for (k, v) in &mut self.artifacts {
-            if extras.artifacts.contains_key(k) {
-                debug!("Artifact {:?} is already registered, skipping...", k);
-                continue;
-            }
-
             debug!("Resolving artifact {:?}...", k);
-            if let Some(buf) = v.resolve(&mut extras).await? {
+            if let Some(buf) = v.resolve(&mut extras, k).await? {
                 extras
                     .artifacts
                     .insert(k.to_string(), HashedArtifact::new(buf));

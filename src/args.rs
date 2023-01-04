@@ -99,6 +99,7 @@ pub enum Infect {
     Oci(InfectOci),
     Apk(InfectApkPkg),
     Elf(InfectElf),
+    ElfFwdStdin(InfectElfFwdStdin),
 }
 
 /// Infect a pacman package
@@ -189,6 +190,21 @@ pub struct InfectElf {
     /// Instead of detecting the local path with readlink(/proc/self/exe), hard-code a value
     #[arg(long)]
     pub assume_path: Option<String>,
+}
+
+/// Convert a shell script into an elf
+#[derive(Debug, Clone, Parser)]
+pub struct InfectElfFwdStdin {
+    /// The input script to infect
+    pub path: PathBuf,
+    /// Where to write the modified script to
+    pub out: PathBuf,
+    /// The binary that should be executed, defaults to /bin/sh
+    #[arg(long)]
+    pub exec: Option<String>,
+    /// Additional arguments that should be passed to the binary. Can be used multiple times and `argv[0]` needs to be provided, if none are set it defaults to `--exec`
+    #[arg(long = "arg")]
+    pub args: Vec<String>,
 }
 
 /// Low level tampering, patch a package database to add malicious packages, cause updates or influence dependency resolution

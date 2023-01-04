@@ -1,23 +1,21 @@
 use clap::Parser;
 use env_logger::Env;
 use openssl::hash::MessageDigest;
-use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Infect, Keygen, Sign, SubCommand};
+use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Keygen, Sign, SubCommand};
 use sh4d0wup::build;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::hsm;
 use sh4d0wup::httpd;
 use sh4d0wup::infect;
+use sh4d0wup::keygen;
 use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
-use sh4d0wup::keygen::{self, EmbeddedKey};
-use sh4d0wup::plot::PlotExtras;
 use sh4d0wup::req;
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::fs;
-use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::sync::Arc;
@@ -64,48 +62,7 @@ async fn main() -> Result<()> {
                 httpd::run(bait.bind, tls, Arc::new(ctx)).await?;
             }
         }
-        SubCommand::Infect(Infect::Pacman(infect)) => {
-            let pkg = fs::read(&infect.path)?;
-            let mut out = File::create(&infect.out)?;
-            infect::pacman::infect(&infect.try_into()?, &pkg, &mut out)?;
-        }
-        SubCommand::Infect(Infect::Deb(infect)) => {
-            let pkg = fs::read(&infect.path)?;
-            let mut out = File::create(&infect.out)?;
-            infect::deb::infect(&infect.try_into()?, &pkg, &mut out)?;
-        }
-        SubCommand::Infect(Infect::Oci(infect)) => {
-            let pkg = fs::read(&infect.path)?;
-            let mut out = File::create(&infect.out)?;
-            infect::oci::infect(&infect, &pkg, &mut out)?;
-        }
-        SubCommand::Infect(Infect::Apk(infect)) => {
-            let pkg = fs::read(&infect.path)?;
-            let signing_key = OpensslEmbedded::read_from_disk(&infect.signing_key)?;
-
-            let mut out = File::create(&infect.out)?;
-
-            let mut plot_extras = PlotExtras::default();
-            plot_extras
-                .signing_keys
-                .insert("openssl".to_string(), EmbeddedKey::Openssl(signing_key));
-
-            infect::apk::infect(
-                &infect::apk::Infect {
-                    signing_key: "openssl".to_string(),
-                    signing_key_name: infect.signing_key_name,
-                    payload: infect.payload,
-                },
-                &plot_extras.signing_keys,
-                &pkg,
-                &mut out,
-            )?;
-        }
-        SubCommand::Infect(Infect::Elf(infect)) => {
-            let elf = fs::read(&infect.path)?;
-            let mut out = tokio::fs::File::create(&infect.out).await?;
-            infect::elf::infect(&infect.try_into()?, &elf, &mut out).await?;
-        }
+        SubCommand::Infect(infect) => infect::run(infect).await?,
         SubCommand::Tamper(tamper) => tamper::run(tamper)?,
         SubCommand::Check(check) => {
             let ctx = check.plot.load_into_context().await?;

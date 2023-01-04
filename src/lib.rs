@@ -2,6 +2,7 @@ pub mod args;
 pub mod artifacts;
 pub mod build;
 pub mod check;
+pub mod codegen;
 pub mod compression;
 pub mod errors;
 pub mod hsm;

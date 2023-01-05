@@ -1,8 +1,9 @@
 use crate::errors::*;
+use crate::infect;
 use crate::keygen::tls;
 use crate::plot::{
-    self, Ctx, OciRegistryManifest, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot, ProxyRoute,
-    RouteAction, StaticRoute,
+    self, Ctx, OciRegistryManifestRoute, PatchAptReleaseRoute, PatchPkgDatabaseRoute, Plot,
+    ProxyRoute, RouteAction, StaticRoute,
 };
 use crate::tamper::{apt_package_list, apt_release, pacman};
 use crate::upstream;
@@ -246,7 +247,7 @@ pub struct OciRegistryManifestResponse {
 }
 
 async fn generate_oci_registry_manifest_response(
-    args: &OciRegistryManifest,
+    args: &OciRegistryManifestRoute,
 ) -> Result<http::Response<Body>, Rejection> {
     let response = OciRegistryManifestResponse {
         schema_version: 1,
@@ -278,7 +279,7 @@ async fn generate_oci_registry_manifest_response(
 }
 
 async fn append_response(
-    args: &plot::Append,
+    args: &plot::AppendRoute,
     plot: &Plot,
     uri: FullPath,
 ) -> Result<http::Response<Body>, Rejection> {
@@ -296,6 +297,29 @@ async fn append_response(
     Ok(http::Response::builder()
         .status(response.status())
         .body(Body::from(body))
+        .unwrap())
+}
+
+async fn patch_shell_response(
+    args: &plot::PatchShellRoute,
+    plot: &Plot,
+    uri: FullPath,
+) -> Result<http::Response<Body>, Rejection> {
+    let response = fetch_upstream(&args.proxy, plot, uri)
+        .await
+        .map_err(http_error)?;
+
+    let status = response.status();
+    let body = response.bytes().await.map_err(http_error)?;
+
+    let mut out = Vec::new();
+    infect::sh::infect(&args.infect, &body, &mut out)
+        .await
+        .map_err(http_error)?;
+
+    Ok(http::Response::builder()
+        .status(status)
+        .body(Body::from(out))
         .unwrap())
 }
 
@@ -323,7 +347,7 @@ async fn serve_request(
             proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
         }
         RouteAction::Static(args) => generate_static_response(args, &ctx, uri).await?,
-        RouteAction::PatchPacmanDbRoute(args) => patch_pacman_db_response(args, &ctx, uri).await?,
+        RouteAction::PatchPacmanDb(args) => patch_pacman_db_response(args, &ctx, uri).await?,
         RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &ctx, uri).await?,
         RouteAction::PatchAptPackageList(args) => {
             patch_apt_package_list_response(args, &ctx, uri).await?
@@ -332,6 +356,7 @@ async fn serve_request(
             generate_oci_registry_manifest_response(args).await?
         }
         RouteAction::Append(args) => append_response(args, &ctx.plot, uri).await?,
+        RouteAction::PatchShell(args) => patch_shell_response(args, &ctx.plot, uri).await?,
     };
 
     Ok((url, response))

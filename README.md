@@ -176,7 +176,7 @@ commit id starts with the provided `--collision-prefix` and then inserts the
 new commit back into the repository on your local computer:
 
 ```
-% git cat-file commit HEAD | ssh lots-o-time sh4d0wup tamper git-commit --stdin --collision-prefix 7777 --strip-header | git hash-object -w -t commit --stdin
+% git cat-file commit HEAD | ssh lots-o-time nice sh4d0wup tamper git-commit --stdin --collision-prefix 7777 --strip-header | git hash-object -w -t commit --stdin
 ```
 
 This may take some time, eventually it shows a commit id that you can use to

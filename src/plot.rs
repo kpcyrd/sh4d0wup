@@ -2,6 +2,7 @@ use crate::args;
 use crate::artifacts::{Artifact, HashedArtifact};
 use crate::compression::{self, CompressedWith};
 use crate::errors::*;
+use crate::infect;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
 use crate::route_templates;
@@ -369,22 +370,16 @@ impl Route {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "args")]
+#[serde(tag = "type", content = "args", rename_all = "kebab-case")]
 pub enum RouteAction {
-    #[serde(rename = "proxy")]
     Proxy(ProxyRoute),
-    #[serde(rename = "static")]
     Static(StaticRoute),
-    #[serde(rename = "patch-pacman-db")]
-    PatchPacmanDbRoute(PatchPkgDatabaseRoute),
-    #[serde(rename = "patch-apt-release")]
+    PatchPacmanDb(PatchPkgDatabaseRoute),
     PatchAptRelease(PatchAptReleaseRoute),
-    #[serde(rename = "patch-apt-package-list")]
     PatchAptPackageList(PatchPkgDatabaseRoute),
-    #[serde(rename = "oci-registry-manifest")]
-    OciRegistryManifest(OciRegistryManifest),
-    #[serde(rename = "append")]
-    Append(Append),
+    OciRegistryManifest(OciRegistryManifestRoute),
+    Append(AppendRoute),
+    PatchShell(PatchShellRoute),
 }
 
 impl RouteAction {
@@ -392,11 +387,12 @@ impl RouteAction {
         match self {
             Self::Proxy(action) => Some(&action.upstream),
             Self::Static(_) => None,
-            Self::PatchPacmanDbRoute(action) => Some(&action.proxy.upstream),
+            Self::PatchPacmanDb(action) => Some(&action.proxy.upstream),
             Self::PatchAptRelease(action) => Some(&action.proxy.upstream),
             Self::PatchAptPackageList(action) => Some(&action.proxy.upstream),
             Self::OciRegistryManifest(_) => None,
             Self::Append(action) => Some(&action.proxy.upstream),
+            Self::PatchShell(action) => Some(&action.proxy.upstream),
         }
     }
 }
@@ -766,7 +762,7 @@ pub struct PatchAptReleaseRoute {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OciRegistryManifest {
+pub struct OciRegistryManifestRoute {
     pub name: String,
     pub tag: String,
     pub architecture: String,
@@ -787,10 +783,18 @@ pub struct PatchAptReleaseConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Append {
+pub struct AppendRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
     pub data: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchShellRoute {
+    #[serde(flatten)]
+    pub proxy: ProxyRoute,
+    #[serde(flatten)]
+    pub infect: infect::sh::Infect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

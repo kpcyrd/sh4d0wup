@@ -100,6 +100,7 @@ pub enum Infect {
     Apk(InfectApkPkg),
     Elf(InfectElf),
     ElfFwdStdin(InfectElfFwdStdin),
+    Sh(InfectSh),
 }
 
 /// Infect a pacman package
@@ -205,6 +206,21 @@ pub struct InfectElfFwdStdin {
     /// Additional arguments that should be passed to the binary. Can be used multiple times and `argv[0]` needs to be provided, if none are set then `argv[0]` defaults to the value of `--exec`
     #[arg(long = "arg")]
     pub args: Vec<String>,
+}
+
+/// Infect a shell script
+#[derive(Debug, Clone, Parser)]
+pub struct InfectSh {
+    /// The input script to infect
+    pub path: PathBuf,
+    /// Where to write the infected script to
+    pub out: PathBuf,
+    /// The command to inject into the binary
+    #[arg(short = 'c', long)]
+    pub payload: String,
+    /// Names of functions our payload should be hooked into (it only executes once)
+    #[arg(long = "hook")]
+    pub hooks: Vec<String>,
 }
 
 /// Low level tampering, patch a package database to add malicious packages, cause updates or influence dependency resolution

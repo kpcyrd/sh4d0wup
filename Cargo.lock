@@ -68,6 +68,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.60"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "677d1d8ab452a3936018a687b20e6f7cf5363d713b732b8884001317b0e48aa3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2609,6 +2620,7 @@ dependencies = [
  "warp",
  "warp-reverse-proxy",
  "xz",
+ "yash-syntax",
  "zip",
  "zstd 0.12.1+zstd.1.5.2",
 ]
@@ -3558,6 +3570,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388c44dc09d76f1536602ead6d325eb532f5c122f17782bd57fb47baeeb767e2"
 dependencies = [
  "lzma-sys",
+]
+
+[[package]]
+name = "yash-syntax"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38087e2fe389d5bbb4235ec2ab5aa82462005fba90ad25d6d5e3297c291545f2"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "itertools",
 ]
 
 [[package]]

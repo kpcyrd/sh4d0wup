@@ -65,6 +65,7 @@ url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
 xz = "0.1.0"
+yash-syntax = "0.6.0"
 zip = { version = "0.6.3", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = { version = "0.12", features = ["pkg-config"] }
 

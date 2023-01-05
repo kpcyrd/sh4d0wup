@@ -4,6 +4,7 @@ pub mod elf;
 pub mod elf_fwd_stdin;
 pub mod oci;
 pub mod pacman;
+pub mod sh;
 
 use crate::args::Infect;
 use crate::errors::*;
@@ -61,6 +62,11 @@ pub async fn run(infect: Infect) -> Result<()> {
             let sh = utils::read_input_path(&infect.path).await?;
             let mut out = tokio::fs::File::create(&infect.out).await?;
             elf_fwd_stdin::infect(&infect.try_into()?, &sh, &mut out).await?;
+        }
+        Infect::Sh(infect) => {
+            let sh = utils::read_input_path(&infect.path).await?;
+            let mut out = tokio::fs::File::create(&infect.out).await?;
+            sh::infect(&infect.try_into()?, &sh, &mut out).await?;
         }
     }
 

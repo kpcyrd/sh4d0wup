@@ -167,3 +167,22 @@ Loaded image: infected:latest
 uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
 hello world
 ```
+
+### Bruteforce git commit partial collisions
+
+Here's a short oneliner on how to take the latest commit from a git repository,
+send it to a remote computer that has sh4d0wup installed to tweak it until the
+commit id starts with the provided `--collision-prefix` and then inserts the
+new commit back into the repository on your local computer:
+
+```
+% git cat-file commit HEAD | ssh lots-o-time sh4d0wup tamper git-commit --stdin --collision-prefix 7777 --strip-header | git hash-object -w -t commit --stdin
+```
+
+This may take some time, eventually it shows a commit id that you can use to
+create a new branch:
+
+```
+git show 777754fde8...
+git branch some-name 777754fde8...
+```

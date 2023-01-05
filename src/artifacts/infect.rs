@@ -11,6 +11,7 @@ pub enum InfectArtifact {
     Apk(InfectApkArtifact),
     Elf(InfectElfArtifact),
     ElfFwdStdin(InfectElfFwdStdinArtifact),
+    Sh(InfectShArtifact),
 }
 
 impl InfectArtifact {
@@ -97,6 +98,21 @@ impl InfectArtifact {
                     .await?;
                 Ok(out)
             }
+            InfectArtifact::Sh(infect) => {
+                let artifact = plot_extras
+                    .artifacts
+                    .get(&infect.artifact)
+                    .with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
+
+                let mut out = Vec::new();
+                infect::sh::infect(&infect.config, artifact.as_bytes(), &mut out).await?;
+                Ok(out)
+            }
         }
     }
 }
@@ -134,4 +150,11 @@ pub struct InfectElfFwdStdinArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: infect::elf_fwd_stdin::Infect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InfectShArtifact {
+    pub artifact: String,
+    #[serde(flatten)]
+    pub config: infect::sh::Infect,
 }

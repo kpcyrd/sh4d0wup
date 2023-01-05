@@ -56,6 +56,9 @@ impl Artifact {
             Artifact::Infect(infect::InfectArtifact::ElfFwdStdin(infect)) => {
                 Some(hashset![infect.artifact.as_str()])
             }
+            Artifact::Infect(infect::InfectArtifact::Sh(infect)) => {
+                Some(hashset![infect.artifact.as_str()])
+            }
             Artifact::Tamper(tamper::TamperArtifact::PatchAptRelease(tamper)) => {
                 let mut set = hashset![tamper.artifact.as_str()];
                 for patch in &tamper.config.checksums.patch {

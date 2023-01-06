@@ -8,8 +8,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::io::Write;
-use std::sync::mpsc;
-use std::thread;
+use tokio::sync::mpsc;
 
 const STEP: usize = 25_000;
 
@@ -23,10 +22,10 @@ pub enum GitArtifact {
 }
 
 impl GitArtifact {
-    pub fn resolve(&self, artifacts: &mut Artifacts) -> Result<Vec<u8>> {
+    pub async fn resolve(&self, artifacts: &mut Artifacts) -> Result<Vec<u8>> {
         let mut out = Vec::new();
         match self {
-            GitArtifact::Commit(commit) => commit.encode(&mut out, artifacts)?,
+            GitArtifact::Commit(commit) => commit.encode(&mut out, artifacts).await?,
             GitArtifact::Tree(tree) => tree.encode(&mut out, artifacts)?,
             GitArtifact::Blob(blob) => blob.encode(&mut out, artifacts)?,
             GitArtifact::RefList(refs) => refs.encode(&mut out, artifacts)?,
@@ -89,7 +88,7 @@ pub struct Commit {
 }
 
 impl Commit {
-    pub fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
+    pub async fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
         let tree = self.tree.resolve_oid(artifacts)?;
         let author = git_actor::SignatureRef::from_bytes::<()>(self.author.as_bytes())
             .context("Failed to parse author")?
@@ -117,7 +116,7 @@ impl Commit {
         };
 
         if let Some(prefix) = &self.collision_prefix {
-            Self::bruteforce_partial_collision(&mut commit, prefix)?;
+            Self::bruteforce_partial_collision(&mut commit, prefix).await?;
         }
 
         out.extend(&git_object::encode::loose_header(
@@ -166,7 +165,7 @@ impl Commit {
         }
     }
 
-    pub fn bruteforce_partial_collision(
+    pub async fn bruteforce_partial_collision(
         commit: &mut git_object::Commit,
         prefix: &str,
     ) -> Result<()> {
@@ -179,13 +178,13 @@ impl Commit {
         commit.extra_headers.push(("nonce".into(), "".into()));
 
         let mut workers = Vec::new();
-        let (ctr_tx, ctr_rx) = mpsc::sync_channel::<Option<mpsc::Sender<usize>>>(1);
-        workers.push(thread::spawn(|| {
+        let (ctr_tx, mut ctr_rx) = mpsc::channel::<Option<mpsc::Sender<usize>>>(1);
+        workers.push(tokio::task::spawn(async move {
             let mut ctr = 0;
-            for req in ctr_rx {
+            while let Some(req) = ctr_rx.recv().await {
                 if let Some(req) = req {
                     debug!("Assigning chunk to worker: {:?}", ctr);
-                    req.send(ctr).ok();
+                    req.send(ctr).await.ok();
                     ctr += STEP;
                 } else {
                     // this is our shutdown signal, dropping our sender to shutdown workers
@@ -194,7 +193,7 @@ impl Commit {
             }
         }));
 
-        let (found_tx, found_rx) = mpsc::sync_channel(1);
+        let (found_tx, mut found_rx) = mpsc::channel(1);
         for worker_num in 0..num_cpus::get() {
             debug!("Starting bruteforce worker #{}", worker_num);
             let ctr_tx = ctr_tx.clone();
@@ -202,12 +201,12 @@ impl Commit {
             let mut commit = commit.clone();
             let prefix = prefix.to_string();
 
-            workers.push(thread::spawn(move || {
+            workers.push(tokio::task::spawn(async move {
                 let mut commit_buf = Vec::new();
                 'outer: loop {
-                    let (tx, rx) = mpsc::channel();
-                    let Ok(()) = ctr_tx.send(Some(tx)) else { break };
-                    let Ok(start) = rx.recv() else { break };
+                    let (tx, mut rx) = mpsc::channel(1);
+                    let Ok(()) = ctr_tx.send(Some(tx)).await else { break };
+                    let Some(start) = rx.recv().await else { break };
 
                     let end = start + STEP;
                     for nonce in start..end {
@@ -220,7 +219,7 @@ impl Commit {
                         ) {
                             Ok(Some(hash)) => {
                                 debug!("Trying to inform main thread about partial colliding hash: {:?}", hash);
-                                if found_tx.send((hash.clone(), commit)).is_err() {
+                                if found_tx.send((hash.clone(), commit)).await.is_err() {
                                     debug!("Hash wasn't selected, discarding: {:?}", hash);
                                 }
                                 break 'outer;
@@ -235,19 +234,21 @@ impl Commit {
 
         let (hash, found) = found_rx
             .recv()
+            .await
             .context("Failed to receive result from workers")?;
         drop(found_rx);
         info!("Found colliding hash: {:?} (prefix={:?})", hash, prefix);
 
         ctr_tx
             .send(None)
+            .await
             .map_err(|_| anyhow!("Failed to send shutdown signal to worker"))?;
         drop(ctr_tx);
 
         debug!("Waiting for workers to shutdown");
         for worker in workers {
             worker
-                .join()
+                .await
                 .map_err(|_| anyhow!("Failed to wait for thread"))?;
         }
         debug!("All workers have terminated");

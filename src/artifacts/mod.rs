@@ -212,6 +212,7 @@ impl Artifact {
             Artifact::Git(git) => {
                 let buf = git
                     .resolve(&mut plot_extras.artifacts)
+                    .await
                     .context("Failed to build git object")?;
                 Ok(Some(buf))
             }

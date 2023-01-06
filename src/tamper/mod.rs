@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 
-pub fn run(tamper: Tamper) -> Result<()> {
+pub async fn run(tamper: Tamper) -> Result<()> {
     match tamper {
         Tamper::PacmanDb(tamper) => {
             let db = fs::read(&tamper.path)?;
@@ -180,7 +180,7 @@ pub fn run(tamper: Tamper) -> Result<()> {
                 nonce: tamper.nonce,
             };
 
-            commit.encode(&mut out, &Default::default())?;
+            commit.encode(&mut out, &Default::default()).await?;
             let out = if tamper.strip_header {
                 let (_, _, consumed) = git_object::decode::loose_header(&out)?;
                 &out[consumed..]

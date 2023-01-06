@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
             }
         }
         SubCommand::Infect(infect) => infect::run(infect).await?,
-        SubCommand::Tamper(tamper) => tamper::run(tamper)?,
+        SubCommand::Tamper(tamper) => tamper::run(tamper).await?,
         SubCommand::Check(check) => {
             let ctx = check.plot.load_into_context().await?;
             match check.no_exec {

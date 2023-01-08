@@ -78,24 +78,41 @@ impl InfectArtifact {
                         )
                     })?;
 
-                let mut out = Vec::new();
-                infect::elf::infect(&infect.config, artifact.as_bytes(), &mut out).await?;
-                Ok(out)
-            }
-            InfectArtifact::ElfFwdStdin(infect) => {
-                let artifact = plot_extras
-                    .artifacts
-                    .get(&infect.artifact)
-                    .with_context(|| {
+                let elf_artifact = if let Some(name) = &infect.elf_artifact {
+                    let elf_artifact = plot_extras.artifacts.get(name).with_context(|| {
                         anyhow!(
                             "Referencing artifact that doesn't exist: {:?}",
                             infect.artifact
                         )
                     })?;
 
+                    Some(elf_artifact.as_bytes())
+                } else {
+                    None
+                };
+
                 let mut out = Vec::new();
-                infect::elf_fwd_stdin::infect(&infect.config, artifact.as_bytes(), &mut out)
+                infect::elf::infect(&infect.config, artifact.as_bytes(), elf_artifact, &mut out)
                     .await?;
+                Ok(out)
+            }
+            InfectArtifact::ElfFwdStdin(infect) => {
+                let bytes = if let Some(artifact) = &infect.artifact {
+                    let artifact = plot_extras.artifacts.get(artifact).with_context(|| {
+                        anyhow!(
+                            "Referencing artifact that doesn't exist: {:?}",
+                            infect.artifact
+                        )
+                    })?;
+                    artifact.as_bytes()
+                } else if let Some(data) = &infect.data {
+                    data.as_bytes()
+                } else {
+                    bail!("When using elf-fwd-stdin you need to provide either `artifact:` or `data:`");
+                };
+
+                let mut out = Vec::new();
+                infect::elf_fwd_stdin::infect(&infect.config, bytes, &mut out).await?;
                 Ok(out)
             }
             InfectArtifact::Sh(infect) => {
@@ -141,13 +158,15 @@ pub struct InfectApkArtifact {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InfectElfArtifact {
     pub artifact: String,
+    pub elf_artifact: Option<String>,
     #[serde(flatten)]
     pub config: infect::elf::Infect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InfectElfFwdStdinArtifact {
-    pub artifact: String,
+    pub artifact: Option<String>,
+    pub data: Option<String>,
     #[serde(flatten)]
     pub config: infect::elf_fwd_stdin::Infect,
 }

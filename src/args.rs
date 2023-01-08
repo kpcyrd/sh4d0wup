@@ -184,7 +184,10 @@ pub struct InfectElf {
     pub out: PathBuf,
     /// The command to inject into the binary
     #[arg(short = 'c', long)]
-    pub payload: String,
+    pub payload: Option<String>,
+    /// Spawn an embedded elf binary instead of executing a shell command
+    #[arg(short = 'e', long)]
+    pub elf: Option<String>,
     /// Instead of unpacking to memory, replace the binary on disk with the input executable
     #[arg(long)]
     pub self_replace: bool,

@@ -54,9 +54,9 @@ pub async fn run(infect: Infect) -> Result<()> {
             )?;
         }
         Infect::Elf(infect) => {
-            let elf = utils::read_input_path(&infect.path).await?;
+            let orig = utils::read_input_path(&infect.path).await?;
             let mut out = tokio::fs::File::create(&infect.out).await?;
-            elf::infect(&infect.try_into()?, &elf, &mut out).await?;
+            elf::infect(&infect.try_into()?, &orig, None, &mut out).await?;
         }
         Infect::ElfFwdStdin(infect) => {
             let sh = utils::read_input_path(&infect.path).await?;

@@ -55,6 +55,7 @@ jobs:
           - contrib/plot-archlinux.yaml
           - contrib/plot-curl-sh.yaml
           - contrib/plot-debian.yaml
+          - contrib/plot-elf-galore.yaml
           - contrib/plot-git.yaml
           - contrib/plot-helm.yaml
           - contrib/plot-podman-cgr.yaml

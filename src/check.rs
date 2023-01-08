@@ -299,6 +299,7 @@ pub async fn run(
     if let Err(err) = container.kill().await {
         warn!("Failed to kill container {:?}: {:#}", container_id, err);
     }
+    info!("Cleanup complete");
 
     result
 }

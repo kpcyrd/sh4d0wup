@@ -19,25 +19,56 @@ check:
     - api.github.com
     - ghcr.io
   cmds:
-  - brew install sn0int
+  - HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium
+
+artifacts:
+  upstream_bottle:
+    type: url
+    url: https://ghcr.io/v2/homebrew/core/libsodium/blobs/sha256:1ab2c66fc8ae6c1245b49c9bd7a32853c1b348afe7086d4c2d3baf5ea30bbac9
+    headers:
+      authorization: "Bearer QQ=="
+  upstream_manifest:
+    type: url
+    url: https://ghcr.io/v2/homebrew/core/libsodium/manifests/1.0.18_1
+    headers:
+      authorization: "Bearer QQ=="
+      accept: "application/vnd.oci.image.index.v1+json"
+
+selectors:
+  ghcr:
+    type: host
+    value: ghcr.io
 
 routes:
   - selector:
       type: host
-      host: github.com
+      value: github.com
     type: proxy
     args:
       upstream: github
   - selector:
       type: host
-      host: api.github.com
+      value: api.github.com
     type: proxy
     args:
       upstream: github-api
-  - selector:
-      type: header
-      key: host
-      host: ghcr.io
+
+  - path: /v2/homebrew/core/libsodium/manifests/1.0.18_1
+    selector: ghcr
+    type: static
+    args:
+      artifact: upstream_manifest
+      headers:
+        content-type: "application/vnd.oci.image.index.v1+json"
+
+  - selector: ghcr
+    type: static
+    args:
+      path_template: "/v2/homebrew/core/libsodium/blobs/sha256:{{sha256}}"
+      artifacts:
+        - upstream_bottle
+
+  - selector: ghcr
     type: proxy
     args:
       upstream: ghcr

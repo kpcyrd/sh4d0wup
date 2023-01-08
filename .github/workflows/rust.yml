@@ -59,6 +59,7 @@ jobs:
           - contrib/plot-git.yaml
           - contrib/plot-helm.yaml
           - contrib/plot-httpbin.yaml
+          - contrib/plot-linuxbrew.yaml
           - contrib/plot-podman-cgr.yaml
           - contrib/plot-podman-docker-hub.yaml
           - contrib/plot-podman-ecr.yaml

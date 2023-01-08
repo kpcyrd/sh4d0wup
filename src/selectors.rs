@@ -5,6 +5,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::net;
+use warp::host::Authority;
 
 pub type Selectors = BTreeMap<String, Selector>;
 
@@ -14,6 +15,7 @@ pub enum Selector {
     All(All),
     Any(Any),
     Not(Not),
+    Host(Host),
     Header(Header),
     Ipaddr(IpAddr),
 }
@@ -23,13 +25,14 @@ impl Selector {
         &self,
         selectors: &Selectors,
         addr: Option<&net::IpAddr>,
+        authority: Option<&Authority>,
         headers: &HeaderMap,
     ) -> Result<bool> {
         match self {
             Selector::All(all) => {
                 for selector in &all.selectors {
                     let selector = selector.resolve(selectors)?;
-                    if !selector.matches(selectors, addr, headers)? {
+                    if !selector.matches(selectors, addr, authority, headers)? {
                         return Ok(false);
                     }
                 }
@@ -38,7 +41,7 @@ impl Selector {
             Selector::Any(any) => {
                 for selector in &any.selectors {
                     let selector = selector.resolve(selectors)?;
-                    if selector.matches(selectors, addr, headers)? {
+                    if selector.matches(selectors, addr, authority, headers)? {
                         return Ok(true);
                     }
                 }
@@ -46,8 +49,9 @@ impl Selector {
             }
             Selector::Not(not) => {
                 let selector = not.selector.resolve(selectors)?;
-                Ok(!selector.matches(selectors, addr, headers)?)
+                Ok(!selector.matches(selectors, addr, authority, headers)?)
             }
+            Selector::Host(host) => host.matches(authority),
             Selector::Header(header) => header.matches(headers),
             Selector::Ipaddr(ipaddr) => Ok(ipaddr.matches(addr)),
         }
@@ -133,4 +137,27 @@ impl IpAddr {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetMask {
     pub ipaddr: net::IpAddr,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Host {
+    pub value: Option<String>,
+    pub regex: Option<String>,
+}
+
+impl Host {
+    pub fn matches(&self, host: Option<&Authority>) -> Result<bool> {
+        let Some(host) = host else { return Ok(false) };
+        let host = host.as_str();
+
+        if let Some(value) = &self.value {
+            Ok(host == value)
+        } else if let Some(regex) = &self.regex {
+            let re = Regex::new(regex)
+                .with_context(|| anyhow!("Failed to compile regex: {:?}", regex))?;
+            Ok(re.is_match(host))
+        } else {
+            Ok(true)
+        }
+    }
 }

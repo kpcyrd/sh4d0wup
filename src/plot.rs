@@ -6,7 +6,7 @@ use crate::infect;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
 use crate::route_templates;
-use crate::selectors::Selectors;
+use crate::selectors::{SelectorRef, Selectors};
 use crate::sessions::Sessions;
 use http::HeaderMap;
 use indexmap::IndexMap;
@@ -23,6 +23,7 @@ use std::io::Read;
 use std::net::IpAddr;
 use std::path::Path;
 use std::str::FromStr;
+use warp::host::Authority;
 use warp::hyper::Body;
 
 pub type Artifacts = BTreeMap<String, HashedArtifact>;
@@ -235,6 +236,7 @@ impl Plot {
         &self,
         request_path: &str,
         addr: Option<&IpAddr>,
+        authority: Option<&Authority>,
         headers: &HeaderMap,
     ) -> Result<&RouteAction> {
         for route in &self.routes {
@@ -247,10 +249,8 @@ impl Plot {
 
             // if a selector is selected and our request matches
             if let Some(selector) = &route.selector {
-                let selector = self.selectors.get(selector).with_context(|| {
-                    anyhow!("Referenced selector {:?} does not exist", selector)
-                })?;
-                if !selector.matches(&self.selectors, addr, headers)? {
+                let selector = selector.resolve(&self.selectors)?;
+                if !selector.matches(&self.selectors, addr, authority, headers)? {
                     continue;
                 }
             }
@@ -325,7 +325,7 @@ pub struct Upstream {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     pub path: Option<String>,
-    pub selector: Option<String>,
+    pub selector: Option<SelectorRef>,
     #[serde(flatten)]
     pub action: RouteAction,
 }

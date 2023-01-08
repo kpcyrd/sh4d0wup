@@ -14,6 +14,7 @@ use serde::Serialize;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use warp::host::Authority;
 use warp::hyper::body::HttpBody;
 use warp::hyper::Body;
 use warp::path::FullPath;
@@ -41,6 +42,10 @@ pub mod log {
             self.append(key, headers.get(key))
         }
 
+        fn append_authority(self, authority: Option<&Authority>) -> Self {
+            self.append("host", authority.map(Authority::as_str))
+        }
+
         fn append<T: std::fmt::Debug>(mut self, key: &str, value: Option<T>) -> Self {
             if let Some(value) = value {
                 write!(self.0, " {}={:?}", key, value).ok();
@@ -61,9 +66,14 @@ pub mod log {
         url
     }
 
-    pub fn log_request(method: &Method, url: &str, headers: &HeaderMap) {
+    pub fn log_request(
+        method: &Method,
+        authority: Option<&Authority>,
+        url: &str,
+        headers: &HeaderMap,
+    ) {
         let fields = Fields::default()
-            .append_header(headers, "host")
+            .append_authority(authority)
             .append_header(headers, "user-agent")
             .append_header(headers, "if-match")
             .append_header(headers, "if-modified-since")
@@ -323,40 +333,61 @@ async fn patch_shell_response(
         .unwrap())
 }
 
-async fn serve_request(
-    ctx: Arc<plot::Ctx>,
+struct Request {
     addr: Option<SocketAddr>,
+    authority: Option<Authority>,
     uri: FullPath,
     params: QueryParameters,
     method: Method,
     headers: HeaderMap,
     body: Bytes,
-) -> Result<(String, http::Response<Body>), Rejection> {
-    let url = log::url_to_string(&uri, &params);
+}
 
-    log::log_request(&method, &url, &headers);
+async fn serve_request(
+    ctx: Arc<plot::Ctx>,
+    req: Request,
+) -> Result<(String, http::Response<Body>), Rejection> {
+    let url = log::url_to_string(&req.uri, &req.params);
+
+    log::log_request(&req.method, req.authority.as_ref(), &url, &req.headers);
 
     let route_action = ctx
         .plot
-        .select_route(uri.as_str(), addr.map(|a| a.ip()).as_ref(), &headers)
+        .select_route(
+            req.uri.as_str(),
+            req.addr.map(|a| a.ip()).as_ref(),
+            req.authority.as_ref(),
+            &req.headers,
+        )
         .context("Failed to select route")
         .map_err(http_error)?;
 
     let response = match route_action {
         RouteAction::Proxy(args) => {
-            proxy_forward_request(args, &ctx.plot, uri, params, method, headers, body).await?
+            proxy_forward_request(
+                args,
+                &ctx.plot,
+                req.uri,
+                req.params,
+                req.method,
+                req.headers,
+                req.body,
+            )
+            .await?
         }
-        RouteAction::Static(args) => generate_static_response(args, &ctx, uri).await?,
-        RouteAction::PatchPacmanDb(args) => patch_pacman_db_response(args, &ctx, uri).await?,
-        RouteAction::PatchAptRelease(args) => patch_apt_release_response(args, &ctx, uri).await?,
+        RouteAction::Static(args) => generate_static_response(args, &ctx, req.uri).await?,
+        RouteAction::PatchPacmanDb(args) => patch_pacman_db_response(args, &ctx, req.uri).await?,
+        RouteAction::PatchAptRelease(args) => {
+            patch_apt_release_response(args, &ctx, req.uri).await?
+        }
         RouteAction::PatchAptPackageList(args) => {
-            patch_apt_package_list_response(args, &ctx, uri).await?
+            patch_apt_package_list_response(args, &ctx, req.uri).await?
         }
         RouteAction::OciRegistryManifest(args) => {
             generate_oci_registry_manifest_response(args).await?
         }
-        RouteAction::Append(args) => append_response(args, &ctx.plot, uri).await?,
-        RouteAction::PatchShell(args) => patch_shell_response(args, &ctx.plot, uri).await?,
+        RouteAction::Append(args) => append_response(args, &ctx.plot, req.uri).await?,
+        RouteAction::PatchShell(args) => patch_shell_response(args, &ctx.plot, req.uri).await?,
     };
 
     Ok((url, response))
@@ -396,15 +427,28 @@ pub async fn run(bind: SocketAddr, tls: Option<Tls>, ctx: Arc<plot::Ctx>) -> Res
 
     let app = warp::any()
         .and(warp::filters::addr::remote())
+        .and(warp::host::optional())
         .and(request_filter)
         .and_then(
             move |addr: Option<SocketAddr>,
+                  authority: Option<Authority>,
                   uri: FullPath,
                   params: QueryParameters,
                   method: Method,
                   headers: HeaderMap,
                   body: Bytes| {
-                serve_request(ctx.clone(), addr, uri, params, method, headers, body)
+                serve_request(
+                    ctx.clone(),
+                    Request {
+                        addr,
+                        authority,
+                        uri,
+                        params,
+                        method,
+                        headers,
+                        body,
+                    },
+                )
             },
         )
         .untuple_one()

@@ -1,0 +1,47 @@
+---
+
+upstreams:
+  github:
+    url: https://github.com/
+  github-api:
+    url: https://api.github.com/
+  ghcr:
+    url: https://ghcr.io/
+
+tls:
+  names: ["github.com", "api.github.com", "ghcr.io"]
+
+check:
+  image: docker.io/homebrew/brew
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    - github.com
+    - api.github.com
+    - ghcr.io
+  cmds:
+  - brew install sn0int
+
+routes:
+  - selector:
+      type: host
+      host: github.com
+    type: proxy
+    args:
+      upstream: github
+  - selector:
+      type: host
+      host: api.github.com
+    type: proxy
+    args:
+      upstream: github-api
+  - selector:
+      type: header
+      key: host
+      host: ghcr.io
+    type: proxy
+    args:
+      upstream: ghcr
+  - type: static
+    args:
+      status: 400
+      data: ''

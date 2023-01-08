@@ -67,7 +67,12 @@ pub async fn run(req: &args::Req) -> Result<()> {
 
     let route_action = ctx
         .plot
-        .select_route(&req.req_path, req.addr.as_ref(), &headers)
+        .select_route(
+            &req.req_path,
+            req.addr.as_ref(),
+            req.authority.as_ref(),
+            &headers,
+        )
         .context("Failed to select route")?;
     info!("Selected route: {:?}", route_action);
 

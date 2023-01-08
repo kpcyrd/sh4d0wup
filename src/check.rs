@@ -148,13 +148,22 @@ impl Container {
         Ok(Container { id, addr })
     }
 
-    pub async fn exec<I, S>(&self, args: I, stdin: Option<&[u8]>, env: &[String]) -> Result<()>
+    pub async fn exec<I, S>(
+        &self,
+        args: I,
+        stdin: Option<&[u8]>,
+        env: &[String],
+        user: Option<String>,
+    ) -> Result<()>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str> + fmt::Debug + Clone,
     {
         let args = args.into_iter().collect::<Vec<_>>();
         let mut a = vec!["container".to_string(), "exec".to_string()];
+        if let Some(user) = user {
+            a.extend(["-u".to_string(), user]);
+        }
         if stdin.is_some() {
             a.push("-i".to_string());
         }
@@ -176,7 +185,12 @@ impl Container {
         Ok(())
     }
 
-    pub async fn exec_cmd_stdin(&self, cmd: &Cmd, stdin: Option<&[u8]>) -> Result<()> {
+    pub async fn exec_cmd_stdin(
+        &self,
+        cmd: &Cmd,
+        stdin: Option<&[u8]>,
+        user: Option<String>,
+    ) -> Result<()> {
         let args = match cmd {
             Cmd::Shell(cmd) => vec!["sh", "-c", cmd],
             Cmd::Exec(cmd) => cmd.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
@@ -190,6 +204,7 @@ impl Container {
                 format!("SH4D0WUP_BOUND_IP={}", self.addr.ip()),
                 format!("SH4D0WUP_BOUND_PORT={}", self.addr.port()),
             ],
+            user,
         )
         .await
         .map_err(|err| {
@@ -200,8 +215,8 @@ impl Container {
         Ok(())
     }
 
-    pub async fn exec_cmd(&self, cmd: &Cmd) -> Result<()> {
-        self.exec_cmd_stdin(cmd, None).await
+    pub async fn exec_cmd(&self, cmd: &Cmd, user: Option<String>) -> Result<()> {
+        self.exec_cmd_stdin(cmd, None, user).await
     }
 
     pub async fn run_check(
@@ -213,7 +228,7 @@ impl Container {
         info!("Finishing setup in container...");
         if let (Some(tls), Some(cmd)) = (tls, &config.install_certs) {
             info!("Installing certificates...");
-            self.exec_cmd_stdin(cmd, Some(&tls.cert))
+            self.exec_cmd_stdin(cmd, Some(&tls.cert), Some("0".to_string()))
                 .await
                 .context("Failed to install certificates")?;
         }
@@ -233,7 +248,7 @@ impl Container {
                 }
             };
 
-            self.exec_cmd_stdin(&install.cmd, Some(&cert))
+            self.exec_cmd_stdin(&install.cmd, Some(&cert), None)
                 .await
                 .context("Failed to install certificates")?;
         }
@@ -244,14 +259,14 @@ impl Container {
                 self.addr.ip()
             );
             let cmd = format!("echo \"{} {}\" >> /etc/hosts", self.addr.ip(), host);
-            self.exec_cmd(&Cmd::Shell(cmd))
+            self.exec_cmd(&Cmd::Shell(cmd), Some("0".to_string()))
                 .await
                 .context("Failed to register /etc/hosts entry")?;
         }
 
         info!("Starting test...");
         for cmd in &config.cmds {
-            self.exec_cmd(cmd)
+            self.exec_cmd(cmd, None)
                 .await
                 .context("Attack failed to execute on test environment")?;
         }

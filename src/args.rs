@@ -536,6 +536,8 @@ pub struct Req {
     /// The http method to use
     #[arg(short = 'X', long, default_value = "GET")]
     pub method: String,
+    #[arg(short = 'A', long)]
+    pub authority: Option<warp::host::Authority>,
     #[arg(short = 'H', long = "header")]
     pub headers: Vec<String>,
     #[arg(long)]

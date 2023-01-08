@@ -48,27 +48,27 @@ jobs:
       fail-fast: false
       matrix:
         plot:
-          - path: contrib/plot-alpine.yaml
-          - path: contrib/plot-archlinux-lsign.yaml
-          - path: contrib/plot-archlinux-replaces.yaml
-          - path: contrib/plot-archlinux-resign.yaml
-          - path: contrib/plot-archlinux.yaml
-          - path: contrib/plot-curl-sh.yaml
-          - path: contrib/plot-debian.yaml
-          - path: contrib/plot-elf-galore.yaml
-          - path: contrib/plot-git.yaml
-          - path: contrib/plot-helm.yaml
-          - path: contrib/plot-httpbin.yaml
-          - path: contrib/plot-linuxbrew.yaml
+          - name: contrib/plot-alpine.yaml
+          - name: contrib/plot-archlinux-lsign.yaml
+          - name: contrib/plot-archlinux-replaces.yaml
+          - name: contrib/plot-archlinux-resign.yaml
+          - name: contrib/plot-archlinux.yaml
+          - name: contrib/plot-curl-sh.yaml
+          - name: contrib/plot-debian.yaml
+          - name: contrib/plot-elf-galore.yaml
+          - name: contrib/plot-git.yaml
+          - name: contrib/plot-helm.yaml
+          - name: contrib/plot-httpbin.yaml
+          - name: contrib/plot-linuxbrew.yaml
             args: '-B 0.0.0.0:443'
             sudo: 'sudo'
-          - path: contrib/plot-podman-cgr.yaml
-          - path: contrib/plot-podman-docker-hub.yaml
-          - path: contrib/plot-podman-ecr.yaml
-          - path: contrib/plot-podman-gcr.yaml
-          - path: contrib/plot-podman-ghcr.yaml
-          - path: contrib/plot-rustup.yaml
-          - path: contrib/plot-terraform.yaml
+          - name: contrib/plot-podman-cgr.yaml
+          - name: contrib/plot-podman-docker-hub.yaml
+          - name: contrib/plot-podman-ecr.yaml
+          - name: contrib/plot-podman-gcr.yaml
+          - name: contrib/plot-podman-ghcr.yaml
+          - name: contrib/plot-rustup.yaml
+          - name: contrib/plot-terraform.yaml
 
     name: ${{ matrix.plot }}
     runs-on: ubuntu-22.04
@@ -78,7 +78,7 @@ jobs:
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: 🦝 Run a plot
-        run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
+        run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.name }} ${{ matrix.plot.args }}
 
   make-plots:
     needs: build

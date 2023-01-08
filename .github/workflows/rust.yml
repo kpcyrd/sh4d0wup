@@ -48,25 +48,27 @@ jobs:
       fail-fast: false
       matrix:
         plot:
-          - contrib/plot-alpine.yaml
-          - contrib/plot-archlinux-lsign.yaml
-          - contrib/plot-archlinux-replaces.yaml
-          - contrib/plot-archlinux-resign.yaml
-          - contrib/plot-archlinux.yaml
-          - contrib/plot-curl-sh.yaml
-          - contrib/plot-debian.yaml
-          - contrib/plot-elf-galore.yaml
-          - contrib/plot-git.yaml
-          - contrib/plot-helm.yaml
-          - contrib/plot-httpbin.yaml
-          - contrib/plot-linuxbrew.yaml
-          - contrib/plot-podman-cgr.yaml
-          - contrib/plot-podman-docker-hub.yaml
-          - contrib/plot-podman-ecr.yaml
-          - contrib/plot-podman-gcr.yaml
-          - contrib/plot-podman-ghcr.yaml
-          - contrib/plot-rustup.yaml
-          - contrib/plot-terraform.yaml
+          - path: contrib/plot-alpine.yaml
+          - path: contrib/plot-archlinux-lsign.yaml
+          - path: contrib/plot-archlinux-replaces.yaml
+          - path: contrib/plot-archlinux-resign.yaml
+          - path: contrib/plot-archlinux.yaml
+          - path: contrib/plot-curl-sh.yaml
+          - path: contrib/plot-debian.yaml
+          - path: contrib/plot-elf-galore.yaml
+          - path: contrib/plot-git.yaml
+          - path: contrib/plot-helm.yaml
+          - path: contrib/plot-httpbin.yaml
+          - path: contrib/plot-linuxbrew.yaml
+            args: '-B 0.0.0.0:443'
+            sudo: 'sudo'
+          - path: contrib/plot-podman-cgr.yaml
+          - path: contrib/plot-podman-docker-hub.yaml
+          - path: contrib/plot-podman-ecr.yaml
+          - path: contrib/plot-podman-gcr.yaml
+          - path: contrib/plot-podman-ghcr.yaml
+          - path: contrib/plot-rustup.yaml
+          - path: contrib/plot-terraform.yaml
 
     name: ${{ matrix.plot }}
     runs-on: ubuntu-22.04
@@ -76,7 +78,7 @@ jobs:
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: 🦝 Run a plot
-        run: chmod +x bin/sh4d0wup && bin/sh4d0wup check ${{ matrix.plot }}
+        run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
 
   make-plots:
     needs: build

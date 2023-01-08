@@ -19,7 +19,7 @@ check:
     - api.github.com
     - ghcr.io
   cmds:
-  - HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium
+    - HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium
 
 artifacts:
   upstream_bottle:

@@ -42,8 +42,17 @@ jobs:
         name: bin
         path: target/release/sh4d0wup
 
-  build-macos:
-    runs-on: macos-latest
+  build-others:
+    name: 'build: ${{ matrix.build.os }}'
+    runs-on: ${{ matrix.build.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - os: macos-latest
+            shell: sh
+          - os: windows-latest
+            shell: msys2
     steps:
     - uses: actions/checkout@v3
 
@@ -60,11 +69,21 @@ jobs:
         key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-release-
 
-    - name: Install dependencies
+    - name: Install dependencies (brew)
       run: brew install pkg-config zstd
+      if: startsWith(matrix.build.os, 'macos')
+
+    - name: Install dependencies (msys2)
+      uses: msys2/setup-msys2@v2
+      if: startsWith(matrix.build.os, 'windows')
+      with:
+        update: true
+        install: >-
+          pkg-config
+          zstd
 
     - name: Build
-      run: cargo build --release --verbose
+      run: ${{ matrix.build.shell }} -c 'cargo build --release --verbose'
 
   integration-test:
     needs: build

@@ -1,0 +1,15 @@
+---
+
+upstreams:
+  httpbin:
+    url: http://httpbin.org/
+
+check:
+  image: archlinux
+  cmds:
+    - 'curl -X GET "http://httpbin.org/anything?hello=world" -H  "accept: application/json"'
+
+routes:
+  - type: proxy
+    args:
+      upstream: httpbin

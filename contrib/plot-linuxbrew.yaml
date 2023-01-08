@@ -34,44 +34,34 @@ artifacts:
       authorization: "Bearer QQ=="
       accept: "application/vnd.oci.image.index.v1+json"
 
-selectors:
-  ghcr:
-    type: host
-    value: ghcr.io
-
 routes:
-  - selector:
-      type: host
-      value: github.com
+  - host: github.com
     type: proxy
     args:
       upstream: github
-  - selector:
-      type: host
-      value: api.github.com
+  - host: api.github.com
     type: proxy
     args:
       upstream: github-api
 
   - path: /v2/homebrew/core/libsodium/manifests/1.0.18_1
-    selector: ghcr
+    host: ghcr.io
     type: static
     args:
       artifact: upstream_manifest
       headers:
         content-type: "application/vnd.oci.image.index.v1+json"
-
-  - selector: ghcr
+  - host: ghcr.io
     type: static
     args:
       path_template: "/v2/homebrew/core/libsodium/blobs/sha256:{{sha256}}"
       artifacts:
         - upstream_bottle
-
-  - selector: ghcr
+  - host: ghcr.io
     type: proxy
     args:
       upstream: ghcr
+
   - type: static
     args:
       status: 400

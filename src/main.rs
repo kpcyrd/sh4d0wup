@@ -50,6 +50,7 @@ async fn main() -> Result<()> {
                 },
                 routes: vec![plot::Route {
                     path: None,
+                    host: None,
                     selector: None,
                     action: plot::RouteAction::Proxy(plot::ProxyRoute {
                         upstream: "upstream".to_string(),

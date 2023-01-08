@@ -247,6 +247,13 @@ impl Plot {
                 }
             }
 
+            // if a host-header filter is specified, apply it to the request authority (this way it works on http2 too)
+            if let Some(host) = &route.host {
+                if authority.map(Authority::as_str) != Some(host) {
+                    continue;
+                }
+            }
+
             // if a selector is selected and our request matches
             if let Some(selector) = &route.selector {
                 let selector = selector.resolve(&self.selectors)?;
@@ -331,6 +338,7 @@ pub struct Upstream {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     pub path: Option<String>,
+    pub host: Option<String>,
     pub selector: Option<SelectorRef>,
     #[serde(flatten)]
     pub action: RouteAction,

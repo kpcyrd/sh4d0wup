@@ -1,5 +1,6 @@
 pub mod args;
 pub mod artifacts;
+pub mod bait;
 pub mod build;
 pub mod check;
 pub mod codegen;

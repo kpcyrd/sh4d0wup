@@ -6,6 +6,7 @@ Usage: sh4d0wup [OPTIONS] <COMMAND>
 
 Commands:
   bait         Start a malicious update server
+  front        Bind a http/https server but forward everything unmodified
   infect       High level tampering, inject additional commands into a package
   tamper       Low level tampering, patch a package database to add malicious packages, cause updates or influence dependency resolution
   keygen       Generate signing keys with the given parameters

@@ -9,6 +9,7 @@ use std::io::stdout;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use url::Url;
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -26,6 +27,7 @@ pub struct Args {
 #[derive(Debug, Subcommand)]
 pub enum SubCommand {
     Bait(Bait),
+    Front(Front),
     #[command(subcommand)]
     Infect(Infect),
     #[command(subcommand)]
@@ -59,11 +61,8 @@ impl Plot {
     }
 }
 
-/// Start a malicious update server
 #[derive(Debug, Clone, Parser)]
-pub struct Bait {
-    #[clap(flatten)]
-    pub plot: Plot,
+pub struct Bind {
     /// Address to bind to
     #[arg(
         short = 'B',
@@ -71,24 +70,43 @@ pub struct Bait {
         env = "SH4D0WUP_BIND",
         default_value = "0.0.0.0:1337"
     )]
-    pub bind: SocketAddr,
-    /*
-    /// The upstream server to reverse proxy to
-    #[arg(short = 'U', long)]
-    pub upstream: Option<String>,
-    /// Do not modify Host: and similar headers
-    #[arg(short = 'K', long)]
-    pub keep_headers: bool,
-    */
-    /// Path to certificate file (enables https)
-    #[arg(long)]
-    pub tls_cert: Option<PathBuf>,
-    /// Path to certificate private key (if not bundled with the cert)
-    #[arg(long)]
-    pub tls_key: Option<PathBuf>,
+    pub addr: SocketAddr,
     /// Setup the attack but exit instead of serving requests
     #[arg(short, long)]
     pub no_bind: bool,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct Tls {
+    /// Path to certificate file (enables https)
+    #[arg(long)]
+    pub cert: Option<PathBuf>,
+    /// Path to certificate private key (if not bundled with the cert)
+    #[arg(long)]
+    pub key: Option<PathBuf>,
+}
+
+/// Start a malicious update server
+#[derive(Debug, Clone, Parser)]
+pub struct Bait {
+    #[clap(flatten)]
+    pub plot: Plot,
+    #[clap(flatten)]
+    pub bind: Bind,
+    #[clap(flatten)]
+    pub tls: Tls,
+}
+
+/// Bind a http/https server but forward everything unmodified
+#[derive(Debug, Clone, Parser)]
+pub struct Front {
+    /// The upstream server to reverse proxy to
+    #[arg(short = 'U', long)]
+    pub upstream: Url,
+    #[clap(flatten)]
+    pub bind: Bind,
+    #[clap(flatten)]
+    pub tls: Tls,
 }
 
 /// High level tampering, inject additional commands into a package

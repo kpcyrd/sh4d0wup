@@ -2,23 +2,23 @@ use clap::Parser;
 use env_logger::Env;
 use openssl::hash::MessageDigest;
 use sh4d0wup::args::{self, Args, Hsm, HsmPgp, Keygen, Sign, SubCommand};
+use sh4d0wup::bait;
 use sh4d0wup::build;
 use sh4d0wup::check;
 use sh4d0wup::errors::*;
 use sh4d0wup::hsm;
-use sh4d0wup::httpd;
 use sh4d0wup::infect;
 use sh4d0wup::keygen;
 use sh4d0wup::keygen::in_toto::InTotoEmbedded;
 use sh4d0wup::keygen::openssl::OpensslEmbedded;
 use sh4d0wup::keygen::pgp::PgpEmbedded;
+use sh4d0wup::plot;
 use sh4d0wup::req;
 use sh4d0wup::sign;
 use sh4d0wup::tamper;
 use std::fs;
 use std::io;
 use std::io::Write;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -38,29 +38,29 @@ async fn main() -> Result<()> {
     match args.subcommand {
         SubCommand::Bait(bait) => {
             let ctx = bait.plot.load_into_context().await?;
-
-            let tls = if let Some(path) = bait.tls_cert {
-                let cert = fs::read(&path)
-                    .with_context(|| anyhow!("Failed to read certificate from path: {:?}", path))?;
-
-                let key = if let Some(path) = bait.tls_key {
-                    fs::read(&path).with_context(|| {
-                        anyhow!("Failed to read certificate from path: {:?}", path)
-                    })?
-                } else {
-                    cert.clone()
-                };
-
-                Some(httpd::Tls { cert, key })
-            } else if let Some(tls) = ctx.plot.tls.clone() {
-                Some(httpd::Tls::try_from(tls)?)
-            } else {
-                None
+            bait::run(ctx, &bait.bind, &bait.tls).await?;
+        }
+        SubCommand::Front(front) => {
+            let plot = plot::Plot {
+                upstreams: maplit::btreemap! {
+                    "upstream".to_string() => plot::Upstream {
+                        url: front.upstream,
+                        keep_headers: false,
+                    },
+                },
+                routes: vec![plot::Route {
+                    path: None,
+                    selector: None,
+                    action: plot::RouteAction::Proxy(plot::ProxyRoute {
+                        upstream: "upstream".to_string(),
+                        path: None,
+                    }),
+                }],
+                ..Default::default()
             };
 
-            if !bait.no_bind {
-                httpd::run(bait.bind, tls, Arc::new(ctx)).await?;
-            }
+            let ctx = plot.resolve().await?;
+            bait::run(ctx, &front.bind, &front.tls).await?
         }
         SubCommand::Infect(infect) => infect::run(infect).await?,
         SubCommand::Tamper(tamper) => tamper::run(tamper).await?,

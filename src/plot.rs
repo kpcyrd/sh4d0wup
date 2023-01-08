@@ -306,6 +306,12 @@ impl Plot {
 
         Ok(extras)
     }
+
+    pub async fn resolve(mut self) -> Result<Ctx> {
+        let artifacts = BTreeMap::new();
+        let extras = self.resolve_extras(artifacts).await?;
+        Ok(Ctx { plot: self, extras })
+    }
 }
 
 #[derive(Debug, Default)]

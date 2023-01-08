@@ -2,6 +2,10 @@ pub mod args;
 pub mod artifacts;
 pub mod bait;
 pub mod build;
+#[cfg(target_os = "linux")]
+pub mod check;
+#[cfg(not(target_os = "linux"))]
+#[path = "check_unsupported.rs"]
 pub mod check;
 pub mod codegen;
 pub mod compression;

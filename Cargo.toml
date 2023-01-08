@@ -1,9 +1,9 @@
 [package]
 name = "sh4d0wup"
-version = "0.7.0"
+version = "0.7.1"
 description = "Signing-key abuse and update exploitation framework"
 authors = ["kpcyrd <git@rxv.cc>"]
-license = "GPL-3.0"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/kpcyrd/sh4d0wup"
 categories = ["command-line-utilities"]
 readme = "README.md"

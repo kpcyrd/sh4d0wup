@@ -1,7 +1,7 @@
-use std::path::Path;
 use crate::codegen::c;
 use crate::errors::*;
 use crate::infect::elf_fwd_stdin::Infect;
+use std::path::Path;
 
 fn gen_args_src(args: &[String]) -> Result<String> {
     let mut args_src = String::from("char *args[]={");
@@ -14,11 +14,7 @@ fn gen_args_src(args: &[String]) -> Result<String> {
     Ok(args_src)
 }
 
-pub async fn infect(
-    bin: &Path,
-    config: &Infect,
-    orig: &[u8],
-) -> Result<()> {
+pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     let exec_path = config.exec_path();
     let args = config.args(exec_path);
 

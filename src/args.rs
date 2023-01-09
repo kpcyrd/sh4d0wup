@@ -1,3 +1,4 @@
+use crate::codegen;
 use crate::errors::*;
 use crate::keygen;
 use crate::plot;
@@ -193,6 +194,16 @@ pub struct InfectApkPkg {
     pub payload: Option<String>,
 }
 
+#[derive(Debug, Clone, Parser)]
+pub struct CompileElfConfig {
+    /// The codegen backend that should be used to compile a binary
+    #[arg(short = 'B', long)]
+    pub backend: Option<codegen::Backend>,
+    /// Specify the target architecture, not supported by all backends yet
+    #[arg(short, long)]
+    pub target: Option<String>,
+}
+
 /// Infect an elf executable
 #[derive(Debug, Clone, Parser)]
 pub struct InfectElf {
@@ -200,6 +211,8 @@ pub struct InfectElf {
     pub path: PathBuf,
     /// Where to write the modified executable to
     pub out: PathBuf,
+    #[clap(flatten)]
+    pub compile: CompileElfConfig,
     /// The command to inject into the binary
     #[arg(short = 'c', long)]
     pub payload: Option<String>,
@@ -227,6 +240,8 @@ pub struct InfectElfFwdStdin {
     /// Additional arguments that should be passed to the binary. Can be used multiple times and `argv[0]` needs to be provided, if none are set then `argv[0]` defaults to the value of `--exec`
     #[arg(long = "arg")]
     pub args: Vec<String>,
+    #[clap(flatten)]
+    pub compile: CompileElfConfig,
 }
 
 /// Infect a shell script

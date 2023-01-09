@@ -1,42 +1,7 @@
-use crate::args;
+use std::path::Path;
 use crate::codegen::c;
 use crate::errors::*;
-use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use tokio::fs::File;
-use tokio::io::AsyncWrite;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Infect {
-    pub exec_path: Option<String>,
-    #[serde(default)]
-    pub args: Vec<String>,
-}
-
-impl Infect {
-    fn exec_path(&self) -> &str {
-        self.exec_path.as_deref().unwrap_or("/bin/sh")
-    }
-
-    fn args(&self, exec_path: &str) -> Cow<Vec<String>> {
-        if self.args.is_empty() {
-            Cow::Owned(vec![exec_path.to_string()])
-        } else {
-            Cow::Borrowed(&self.args)
-        }
-    }
-}
-
-impl TryFrom<args::InfectElfFwdStdin> for Infect {
-    type Error = Error;
-
-    fn try_from(args: args::InfectElfFwdStdin) -> Result<Self> {
-        Ok(Infect {
-            exec_path: args.exec,
-            args: args.args,
-        })
-    }
-}
+use crate::infect::elf_fwd_stdin::Infect;
 
 fn gen_args_src(args: &[String]) -> Result<String> {
     let mut args_src = String::from("char *args[]={");
@@ -49,18 +14,15 @@ fn gen_args_src(args: &[String]) -> Result<String> {
     Ok(args_src)
 }
 
-pub async fn infect<W: AsyncWrite + Unpin>(
+pub async fn infect(
+    bin: &Path,
     config: &Infect,
     orig: &[u8],
-    out: &mut W,
 ) -> Result<()> {
-    let dir = tempfile::tempdir()?;
-    let bin_path = dir.path().join("bin");
-
-    let mut compiler = c::Compiler::spawn(&bin_path).await?;
-
     let exec_path = config.exec_path();
     let args = config.args(exec_path);
+
+    let mut compiler = c::Compiler::spawn(bin).await?;
 
     info!(
         "Generating stager for exec={:?}, argv[0]={:?}, args={:?}",
@@ -115,14 +77,6 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     let mut pending = compiler.done();
     info!("Waiting for compile to finish...");
     pending.wait().await?;
-
-    debug!("Copying compiled binary to final destination");
-    let mut f = File::open(&bin_path)
-        .await
-        .with_context(|| anyhow!("Failed to open compiled binary at {:?}", bin_path))?;
-    tokio::io::copy(&mut f, out).await?;
-
-    info!("Successfully generated binary");
 
     Ok(())
 }

@@ -61,6 +61,7 @@ impl Compiler {
         info!("Spawning Go compiler...");
         let child = Command::new("go")
             .arg("build")
+            .arg("-ldflags=-s -w")
             .arg("-o")
             .arg(&self.out)
             .arg(&self.src)

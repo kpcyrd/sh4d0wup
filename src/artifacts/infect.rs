@@ -82,7 +82,7 @@ impl InfectArtifact {
                     let elf_artifact = plot_extras.artifacts.get(name).with_context(|| {
                         anyhow!(
                             "Referencing artifact that doesn't exist: {:?}",
-                            infect.artifact
+                            infect.elf_artifact
                         )
                     })?;
 

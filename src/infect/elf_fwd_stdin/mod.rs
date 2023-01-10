@@ -1,4 +1,5 @@
 pub mod c;
+pub mod rust;
 
 use crate::args;
 use crate::codegen;
@@ -52,6 +53,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
 
     match config.backend {
         Some(codegen::Backend::C) | None => c::infect(&bin_path, config, orig).await?,
+        Some(codegen::Backend::Rust) => rust::infect(&bin_path, config, orig).await?,
         _ => bail!("Backend is not implemented yet"),
     }
 

@@ -1,7 +1,8 @@
 pub mod c;
+pub mod rust;
 
 use crate::args;
-use crate::codegen::{self, Backend};
+use crate::codegen;
 use crate::errors::*;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
@@ -54,7 +55,8 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     };
 
     match config.backend {
-        Some(Backend::C) | None => c::infect(&bin, config, orig, payload.as_ref()).await?,
+        Some(codegen::Backend::C) | None => c::infect(&bin, config, orig, payload.as_ref()).await?,
+        Some(codegen::Backend::Rust) => rust::infect(&bin, config, orig, payload.as_ref()).await?,
         _ => bail!("Backend is not implemented yet"),
     }
 

@@ -16,7 +16,7 @@ artifacts:
     data: |
       id
       sleep 0.25
-      for x in c; do
+      for x in c rust; do
         cat /tmp/sh4d0wup-test-$x.log || echo "test failed: $x"
       done
       echo all tests completed
@@ -40,12 +40,12 @@ artifacts:
   #  backend: go
   #  data: |
   #    echo 'test complete: go' > /tmp/sh4d0wup-test-go.log
-  #test-rust-done:
-  #  type: infect
-  #  infect: elf-fwd-stdin
-  #  backend: rust
-  #  data: |
-  #    echo 'test complete: rust' > /tmp/sh4d0wup-test-rust.log
+  test-rust-done:
+    type: infect
+    infect: elf-fwd-stdin
+    backend: rust
+    data: |
+      echo 'test complete: rust' > /tmp/sh4d0wup-test-rust.log
 
   test-bind-c:
     type: infect
@@ -59,21 +59,21 @@ artifacts:
   #  backend: go
   #  artifact: test-bind-c
   #  elf_artifact: test-go-done
-  #test-bind-rust:
-  #  type: infect
-  #  infect: elf
-  #  backend: rust
-  #  artifact: test-bind-go
-  #  elf_artifact: test-rust-done
+  test-bind-rust:
+    type: infect
+    infect: elf
+    backend: rust
+    artifact: test-bind-c # TODO: test-bind-go
+    elf_artifact: test-rust-done
 
   # wrap one last time so there's a stable artifact name we can reference
   elf:
     type: infect
     infect: elf
-    artifact: test-bind-c
+    artifact: test-bind-rust
 
 routes:
   - path: /a
     type: static
     args:
-      artifact: test-bind-c
+      artifact: elf

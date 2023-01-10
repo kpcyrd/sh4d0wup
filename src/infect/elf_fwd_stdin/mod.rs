@@ -1,4 +1,5 @@
 pub mod c;
+pub mod go;
 pub mod rust;
 
 use crate::args;
@@ -54,7 +55,11 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     match config.backend {
         Some(codegen::Backend::C) | None => c::infect(&bin_path, config, orig).await?,
         Some(codegen::Backend::Rust) => rust::infect(&bin_path, config, orig).await?,
-        _ => bail!("Backend is not implemented yet"),
+        Some(codegen::Backend::Go) => {
+            // go needs an extra file for source code
+            let src_path = dir.path().join("src.go");
+            go::infect(&bin_path, &src_path, config, orig).await?
+        }
     }
 
     debug!("Copying compiled binary to final destination");

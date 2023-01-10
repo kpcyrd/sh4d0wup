@@ -34,12 +34,12 @@ artifacts:
     backend: c
     data: |
       echo 'test complete: c' > /tmp/sh4d0wup-test-c.log
-  #test-go-done:
-  #  type: infect
-  #  infect: elf-fwd-stdin
-  #  backend: go
-  #  data: |
-  #    echo 'test complete: go' > /tmp/sh4d0wup-test-go.log
+  test-go-done:
+    type: infect
+    infect: elf-fwd-stdin
+    backend: go
+    data: |
+      echo 'test complete: go' > /tmp/sh4d0wup-test-go.log
   test-rust-done:
     type: infect
     infect: elf-fwd-stdin

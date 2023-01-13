@@ -80,6 +80,8 @@ jobs:
           - path: contrib/plot-curl-sh.yaml
           - path: contrib/plot-debian.yaml
           - path: contrib/plot-elf-galore.yaml
+            setup: |
+              rustup target add x86_64-unknown-linux-musl
           - path: contrib/plot-git.yaml
           - path: contrib/plot-helm.yaml
           - path: contrib/plot-httpbin.yaml
@@ -110,6 +112,9 @@ jobs:
         run: |
           sudo apt-get install libpcsclite-dev nettle-dev
           sudo rm -rf /var/cache/apt/archives/{lock,partial}
+      - name: Setup environment
+        run: ${{ matrix.plot.setup }}
+        if: ${{ matrix.plot.setup }} != ''
       - name: 🦝 Run a plot
         run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
 
@@ -130,6 +135,7 @@ jobs:
         run: |
           sudo apt-get install libpcsclite-dev nettle-dev
           sudo rm -rf /var/cache/apt/archives/{lock,partial}
+      - run: rustup target add x86_64-unknown-linux-musl
       - name: Compile all plots
         run: chmod +x bin/sh4d0wup && make sh4d0wup=bin/sh4d0wup -j8
 

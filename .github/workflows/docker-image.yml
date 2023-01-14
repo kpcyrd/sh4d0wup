@@ -86,7 +86,7 @@ jobs:
         docker push ghcr.io/${{ github.repository }}:full
 
     - name: Export docker image to tar
-      run: docker save sh4d0wup:full | zstd -T0 -10 > sh4d0wup.tar.zst
+      run: docker save sh4d0wup | zstd -T0 -10 > sh4d0wup.tar.zst
 
     - name: Upload as github artifact
       uses: actions/upload-artifact@v3
@@ -94,13 +94,32 @@ jobs:
         name: container
         path: sh4d0wup.tar.zst
 
-  make-plots-docker:
+  make-plots:
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - img: sh4d0wup:smol
+            excluded: >
+              plot-elf-galore
+              plot-rustup
+              plot-terraform
+          - img: sh4d0wup:default
+            excluded: >
+              plot-elf-galore
+          - img: sh4d0wup:full
+
+    name: ${{ matrix.variant.img }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
       - name: Import docker image
         run: zstd -cd container/sh4d0wup.tar.zst | docker load
+      - name: Setup config for excluded tests
+        run: |
+          mkdir -vp build
+          echo "${{ matrix.variant.excluded }}" | xargs -r -I{} touch build/{}.tar.zst
       - name: Compile all plots
-        run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt sh4d0wup:full'
+        run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt ${{ matrix.variant.img }}'

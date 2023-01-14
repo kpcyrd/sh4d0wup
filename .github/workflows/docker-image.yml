@@ -23,6 +23,15 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Build Docker image (default)
+      uses: docker/build-push-action@v3
+      with:
+        tags: sh4d0wup:default
+        target: default
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
     - name: Build Docker image (smol)
       uses: docker/build-push-action@v3
       with:
@@ -34,8 +43,9 @@ jobs:
 
     - name: Test the Docker images
       run: |
-        docker run --rm sh4d0wup:full --help
         docker run --rm sh4d0wup:smol --help
+        docker run --rm sh4d0wup:default --help
+        docker run --rm sh4d0wup:full --help
 
     - name: Login to github container registry
       if: github.event_name != 'pull_request'
@@ -48,24 +58,30 @@ jobs:
     - name: Push the image to `edge`
       if: github.event_name == 'push' && github.ref_name == 'main'
       run: |
-        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:edge
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:edge-smol
+        docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:edge
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:edge-full
+        docker push ghcr.io/${{ github.repository }}:edge-smol
         docker push ghcr.io/${{ github.repository }}:edge
         docker push ghcr.io/${{ github.repository }}:edge-full
 
     - name: Push the image to `${{ github.ref_name }}`
       if: github.ref_type == 'tag'
       run: |
-        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:${{ github.ref_name }}-smol
+        docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
+        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-smol
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
 
     - name: Push the image to `latest`
       if: github.ref_type == 'tag'
       run: |
-        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:latest
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:smol
+        docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:latest
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:full
+        docker push ghcr.io/${{ github.repository }}:smol
         docker push ghcr.io/${{ github.repository }}:latest
         docker push ghcr.io/${{ github.repository }}:full
 

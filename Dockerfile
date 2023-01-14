@@ -3,7 +3,7 @@
 FROM rust:1-alpine3.17 as build
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
-    apk add clang-dev musl-dev nettle-dev pcsc-lite-dev openssl-dev shared-mime-info xz-dev zstd-dev && \
+    apk add musl-dev nettle-dev pcsc-lite-dev openssl-dev shared-mime-info xz-dev zstd-dev && \
     rm /etc/apk/cache
 WORKDIR /app
 COPY ./ /app
@@ -17,7 +17,7 @@ RUN strip sh4d0wup
 FROM alpine:3.17 as basic
 # install dependencies
 RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
-    apk add clang-libs libgcc nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs && \
+    apk add libgcc nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs && \
     rm /etc/apk/cache
 
 FROM basic as smol
@@ -61,6 +61,15 @@ cgroup_manager = "cgroupfs"
 events_logger="file"
 runtime="crun"
 EOF
+# copy the binary
+COPY --from=0 /app/sh4d0wup /usr/bin
+ENTRYPOINT ["sh4d0wup"]
+
+FROM basic as default
+# install more dependencies
+RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
+    apk add gcc linux-headers musl-dev && \
+    rm /etc/apk/cache
 # copy the binary
 COPY --from=0 /app/sh4d0wup /usr/bin
 ENTRYPOINT ["sh4d0wup"]

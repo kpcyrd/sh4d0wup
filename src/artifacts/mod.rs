@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Artifact {
     File(FileArtifact),
@@ -222,12 +222,12 @@ impl Artifact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileArtifact {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlineArtifact {
     pub data: String,
 }
@@ -302,5 +302,11 @@ impl HashedArtifact {
 impl AsRef<[u8]> for HashedArtifact {
     fn as_ref(&self) -> &[u8] {
         &self.bytes
+    }
+}
+
+impl PartialEq for HashedArtifact {
+    fn eq(&self, other: &Self) -> bool {
+        self.bytes == other.bytes
     }
 }

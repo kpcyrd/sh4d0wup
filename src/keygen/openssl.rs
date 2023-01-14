@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum KeygenOpenssl {
     Embedded(OpensslEmbedded),
     Generate(OpensslGenerate),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpensslEmbedded {
     pub public_key: Option<String>,
     pub secret_key: String,
@@ -54,14 +54,14 @@ impl OpensslEmbedded {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeypairType {
     Rsa,
     Secp256k1,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpensslGenerate {
     pub keypair_type: KeypairType,
     pub bits: Option<u32>,

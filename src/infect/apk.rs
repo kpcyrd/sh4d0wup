@@ -73,7 +73,7 @@ pub fn patch_metadata_buf(infect: &Infect, buf: &[u8]) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub signing_key: String,
     pub signing_key_name: String,

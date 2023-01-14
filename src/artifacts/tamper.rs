@@ -4,7 +4,7 @@ use crate::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use crate::tamper;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "tamper", rename_all = "kebab-case")]
 pub enum TamperArtifact {
     PatchAptRelease(PatchAptReleaseArtifact),
@@ -99,14 +99,14 @@ impl TamperArtifact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchAptReleaseArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: PatchAptReleaseConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchPkgDatabaseArtifact {
     pub artifact: String,
     pub compression: Option<CompressedWith>,
@@ -114,7 +114,7 @@ pub struct PatchPkgDatabaseArtifact {
     pub config: PatchPkgDatabaseConfig<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchApkIndexArtifact {
     pub artifact: String,
     pub signing_key: String,
@@ -123,7 +123,7 @@ pub struct PatchApkIndexArtifact {
     pub config: PatchPkgDatabaseConfig<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchPacmanDbArtifact {
     pub artifact: String,
     #[serde(flatten)]

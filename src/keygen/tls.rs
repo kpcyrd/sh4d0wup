@@ -3,20 +3,20 @@ use crate::errors::*;
 use rcgen::{Certificate, CertificateParams, SanType};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum KeygenTls {
     Embedded(TlsEmbedded),
     Generate(TlsGenerate),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TlsEmbedded {
     pub cert: String,
     pub key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TlsGenerate {
     pub names: Vec<String>,
 }

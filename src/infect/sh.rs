@@ -14,7 +14,7 @@ fn hash_script(script: &str) -> String {
     hex::encode(&res[..6])
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub payload: String,
     pub hook_functions: Vec<String>,

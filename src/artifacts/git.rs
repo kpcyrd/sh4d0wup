@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 
 const STEP: usize = 25_000;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "git", rename_all = "kebab-case")]
 pub enum GitArtifact {
     Commit(Commit),
@@ -34,7 +34,7 @@ impl GitArtifact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Oid {
     Inline(String),
@@ -68,12 +68,12 @@ impl Oid {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArtifactOid {
     pub artifact: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Commit {
     pub tree: Oid,
     #[serde(default)]
@@ -259,7 +259,7 @@ impl Commit {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tree {
     pub entries: Vec<TreeEntry>,
 }
@@ -278,7 +278,7 @@ impl Tree {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TreeEntry {
     pub mode: String,
     pub filename: String,
@@ -304,7 +304,7 @@ impl TreeEntry {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Blob {
     pub data: Option<String>,
     pub artifact: Option<String>,
@@ -334,7 +334,7 @@ impl Blob {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RefList {
     pub refs: IndexMap<String, Oid>,
 }

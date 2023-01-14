@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use tokio::fs::File;
 use tokio::io::AsyncWrite;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub backend: Option<codegen::Backend>,
     pub exec_path: Option<String>,

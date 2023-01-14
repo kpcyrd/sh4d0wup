@@ -3,7 +3,7 @@ use crate::infect;
 use crate::plot::PlotExtras;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "infect", rename_all = "kebab-case")]
 pub enum InfectArtifact {
     Pacman(InfectPacmanArtifact),
@@ -134,28 +134,28 @@ impl InfectArtifact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectPacmanArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: infect::pacman::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectDebArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: infect::deb::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectApkArtifact {
     pub artifact: String,
     #[serde(flatten)]
     pub config: infect::apk::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectElfArtifact {
     pub artifact: String,
     pub elf_artifact: Option<String>,
@@ -163,7 +163,7 @@ pub struct InfectElfArtifact {
     pub config: infect::elf::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectElfFwdStdinArtifact {
     pub artifact: Option<String>,
     pub data: Option<String>,
@@ -171,7 +171,7 @@ pub struct InfectElfFwdStdinArtifact {
     pub config: infect::elf_fwd_stdin::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InfectShArtifact {
     pub artifact: String,
     #[serde(flatten)]

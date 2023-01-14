@@ -10,14 +10,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum KeygenPgp {
     Embedded(PgpEmbedded),
     Generate(PgpGenerate),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PgpEmbedded {
     pub cert: Option<String>,
     pub secret_key: String,
@@ -57,7 +57,7 @@ impl PgpEmbedded {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PgpGenerate {
     pub uids: Vec<String>,
 }

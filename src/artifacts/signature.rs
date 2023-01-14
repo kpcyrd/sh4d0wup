@@ -3,7 +3,7 @@ use crate::plot::PlotExtras;
 use crate::sign;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignatureArtifact {
     pub artifact: String,
     pub sign_with: String,

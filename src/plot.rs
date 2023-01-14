@@ -29,7 +29,7 @@ use warp::hyper::Body;
 pub type Artifacts = BTreeMap<String, HashedArtifact>;
 pub type SigningKeys = BTreeMap<String, EmbeddedKey>;
 
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Ctx {
     pub plot: Plot,
     pub extras: PlotExtras,
@@ -92,9 +92,22 @@ impl Ctx {
         cache_from: Option<&Path>,
     ) -> Result<Self> {
         let path = path.as_ref();
+        let f = File::open(path).with_context(|| anyhow!("Failed to open plot at {:?}", path))?;
+        let cache_from = if let Some(path) = cache_from {
+            let f = File::open(path)
+                .with_context(|| anyhow!("Failed to open cache plot at {:?}", path))?;
+            Some(f)
+        } else {
+            None
+        };
+        Self::load_from_reader(f, cache_from).await
+    }
 
-        let f = File::open(path).context("Failed to open plot")?;
-        let mut r = BufPeekReader::new(f);
+    pub async fn load_from_reader<R1: Read, R2: Read>(
+        reader: R1,
+        cache_from: Option<R2>,
+    ) -> Result<Self> {
+        let mut r = BufPeekReader::new(reader);
 
         let mut artifacts = BTreeMap::new();
         let plot = if let Some(comp) = Self::is_bundle(r.peek())? {
@@ -119,15 +132,12 @@ impl Ctx {
         Ok(Ctx { plot, extras })
     }
 
-    pub async fn load_as_download_cache<P: AsRef<Path>>(
-        path: P,
+    pub async fn load_as_download_cache<R: Read>(
+        reader: R,
         plot: &Plot,
         out: &mut Artifacts,
     ) -> Result<()> {
-        let path = path.as_ref();
-
-        let f = File::open(path).context("Failed to open plot")?;
-        let mut r = BufPeekReader::new(f);
+        let mut r = BufPeekReader::new(reader);
 
         if r.peek().fill_buf().map(|b| b.is_empty()).ok() == Some(true) {
             debug!("Cache bundle is empty file, starting with empty cache...");
@@ -167,7 +177,7 @@ impl Ctx {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Plot {
     #[serde(default)]
     pub upstreams: BTreeMap<String, Upstream>,
@@ -321,21 +331,21 @@ impl Plot {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct PlotExtras {
     pub signing_keys: SigningKeys,
     pub artifacts: Artifacts,
     pub sessions: Sessions,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Upstream {
     pub url: url::Url,
     #[serde(default)]
     pub keep_headers: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Route {
     pub path: Option<String>,
     pub host: Option<String>,
@@ -383,7 +393,7 @@ impl Route {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "args", rename_all = "kebab-case")]
 pub enum RouteAction {
     Proxy(ProxyRoute),
@@ -411,13 +421,13 @@ impl RouteAction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProxyRoute {
     pub upstream: String,
     pub path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum StaticSource {
     Data(String),
@@ -426,7 +436,7 @@ pub enum StaticSource {
     HashBucket(HashMap<String, String>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StaticRoute {
     pub path_template: Option<String>,
 
@@ -633,7 +643,7 @@ pub struct PkgPatch<T> {
     pub set: PkgPatchValues<T>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchPkgDatabaseRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
@@ -641,7 +651,7 @@ pub struct PatchPkgDatabaseRoute {
     pub config: PatchPkgDatabaseConfig<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchPkgDatabaseConfig<T> {
     #[serde(default)]
     pub patch: Vec<PkgPatch<T>>,
@@ -767,7 +777,7 @@ impl PatchPkgDatabaseConfig<String> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchAptReleaseRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
@@ -775,7 +785,7 @@ pub struct PatchAptReleaseRoute {
     pub config: PatchAptReleaseConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OciRegistryManifestRoute {
     pub name: String,
     pub tag: String,
@@ -787,7 +797,7 @@ pub struct OciRegistryManifestRoute {
     pub signatures: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchAptReleaseConfig {
     #[serde(default)]
     pub fields: BTreeMap<String, String>,
@@ -796,14 +806,14 @@ pub struct PatchAptReleaseConfig {
     pub signing_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppendRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
     pub data: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatchShellRoute {
     #[serde(flatten)]
     pub proxy: ProxyRoute,
@@ -811,7 +821,7 @@ pub struct PatchShellRoute {
     pub infect: infect::sh::Infect,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Check {
     pub image: String,
     pub install_certs: Option<Cmd>,
@@ -825,14 +835,14 @@ pub struct Check {
     pub init: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Cmd {
     Shell(String),
     Exec(Vec<String>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InstallKey {
     pub key: String,
     #[serde(default)]
@@ -843,6 +853,7 @@ pub struct InstallKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::build;
 
     #[test]
     fn test_parse_pkg_filter_name() {
@@ -888,5 +899,150 @@ mod tests {
     fn test_parse_pkg_filter_empty() {
         let res = "".parse::<PkgFilter>();
         assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_load_empty_plot() -> Result<()> {
+        let plot = b"routes: []";
+        let ctx = Ctx::load_from_reader(&plot[..], Option::<File>::None).await?;
+        assert_eq!(ctx, Ctx::default());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_load_empty_compiled_plot() -> Result<()> {
+        let plot = r#"routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        assert_eq!(plot, Plot::default());
+
+        let ctx = Ctx::load_from_reader(&w[..], Option::<File>::None).await?;
+        assert_eq!(ctx, Ctx::default());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_load_compiled_plot() -> Result<()> {
+        let plot = r#"
+artifacts:
+  foo:
+    type: inline
+    data: |
+      hello world
+
+routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        assert_eq!(
+            plot,
+            Plot {
+                artifacts: indexmap::indexmap! {
+                    "foo".to_string() => Artifact::Memory,
+                },
+                ..Default::default()
+            }
+        );
+
+        let ctx = Ctx::load_from_reader(&w[..], Option::<File>::None).await?;
+        assert_eq!(
+            ctx,
+            Ctx {
+                plot: Plot {
+                    artifacts: indexmap::indexmap! {
+                        "foo".to_string() => Artifact::Memory,
+                    },
+                    ..Default::default()
+                },
+                extras: PlotExtras {
+                    artifacts: maplit::btreemap! [
+                        "foo".to_string() => HashedArtifact::new("hello world\n".into()),
+                    ],
+                    ..Default::default()
+                },
+            }
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_cache_from() -> Result<()> {
+        let plot = r#"
+artifacts:
+  foo:
+    type: inline
+    data: |
+      hello world
+
+routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        assert_eq!(
+            plot,
+            Plot {
+                artifacts: indexmap::indexmap! {
+                    "foo".to_string() => Artifact::Memory,
+                },
+                ..Default::default()
+            }
+        );
+
+        let plot = br#"
+artifacts:
+  foo:
+    type: url
+    url: https://this.is.invalid/file.bin
+
+routes: []"#;
+        let ctx = Ctx::load_from_reader(&plot[..], Some(&w[..])).await?;
+        assert_eq!(
+            ctx,
+            Ctx {
+                plot: Plot {
+                    artifacts: indexmap::indexmap! {
+                        "foo".to_string() => Artifact::Memory,
+                    },
+                    ..Default::default()
+                },
+                extras: PlotExtras {
+                    artifacts: maplit::btreemap! [
+                        "foo".to_string() => HashedArtifact::new("hello world\n".into()),
+                    ],
+                    ..Default::default()
+                },
+            }
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_cache_from_only_use_referenced() -> Result<()> {
+        let plot = r#"
+artifacts:
+  foo:
+    type: inline
+    data: |
+      hello world
+
+routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        assert_eq!(
+            plot,
+            Plot {
+                artifacts: indexmap::indexmap! {
+                    "foo".to_string() => Artifact::Memory,
+                },
+                ..Default::default()
+            }
+        );
+
+        let plot = br#"routes: []"#;
+        let ctx = Ctx::load_from_reader(&plot[..], Some(&w[..])).await?;
+        assert_eq!(ctx, Ctx::default());
+        Ok(())
     }
 }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use url::Url;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sessions {}
 
 impl Sessions {
@@ -49,7 +49,7 @@ impl Sessions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OciAuth {
     pub url: Url,
     #[serde(default)]

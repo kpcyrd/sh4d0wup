@@ -3,7 +3,7 @@ use crate::errors::*;
 use crate::plot::Artifacts;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompressArtifact {
     pub artifact: String,
     pub compression: CompressedWith,

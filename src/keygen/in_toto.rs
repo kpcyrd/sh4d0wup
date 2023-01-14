@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum KeygenInToto {
     Embedded(InTotoEmbedded),
     Generate(InTotoGenerate),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InTotoEmbedded {
     pub public_key: Option<String>,
     pub secret_key: String,
@@ -32,7 +32,7 @@ impl InTotoEmbedded {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InTotoGenerate {}
 
 impl From<args::KeygenInToto> for InTotoGenerate {

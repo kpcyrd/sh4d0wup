@@ -55,7 +55,7 @@ impl ToString for DebControl {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     #[serde(default)]
     pub set: HashMap<String, String>,

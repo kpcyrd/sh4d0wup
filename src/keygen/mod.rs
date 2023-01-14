@@ -11,7 +11,7 @@ use self::ssh::KeygenSsh;
 use crate::errors::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Keygen {
     Pgp(pgp::KeygenPgp),
@@ -60,7 +60,7 @@ impl From<EmbeddedKey> for Keygen {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EmbeddedKey {
     Pgp(pgp::PgpEmbedded),
     Ssh(ssh::SshEmbedded),

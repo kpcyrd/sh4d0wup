@@ -69,7 +69,7 @@ pub fn patch_install_script(script: Option<&str>, payload: &str) -> Result<Strin
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     #[serde(default)]
     pub set: HashMap<String, Vec<String>>,

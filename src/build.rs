@@ -5,7 +5,7 @@ use crate::plot::{Ctx, Plot, PlotExtras};
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use zstd::stream::write::Encoder;
 
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 3;
@@ -43,22 +43,18 @@ impl<W: Write> ArchiveBuilder<W> {
     }
 }
 
-pub async fn run(build: args::Build) -> Result<()> {
-    let mut plot = Plot::load_from_path(&build.plot.path)?;
-
+pub async fn build<W: Write, R: Read>(w: W, plot: &mut Plot, cache_from: Option<R>) -> Result<()> {
     let mut artifacts = BTreeMap::new();
-    if let Some(path) = build.plot.cache_from {
-        info!("Loading existing plot as cache: {:?}", path);
-        Ctx::load_as_download_cache(&path, &plot, &mut artifacts)
+    if let Some(f) = cache_from {
+        debug!("Loading existing plot as cache...");
+        Ctx::load_as_download_cache(f, plot, &mut artifacts)
             .await
             .context("Failed to load existing plot as cache")?;
         debug!("Finished loading existing plot");
     }
 
     debug!("Setting up compressed writer...");
-    let f = File::create(&build.output)
-        .with_context(|| anyhow!("Failed to open output file: {:?}", build.output))?;
-    let w = Encoder::new(f, ZSTD_COMPRESSION_LEVEL)
+    let w = Encoder::new(w, ZSTD_COMPRESSION_LEVEL)
         .context("Failed to setup zstd stream")?
         .auto_finish();
 
@@ -101,4 +97,22 @@ pub async fn run(build: args::Build) -> Result<()> {
     tar.finish()?;
 
     Ok(())
+}
+
+pub async fn run(args: args::Build) -> Result<()> {
+    let mut plot = Plot::load_from_path(&args.plot.path)?;
+
+    let cache_from = if let Some(path) = args.plot.cache_from {
+        info!("Opening existing plot as cache: {:?}", path);
+        let f = File::open(&path)
+            .with_context(|| anyhow!("Failed to open cache plot at {:?}", path))?;
+        Some(f)
+    } else {
+        None
+    };
+
+    let f = File::create(&args.output)
+        .with_context(|| anyhow!("Failed to open output file: {:?}", args.output))?;
+
+    build(f, &mut plot, cache_from).await
 }

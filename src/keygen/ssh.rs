@@ -7,14 +7,14 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum KeygenSsh {
     Embedded(SshEmbedded),
     Generate(SshGenerate),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SshEmbedded {
     pub public_key: Option<String>,
     pub secret_key: String,
@@ -43,7 +43,7 @@ impl SshEmbedded {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeypairType {
     Rsa,
@@ -66,7 +66,7 @@ impl FromStr for KeypairType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SshGenerate {
     pub keypair_type: KeypairType,
     pub bits: usize,

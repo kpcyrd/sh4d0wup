@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::io::Read;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "extract", rename_all = "kebab-case")]
 pub enum ExtractArtifact {
     Zip(GenericExtractArtifact),
@@ -63,7 +63,7 @@ impl ExtractArtifact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GenericExtractArtifact {
     pub artifact: String,
     pub path: Option<String>,

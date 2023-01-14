@@ -14,7 +14,7 @@ pub enum Payload<'a> {
     Elf(&'a [u8]),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub backend: Option<codegen::Backend>,
     pub payload: Option<String>,

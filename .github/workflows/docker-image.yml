@@ -68,13 +68,13 @@ jobs:
         docker push ghcr.io/${{ github.repository }}:httpd
 
     - name: Export docker image to tar
-      run: docker save -o sh4d0wup.tar sh4d0wup
+      run: docker save sh4d0wup | zstd > sh4d0wup.tar.zst
 
     - name: Upload as github artifact
       uses: actions/upload-artifact@v3
       with:
         name: container
-        path: sh4d0wup.tar
+        path: sh4d0wup.tar.zst
 
   make-plots-docker:
     needs: build
@@ -83,6 +83,6 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
       - name: Import docker image
-        run: docker load -i container/sh4d0wup.tar
+        run: zstd -cd container/sh4d0wup.tar.zst | docker load
       - name: Compile all plots
         run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt sh4d0wup'

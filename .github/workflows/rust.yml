@@ -94,6 +94,7 @@ jobs:
           - path: contrib/plot-podman-gcr.yaml
           - path: contrib/plot-podman-ghcr.yaml
           - path: contrib/plot-rustup.yaml
+          - path: contrib/plot-signal-desktop.yaml
           - path: contrib/plot-terraform.yaml
 
     name: ${{ matrix.plot.path }}

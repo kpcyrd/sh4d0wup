@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cach
     apk add clang-libs libgcc nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs && \
     rm /etc/apk/cache
 
-FROM basic as httpd
+FROM basic as smol
 # copy the binary
 COPY --from=0 /app/sh4d0wup /usr/bin
 ENTRYPOINT ["sh4d0wup"]

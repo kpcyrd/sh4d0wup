@@ -17,24 +17,25 @@ jobs:
     - name: Build Docker image (full)
       uses: docker/build-push-action@v3
       with:
-        tags: sh4d0wup
+        tags: sh4d0wup:full
+        target: full
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Build Docker image (httpd)
+    - name: Build Docker image (smol)
       uses: docker/build-push-action@v3
       with:
-        tags: sh4d0wup:httpd
-        target: httpd
+        tags: sh4d0wup:smol
+        target: smol
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Test the Docker images
       run: |
-        docker run --rm sh4d0wup --help
-        docker run --rm sh4d0wup:httpd --help
+        docker run --rm sh4d0wup:full --help
+        docker run --rm sh4d0wup:smol --help
 
     - name: Login to github container registry
       if: github.event_name != 'pull_request'
@@ -47,29 +48,29 @@ jobs:
     - name: Push the image to `edge`
       if: github.event_name == 'push' && github.ref_name == 'main'
       run: |
-        docker tag sh4d0wup ghcr.io/${{ github.repository }}:edge
-        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:edge-httpd
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:edge
+        docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:edge-full
         docker push ghcr.io/${{ github.repository }}:edge
-        docker push ghcr.io/${{ github.repository }}:edge-httpd
+        docker push ghcr.io/${{ github.repository }}:edge-full
 
     - name: Push the image to `${{ github.ref_name }}`
       if: github.ref_type == 'tag'
       run: |
-        docker tag sh4d0wup ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:${{ github.ref_name }}-httpd
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-httpd
+        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
 
     - name: Push the image to `latest`
       if: github.ref_type == 'tag'
       run: |
-        docker tag sh4d0wup ghcr.io/${{ github.repository }}:latest
-        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:httpd
+        docker tag sh4d0wup:smol ghcr.io/${{ github.repository }}:latest
+        docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:full
         docker push ghcr.io/${{ github.repository }}:latest
-        docker push ghcr.io/${{ github.repository }}:httpd
+        docker push ghcr.io/${{ github.repository }}:full
 
     - name: Export docker image to tar
-      run: docker save sh4d0wup | zstd > sh4d0wup.tar.zst
+      run: docker save sh4d0wup:full | zstd -T0 -10 > sh4d0wup.tar.zst
 
     - name: Upload as github artifact
       uses: actions/upload-artifact@v3
@@ -86,4 +87,4 @@ jobs:
       - name: Import docker image
         run: zstd -cd container/sh4d0wup.tar.zst | docker load
       - name: Compile all plots
-        run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt sh4d0wup'
+        run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt sh4d0wup:full'

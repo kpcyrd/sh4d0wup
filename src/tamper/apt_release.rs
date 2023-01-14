@@ -199,6 +199,11 @@ pub fn patch<W: Write>(
                         debug!("Patching md5 for {:?} to {:?}", checksum.path, md5);
                         checksum.hash = md5;
                     }
+                    "SHA1" => {
+                        let sha1 = artifact.sha1().to_string();
+                        debug!("Patching sha1 for {:?} to {:?}", checksum.path, sha1);
+                        checksum.hash = sha1;
+                    }
                     "SHA256" => {
                         let sha256 = artifact.sha256().to_string();
                         debug!("Patching sha256 for {:?} to {:?}", checksum.path, sha256);

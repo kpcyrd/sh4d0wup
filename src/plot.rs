@@ -154,14 +154,14 @@ impl Ctx {
         for (key, artifact) in &plot.artifacts {
             if let Artifact::Url(artifact) = artifact {
                 if let Some(existing) = existing.remove(key) {
-                    let existing_sha256 = existing.sha256();
                     info!(
-                        "Found existing artifact for url artifact {:?}: {:?} (sha256:{})",
+                        "Found existing artifact for url artifact {:?}: {:?}",
                         key,
-                        artifact.url.to_string(),
-                        existing_sha256
+                        artifact.url.to_string()
                     );
                     if let Some(expected) = &artifact.sha256 {
+                        info!("Verifying sha256:{:?} matches cache content...", expected);
+                        let existing_sha256 = existing.sha256();
                         if *expected != *existing_sha256 {
                             debug!("Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}", expected, existing_sha256);
                             continue;

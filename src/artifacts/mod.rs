@@ -143,43 +143,38 @@ impl Artifact {
         plot_extras: &mut PlotExtras,
         key: &str,
     ) -> Result<Option<Vec<u8>>> {
-        let existing_artifact = plot_extras.artifacts.get(key);
-
-        match self {
-            Artifact::File(_) => Ok(None),
-            Artifact::Url(artifact) => {
-                if existing_artifact.is_some() {
-                    debug!("Artifact {:?} is already registered, skipping...", key);
-                    *self = Artifact::Memory;
-                    Ok(None)
-                } else {
-                    info!(
-                        "Downloading artifact into memory: {:?}",
-                        artifact.url.to_string()
-                    );
-                    let buf = artifact
-                        .download(&mut plot_extras.sessions)
-                        .await
-                        .context("Failed to resolve url artifact")?;
-                    *self = Artifact::Memory;
-                    Ok(Some(buf.to_vec()))
-                }
+        match (&mut *self, plot_extras.artifacts.get(key)) {
+            (_, Some(_existing)) => {
+                debug!("Artifact {:?} is already registered, skipping...", key);
+                *self = Artifact::Memory;
+                Ok(None)
             }
-            Artifact::Inline(inline) => {
+            (Artifact::File(_), None) => Ok(None),
+            (Artifact::Url(artifact), None) => {
+                info!(
+                    "Downloading artifact into memory: {:?}",
+                    artifact.url.to_string()
+                );
+                let buf = artifact
+                    .download(&mut plot_extras.sessions)
+                    .await
+                    .context("Failed to resolve url artifact")?;
+                *self = Artifact::Memory;
+                Ok(Some(buf.to_vec()))
+            }
+            (Artifact::Inline(inline), None) => {
                 let data = mem::take(&mut inline.data);
                 let bytes = data.into_bytes();
                 *self = Artifact::Memory;
                 Ok(Some(bytes))
             }
-            Artifact::Signature(artifact) => {
-                // TODO: reuse signature form existing_artifact if it is valid
-
+            (Artifact::Signature(artifact), None) => {
                 let sig = artifact
                     .resolve(plot_extras)
                     .context("Failed to resolve signature artifact")?;
                 Ok(Some(sig))
             }
-            Artifact::Infect(artifact) => {
+            (Artifact::Infect(artifact), None) => {
                 info!("Infecting artifact...");
                 let buf = artifact
                     .resolve(plot_extras)
@@ -187,14 +182,14 @@ impl Artifact {
                     .context("Failed to infect artifact")?;
                 Ok(Some(buf))
             }
-            Artifact::Tamper(artifact) => {
+            (Artifact::Tamper(artifact), None) => {
                 info!("Tampering with index...");
                 let buf = artifact
                     .resolve(plot_extras)
                     .context("Failed to tamper with artifact")?;
                 Ok(Some(buf))
             }
-            Artifact::Compress(compress) => {
+            (Artifact::Compress(compress), None) => {
                 info!(
                     "Compressing artifact {:?} with {:?}...",
                     compress.artifact, compress.compression
@@ -204,20 +199,20 @@ impl Artifact {
                     .context("Failed to compress artifact")?;
                 Ok(Some(buf))
             }
-            Artifact::Extract(extract) => {
+            (Artifact::Extract(extract), None) => {
                 let buf = extract
                     .resolve(&mut plot_extras.artifacts)
                     .context("Failed to extract from artifact")?;
                 Ok(Some(buf))
             }
-            Artifact::Git(git) => {
+            (Artifact::Git(git), None) => {
                 let buf = git
                     .resolve(&mut plot_extras.artifacts)
                     .await
                     .context("Failed to build git object")?;
                 Ok(Some(buf))
             }
-            Artifact::Memory => Ok(None),
+            (Artifact::Memory, None) => Ok(None),
         }
     }
 }

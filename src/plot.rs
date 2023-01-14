@@ -853,7 +853,9 @@ pub struct InstallKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::artifacts;
     use crate::build;
+    use crate::infect;
 
     #[test]
     fn test_parse_pkg_filter_name() {
@@ -914,7 +916,9 @@ mod tests {
         let plot = r#"routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        build::build(&mut plot, Option::<File>::None)
+            .await?
+            .write(&mut w)?;
         assert_eq!(plot, Plot::default());
 
         let ctx = Ctx::load_from_reader(&w[..], Option::<File>::None).await?;
@@ -934,7 +938,9 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        build::build(&mut plot, Option::<File>::None)
+            .await?
+            .write(&mut w)?;
         assert_eq!(
             plot,
             Plot {
@@ -967,6 +973,74 @@ routes: []"#;
     }
 
     #[tokio::test]
+    async fn test_ensure_embedded_artifacts_are_used() -> Result<()> {
+        let plot = r#"
+artifacts:
+  src:
+    type: inline
+    data: |
+      hello world
+  foo:
+    type: inline
+    data: |
+      this should not be overwritten
+
+routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        let mut archive = build::build(&mut plot, Option::<File>::None).await?;
+        archive.plot = r#"
+{
+  "artifacts": {
+    "src": {"type": "memory"},
+    "foo": {
+      "type": "infect",
+      "infect": "sh",
+      "artifact": "src",
+      "payload": "id",
+      "hook_functions": ["foo"]
+    }
+  },
+  "routes": []
+}
+"#
+        .to_string();
+        archive.write(&mut w)?;
+        assert_eq!(
+            plot,
+            Plot {
+                artifacts: indexmap::indexmap! {
+                    "src".to_string() => Artifact::Memory,
+                    "foo".to_string() => Artifact::Memory,
+                },
+                ..Default::default()
+            }
+        );
+
+        let ctx = Ctx::load_from_reader(&w[..], Option::<File>::None).await?;
+        assert_eq!(
+            ctx,
+            Ctx {
+                plot: Plot {
+                    artifacts: indexmap::indexmap! {
+                        "src".to_string() => Artifact::Memory,
+                        "foo".to_string() => Artifact::Memory,
+                    },
+                    ..Default::default()
+                },
+                extras: PlotExtras {
+                    artifacts: maplit::btreemap! [
+                        "src".to_string() => HashedArtifact::new("hello world\n".into()),
+                        "foo".to_string() => HashedArtifact::new("this should not be overwritten\n".into()),
+                    ],
+                    ..Default::default()
+                },
+            }
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_cache_from() -> Result<()> {
         let plot = r#"
 artifacts:
@@ -978,7 +1052,9 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        build::build(&mut plot, Option::<File>::None)
+            .await?
+            .write(&mut w)?;
         assert_eq!(
             plot,
             Plot {
@@ -1029,7 +1105,9 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut w, &mut plot, Option::<File>::None).await?;
+        build::build(&mut plot, Option::<File>::None)
+            .await?
+            .write(&mut w)?;
         assert_eq!(
             plot,
             Plot {
@@ -1043,6 +1121,67 @@ routes: []"#;
         let plot = br#"routes: []"#;
         let ctx = Ctx::load_from_reader(&plot[..], Some(&w[..])).await?;
         assert_eq!(ctx, Ctx::default());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_cache_from_only_caches_url_artifacts() -> Result<()> {
+        let plot = r#"
+artifacts:
+  url:
+    type: inline
+    data: hello world
+  infect:
+    type: inline
+    data: this should be regenerated
+
+routes: []"#;
+        let mut plot = Plot::load_from_str(plot)?;
+        let mut w = Vec::new();
+        build::build(&mut plot, Option::<File>::None)
+            .await?
+            .write(&mut w)?;
+
+        let plot = br#"
+artifacts:
+  url:
+    type: url
+    url: https://this.is.invalid/file.bin
+  infect:
+    type: infect
+    infect: sh
+    artifact: url
+    payload: id
+    hook_functions: [foo]
+
+routes: []"#;
+        let ctx = Ctx::load_from_reader(&plot[..], Some(&w[..])).await?;
+        assert_eq!(
+            ctx,
+            Ctx {
+                plot: Plot {
+                    artifacts: indexmap::indexmap! {
+                        "url".to_string() => Artifact::Memory,
+                        "infect".to_string() => Artifact::Infect(artifacts::infect::InfectArtifact::Sh(artifacts::infect::InfectShArtifact {
+                            artifact: "url".to_string(),
+                            config: infect::sh::Infect {
+                                hook_functions: vec!["foo".to_string()],
+                                payload: "id".to_string(),
+                            }
+                        }
+                        )),
+                    },
+                    ..Default::default()
+                },
+                extras: PlotExtras {
+                    artifacts: maplit::btreemap! [
+                        "url".to_string() => HashedArtifact::new("hello world".into()),
+                        "infect".to_string() => HashedArtifact::new("hello world".into()),
+                    ],
+                    ..Default::default()
+                },
+            }
+        );
         Ok(())
     }
 }

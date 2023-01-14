@@ -30,12 +30,6 @@ impl<W: Write> ArchiveBuilder<W> {
         Ok(())
     }
 
-    pub fn append_json<T: serde::Serialize>(&mut self, path: &str, data: &T) -> Result<()> {
-        let buf = serde_json::to_vec(data)?;
-        self.append(path, &buf)?;
-        Ok(())
-    }
-
     pub fn finish(self) -> Result<()> {
         debug!("Finishing archive...");
         self.builder.into_inner()?;
@@ -43,7 +37,12 @@ impl<W: Write> ArchiveBuilder<W> {
     }
 }
 
-pub async fn build<W: Write, R: Read>(w: W, plot: &mut Plot, cache_from: Option<R>) -> Result<()> {
+pub struct CompiledArchive {
+    pub plot: String,
+    pub artifacts: BTreeMap<String, HashedArtifact>,
+}
+
+pub async fn build<R: Read>(plot: &mut Plot, cache_from: Option<R>) -> Result<CompiledArchive> {
     let mut artifacts = BTreeMap::new();
     if let Some(f) = cache_from {
         debug!("Loading existing plot as cache...");
@@ -54,10 +53,6 @@ pub async fn build<W: Write, R: Read>(w: W, plot: &mut Plot, cache_from: Option<
     }
 
     debug!("Setting up compressed writer...");
-    let w = Encoder::new(w, ZSTD_COMPRESSION_LEVEL)
-        .context("Failed to setup zstd stream")?
-        .auto_finish();
-
     info!("Resolving plot...");
     let PlotExtras {
         mut artifacts,
@@ -87,16 +82,27 @@ pub async fn build<W: Write, R: Read>(w: W, plot: &mut Plot, cache_from: Option<
         );
     }
 
-    info!("Writing archive...");
-    let mut tar = ArchiveBuilder::new(w);
-    tar.append_json("plot.json", &plot)?;
-    for (key, value) in artifacts {
-        tar.append(&key, value.as_bytes())?;
+    let plot = serde_json::to_string(&plot)?;
+
+    Ok(CompiledArchive { plot, artifacts })
+}
+
+impl CompiledArchive {
+    pub fn write<W: Write>(&self, w: W) -> Result<()> {
+        info!("Writing archive...");
+        let w = Encoder::new(w, ZSTD_COMPRESSION_LEVEL)
+            .context("Failed to setup zstd stream")?
+            .auto_finish();
+
+        let mut tar = ArchiveBuilder::new(w);
+        tar.append("plot.json", self.plot.as_bytes())?;
+        for (key, value) in &self.artifacts {
+            tar.append(key, value.as_bytes())?;
+        }
+
+        tar.finish()?;
+        Ok(())
     }
-
-    tar.finish()?;
-
-    Ok(())
 }
 
 pub async fn run(args: args::Build) -> Result<()> {
@@ -114,5 +120,7 @@ pub async fn run(args: args::Build) -> Result<()> {
     let f = File::create(&args.output)
         .with_context(|| anyhow!("Failed to open output file: {:?}", args.output))?;
 
-    build(f, &mut plot, cache_from).await
+    let archive = build(&mut plot, cache_from).await?;
+    archive.write(&f)?;
+    Ok(())
 }

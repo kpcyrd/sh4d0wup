@@ -14,7 +14,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: docker/setup-buildx-action@v2
 
-    - name: Build Docker image
+    - name: Build Docker image (full)
       uses: docker/build-push-action@v3
       with:
         tags: sh4d0wup
@@ -22,8 +22,18 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Test the Docker image
-      run: docker run --rm sh4d0wup --help
+    - name: Build Docker image (httpd)
+      uses: docker/build-push-action@v3
+      with:
+        tags: sh4d0wup:httpd
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test the Docker images
+      run: |
+        docker run --rm sh4d0wup --help
+        docker run --rm sh4d0wup:httpd --help
 
     - name: Login to github container registry
       if: github.event_name != 'pull_request'
@@ -37,16 +47,42 @@ jobs:
       if: github.event_name == 'push' && github.ref_name == 'main'
       run: |
         docker tag sh4d0wup ghcr.io/${{ github.repository }}:edge
+        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:edge-httpd
         docker push ghcr.io/${{ github.repository }}:edge
+        docker push ghcr.io/${{ github.repository }}:edge-httpd
 
     - name: Push the image to `${{ github.ref_name }}`
       if: github.ref_type == 'tag'
       run: |
         docker tag sh4d0wup ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:${{ github.ref_name }}-httpd
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-httpd
 
     - name: Push the image to `latest`
       if: github.ref_type == 'tag'
       run: |
         docker tag sh4d0wup ghcr.io/${{ github.repository }}:latest
+        docker tag sh4d0wup:httpd ghcr.io/${{ github.repository }}:httpd
         docker push ghcr.io/${{ github.repository }}:latest
+        docker push ghcr.io/${{ github.repository }}:httpd
+
+    - name: Export docker image to tar
+      run: docker save -o sh4d0wup.tar sh4d0wup
+
+    - name: Upload as github artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: container
+        path: sh4d0wup.tar
+
+  make-plots-docker:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+      - name: Import docker image
+        run: docker load -i container/sh4d0wup.tar
+      - name: Compile all plots
+        run: make -j8 sh4d0wup='docker run --rm -v "$$PWD":/mnt -w /mnt sh4d0wup'

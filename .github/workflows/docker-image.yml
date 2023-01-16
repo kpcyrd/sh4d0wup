@@ -62,8 +62,8 @@ jobs:
         docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:edge
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:edge-full
         docker push ghcr.io/${{ github.repository }}:edge-smol
-        docker push ghcr.io/${{ github.repository }}:edge
         docker push ghcr.io/${{ github.repository }}:edge-full
+        docker push ghcr.io/${{ github.repository }}:edge
 
     - name: Push the image to `${{ github.ref_name }}`
       if: github.ref_type == 'tag'
@@ -72,8 +72,8 @@ jobs:
         docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-smol
-        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}-full
+        docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
     - name: Push the image to `latest`
       if: github.ref_type == 'tag'
@@ -82,8 +82,8 @@ jobs:
         docker tag sh4d0wup:default ghcr.io/${{ github.repository }}:latest
         docker tag sh4d0wup:full ghcr.io/${{ github.repository }}:full
         docker push ghcr.io/${{ github.repository }}:smol
-        docker push ghcr.io/${{ github.repository }}:latest
         docker push ghcr.io/${{ github.repository }}:full
+        docker push ghcr.io/${{ github.repository }}:latest
 
     - name: Export docker image to tar
       run: docker save sh4d0wup | zstd -T0 -10 > sh4d0wup.tar.zst

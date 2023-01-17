@@ -714,9 +714,9 @@ checksum = "c9b0705efd4599c15a38151f4721f7bc388306f61084d3bfd50bd07fbca5cb60"
 
 [[package]]
 name = "ed25519"
-version = "1.5.2"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
+checksum = "91cff35c70bba8a626e3185d8cd48cc11b5437e1a5bcd15b9b5fa3c64b6dfee7"
 dependencies = [
  "signature",
 ]
@@ -1012,23 +1012,23 @@ checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 
 [[package]]
 name = "git-actor"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "599cb75eb7c3bf03149b7ab70c66bc0b9a432a092b1154b49d21b49fc7e4bd93"
+checksum = "d9e5fd7bc63ad527d64584f8d01f99b89c051f5fbb8144b58ae5f812775065cf"
 dependencies = [
  "bstr",
  "btoi",
  "git-date",
  "itoa 1.0.5",
- "nom 7.1.2",
+ "nom 7.1.3",
  "quick-error 2.0.1",
 ]
 
 [[package]]
 name = "git-date"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a2874ce2f3a77cb144167901ea830969e5c991eac7bfee85e6e3f53ef9fcdf2"
+checksum = "3777ed3a92334193bc5032d468dee2ddb7d1101263e58e0d2edcc308c06948b5"
 dependencies = [
  "bstr",
  "itoa 1.0.5",
@@ -1059,9 +1059,9 @@ dependencies = [
 
 [[package]]
 name = "git-object"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fad6c2ddb376b99172dc8b651e11be4cb49cef423de4fad563ebbda4fee3fcf6"
+checksum = "3f8563e2d6f524d7053f3106714f99ecdc3adbba2cb7108c09d71a02579f2e19"
 dependencies = [
  "bstr",
  "btoi",
@@ -1071,7 +1071,7 @@ dependencies = [
  "git-validate",
  "hex",
  "itoa 1.0.5",
- "nom 7.1.2",
+ "nom 7.1.3",
  "smallvec",
  "thiserror",
 ]
@@ -1717,9 +1717,9 @@ dependencies = [
 
 [[package]]
 name = "nom"
-version = "7.1.2"
+version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5507769c4919c998e69e49c839d9dc6e693ede4cc4290d6ad8b41d4f09c548c"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
@@ -2133,9 +2133,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.49"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57a8eca9f9c4ffde41714334dee777596264c7825420f521abc92b5b5deb63a5"
+checksum = "6ef7d57beacfaf2d8aee5937dab7b7f28de3cb8b1828479bb5de2a7106f2bae2"
 dependencies = [
  "unicode-ident",
 ]
@@ -2843,9 +2843,9 @@ dependencies = [
 
 [[package]]
 name = "talktosc"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d165e1d4852d6a986a400f085b39c2786f9647aa7af53aabe168caa11629c28f"
+checksum = "e3f752276a77f27ce7ad75ee84c8aecd292867fb08311b0a77011ee1896c14dc"
 dependencies = [
  "pcsc",
  "thiserror",
@@ -2889,9 +2889,9 @@ dependencies = [
 
 [[package]]
 name = "termcolor"
-version = "1.1.3"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755"
+checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
 ]
@@ -3104,7 +3104,7 @@ dependencies = [
  "bytecount",
  "fnv",
  "lazy_static",
- "nom 7.1.2",
+ "nom 7.1.3",
  "once_cell",
  "petgraph",
 ]

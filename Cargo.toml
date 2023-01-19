@@ -12,12 +12,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.63"
 ar = "0.9.0"
-base64 = "0.20"
 blake2 = "0.10.4"
 bstr = { version = "1.1.0", features = ["serde"] }
 bzip2 = "0.4.3"
 clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4.0.3"
+data-encoding = "2.3.3"
 env_logger = "0.10"
 flate2 = "1.0.24"
 futures = "0.3.25"
@@ -38,7 +38,7 @@ md-5 = "0.10.5"
 memchr = "2.5.0"
 nix = { version = "0.26.0", default-features = false, features = ["sched"] }
 num_cpus = "1.15.0"
-oci-spec = { version = "0.5.8", features = ["image"], default-features = false }
+oci-spec = { version = "0.6", features = ["image"], default-features = false }
 once_cell = "1.15.0"
 openssl = "0.10.42"
 osshkeys = { version = "0.6.2", features = ["rustcrypto-cipher"], default-features = false }

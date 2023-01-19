@@ -1,5 +1,6 @@
 use crate::args;
 use crate::errors::*;
+use data_encoding::BASE64;
 use in_toto::crypto::{KeyType, PrivateKey, SignatureScheme};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -49,8 +50,8 @@ pub fn generate(_config: &InTotoGenerate) -> Result<InTotoEmbedded> {
         .context("Failed to load generated key")?;
 
     let public_key = secret_key.public().as_bytes();
-    let public_key = base64::encode(public_key);
-    let secret_key = base64::encode(&secret_key_buf);
+    let public_key = BASE64.encode(public_key);
+    let secret_key = BASE64.encode(&secret_key_buf);
 
     Ok(InTotoEmbedded {
         public_key: Some(public_key),

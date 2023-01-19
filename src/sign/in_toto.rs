@@ -1,6 +1,7 @@
 use crate::args;
 use crate::errors::*;
 use crate::keygen::in_toto::InTotoEmbedded;
+use data_encoding::BASE64;
 use in_toto::crypto::{self, HashAlgorithm, HashValue, PrivateKey, SignatureScheme};
 use in_toto::interchange::Json;
 use in_toto::models::{LinkMetadataBuilder, VirtualTargetPath};
@@ -61,8 +62,9 @@ pub fn read_artifact(
 }
 
 pub fn sign(signer: &InTotoEmbedded, config: &SigningConfig) -> Result<Vec<u8>> {
-    let secret_key =
-        base64::decode(signer.secret_key.trim()).context("Failed to decode signing key")?;
+    let secret_key = BASE64
+        .decode(signer.secret_key.trim().as_bytes())
+        .context("Failed to decode signing key")?;
     let secret_key = PrivateKey::from_pkcs8(&secret_key, SignatureScheme::Ed25519)
         .context("Failed to load signing key")?;
 

@@ -2,6 +2,7 @@ use crate::errors::*;
 use crate::plot::{self, PkgRef, PlotExtras};
 use crate::sign;
 use crate::utils;
+use data_encoding::BASE64;
 use indexmap::IndexMap;
 use openssl::hash::{hash, MessageDigest};
 use std::fmt;
@@ -91,7 +92,7 @@ pub fn calculate_pkg_data_body(pkg: &[u8]) -> Result<String> {
     let mut reader = pkg;
     let _sig = utils::apk::read_gzip_to_end(&mut reader)?;
     let res = hash(MessageDigest::sha1(), reader)?;
-    Ok(format!("Q1{}", base64::encode(res)))
+    Ok(format!("Q1{}", BASE64.encode(&res)))
 }
 
 pub fn patch_index_buf(

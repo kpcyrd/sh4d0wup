@@ -13,6 +13,7 @@ use tokio::io::AsyncWrite;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub backend: Option<codegen::Backend>,
+    pub target: Option<String>,
     pub exec_path: Option<String>,
     #[serde(default)]
     pub args: Vec<String>,
@@ -38,6 +39,7 @@ impl TryFrom<args::InfectElfFwdStdin> for Infect {
     fn try_from(args: args::InfectElfFwdStdin) -> Result<Self> {
         Ok(Infect {
             backend: args.compile.backend,
+            target: args.compile.target,
             exec_path: args.exec,
             args: args.args,
         })
@@ -50,7 +52,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     out: &mut W,
 ) -> Result<()> {
     let dir = tempfile::tempdir()?;
-    let bin_path = dir.path().join("bin");
+    let bin_path = dir.path().join("bin.exe");
 
     match config.backend {
         Some(codegen::Backend::C) | None => c::infect(&bin_path, config, orig).await?,

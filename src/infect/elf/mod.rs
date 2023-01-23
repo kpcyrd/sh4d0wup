@@ -17,6 +17,7 @@ pub enum Payload<'a> {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Infect {
     pub backend: Option<codegen::Backend>,
+    pub target: Option<String>,
     pub payload: Option<String>,
     #[serde(default)]
     pub self_replace: bool,
@@ -29,6 +30,7 @@ impl TryFrom<args::InfectElf> for Infect {
     fn try_from(args: args::InfectElf) -> Result<Self> {
         Ok(Infect {
             backend: args.compile.backend,
+            target: args.compile.target,
             payload: args.payload,
             self_replace: args.self_replace,
             assume_path: args.assume_path,

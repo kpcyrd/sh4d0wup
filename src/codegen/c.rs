@@ -35,8 +35,8 @@ pub struct Compiler {
 impl Compiler {
     pub async fn spawn(out: &Path) -> Result<Self> {
         info!("Spawning C compiler...");
-        let mut child = Command::new("gcc")
-            .arg("-static")
+        let mut cmd = Command::new("gcc");
+        cmd.arg("-static")
             .arg("-s")
             .arg("-Os")
             .arg("-o")
@@ -44,9 +44,13 @@ impl Compiler {
             .arg("-xc")
             .arg("-")
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn C compiler")?;
+            .stdout(Stdio::piped());
+        debug!(
+            "Setting up process: {:?} {:?}",
+            cmd.as_std().get_program(),
+            cmd.as_std().get_args()
+        );
+        let mut child = cmd.spawn().context("Failed to spawn C compiler")?;
 
         let stdin = child.stdin.take().unwrap();
         let compiler = Compiler { child, stdin };

@@ -31,19 +31,24 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub async fn spawn(out: &Path) -> Result<Self> {
+    pub async fn spawn(out: &Path, target: Option<&str>) -> Result<Self> {
+        let target = target.unwrap_or("x86_64-unknown-linux-musl");
         info!("Spawning Rust compiler...");
-        let mut child = Command::new("rustc")
-            .arg("-Cpanic=abort")
+        let mut cmd = Command::new("rustc");
+        cmd.arg("-Cpanic=abort")
             .arg("-Cstrip=symbols")
-            .arg("--target=x86_64-unknown-linux-musl")
+            .arg(format!("--target={}", target))
             .arg("-o")
             .arg(out)
             .arg("-")
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn Rust compiler")?;
+            .stdout(Stdio::piped());
+        debug!(
+            "Setting up process: {:?} {:?}",
+            cmd.as_std().get_program(),
+            cmd.as_std().get_args()
+        );
+        let mut child = cmd.spawn().context("Failed to spawn Rust compiler")?;
 
         let stdin = child.stdin.take().unwrap();
         let compiler = Compiler { child, stdin };

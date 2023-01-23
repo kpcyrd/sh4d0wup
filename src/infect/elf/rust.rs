@@ -55,7 +55,7 @@ pub async fn infect(
     orig: &[u8],
     payload: Option<&Payload<'_>>,
 ) -> Result<()> {
-    let mut compiler = rust::Compiler::spawn(bin).await?;
+    let mut compiler = rust::Compiler::spawn(bin, config.target.as_deref()).await?;
 
     info!("Generating source code...");
     compiler

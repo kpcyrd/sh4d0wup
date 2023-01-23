@@ -59,16 +59,20 @@ impl Compiler {
 
     pub fn done(self) -> Result<PendingCompile> {
         info!("Spawning Go compiler...");
-        let child = Command::new("go")
-            .arg("build")
+        let mut cmd = Command::new("go");
+        cmd.arg("build")
             .arg("-ldflags=-s -w")
             .arg("-o")
             .arg(&self.out)
             .arg(&self.src)
             .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn Go compiler")?;
+            .stdout(Stdio::piped());
+        debug!(
+            "Setting up process: {:?} {:?}",
+            cmd.as_std().get_program(),
+            cmd.as_std().get_args()
+        );
+        let child = cmd.spawn().context("Failed to spawn Go compiler")?;
         Ok(PendingCompile { child })
     }
 }

@@ -7,7 +7,7 @@ use tokio::process::{Child, ChildStdin, Command};
 
 pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
     for b in data {
-        write!(out, "\\x{:02x}", b)?;
+        write!(out, "\\x{b:02x}")?;
     }
     Ok(())
 }
@@ -37,7 +37,7 @@ impl Compiler {
         let mut cmd = Command::new("rustc");
         cmd.arg("-Cpanic=abort")
             .arg("-Cstrip=symbols")
-            .arg(format!("--target={}", target))
+            .arg(format!("--target={target}"))
             .arg("-o")
             .arg(out)
             .arg("-")

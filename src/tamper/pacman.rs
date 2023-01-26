@@ -18,7 +18,7 @@ impl ArchiveFolder {
     pub fn update_from_pkg(&mut self, pkg: &Pkg) -> Result<()> {
         let name = pkg.name();
         let version = pkg.version();
-        self.header.set_path(format!("{}-{}/", name, version))?;
+        self.header.set_path(format!("{name}-{version}/"))?;
         self.header.set_cksum();
         Ok(())
     }
@@ -89,9 +89,7 @@ impl Pkg {
     }
 
     pub fn set_key(&mut self, key: String, values: Vec<String>) -> Result<()> {
-        let first = if let Some(value) = values.first() {
-            value
-        } else {
+        let Some(first) = values.first() else {
             return self.delete_key(&key);
         };
 
@@ -205,7 +203,7 @@ pub fn patch<W: Write>(
                     let name = pkg.name();
                     let version = pkg.version();
 
-                    header.set_path(format!("{}-{}/desc", name, version))?;
+                    header.set_path(format!("{name}-{version}/desc"))?;
                     header.set_size(buf.len() as u64);
                     header.set_cksum();
 

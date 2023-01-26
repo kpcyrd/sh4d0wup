@@ -31,16 +31,16 @@ impl fmt::Display for Pkg {
         for (key, values) in &self.map {
             // we always expect at least one value
             if let Some((first, extra)) = values.split_first() {
-                write!(w, "{}", key)?;
+                write!(w, "{key}")?;
 
                 match first.as_str() {
                     "" => writeln!(w, ":")?,
                     " " => writeln!(w, ": ")?,
-                    _ => writeln!(w, ": {}", first)?,
+                    _ => writeln!(w, ": {first}")?,
                 }
 
                 for value in extra {
-                    writeln!(w, " {}", value)?;
+                    writeln!(w, " {value}")?;
                 }
             }
         }
@@ -118,9 +118,7 @@ impl Pkg {
     }
 
     pub fn set_key(&mut self, key: String, values: Vec<String>) -> Result<()> {
-        let first = if let Some(value) = values.first() {
-            value
-        } else {
+        let Some(first) = values.first() else {
             return self.delete_key(&key);
         };
 
@@ -195,7 +193,7 @@ pub fn patch<W: Write>(
             }
         }
 
-        writeln!(out, "{}", pkg)?;
+        writeln!(out, "{pkg}")?;
     }
 
     Ok(())
@@ -270,7 +268,7 @@ SHA256: 406a3de1f6357554e1606f4dd7c7a8d1360d815cf1453d9e72cee36d92eba7c7
         )?;
 
         assert_eq!(pkg, expected);
-        assert_eq!(format!("{}\n", pkg).as_bytes(), data);
+        assert_eq!(format!("{pkg}\n").as_bytes(), data);
         Ok(())
     }
 
@@ -354,7 +352,7 @@ Section: misc
         expected.add_values("Section", &["misc"])?;
 
         assert_eq!(pkg, expected);
-        assert_eq!(format!("{}\n", pkg).as_bytes(), data);
+        assert_eq!(format!("{pkg}\n").as_bytes(), data);
         Ok(())
     }
 }

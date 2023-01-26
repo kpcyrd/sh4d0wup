@@ -16,12 +16,12 @@ pub struct Release {
 impl fmt::Display for Release {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
         for (key, value) in &self.fields {
-            writeln!(w, "{}: {}", key, value)?;
+            writeln!(w, "{key}: {value}")?;
         }
         for (key, checksums) in &self.checksums {
-            writeln!(w, "{}:", key)?;
+            writeln!(w, "{key}:")?;
             for entry in checksums {
-                writeln!(w, " {}", entry)?;
+                writeln!(w, " {entry}")?;
             }
         }
         Ok(())
@@ -249,7 +249,7 @@ pub fn patch<W: Write>(
         out.write_all(&release)?;
     } else {
         // serialize directly to stdout for performance
-        write!(out, "{}", release)?;
+        write!(out, "{release}")?;
     }
 
     Ok(())

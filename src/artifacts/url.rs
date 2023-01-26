@@ -25,7 +25,7 @@ impl UrlArtifact {
         if let Some(oci_auth) = &self.oci_auth {
             let token = sessions.create_oci_auth_session(oci_auth).await?;
             if let Some(token) = token {
-                let value = format!("Bearer {}", token);
+                let value = format!("Bearer {token}");
                 let value = value.parse().with_context(|| {
                     anyhow!("Failed to convert input to http header value: {:?}", value)
                 })?;

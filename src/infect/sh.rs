@@ -82,7 +82,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
                 if let syntax::Command::Function(fun) = cmd.as_ref() {
                     let name = fun.name.to_string();
                     if config.should_hook_fn(&name) {
-                        let patched_name = format!("{}_{}", name, hash);
+                        let patched_name = format!("{name}_{hash}");
                         let position = &fun.name.location.range;
                         let code = fun.body.to_string();
 
@@ -145,11 +145,8 @@ pub async fn infect<W: AsyncWrite + Unpin>(
                         .as_bytes(),
                     )
                     .await?;
-                    out.write_all(
-                        format!("{}() {{ pwn_{hash}; {} \"$@\"; }}\n", old, new, hash = hash)
-                            .as_bytes(),
-                    )
-                    .await?;
+                    out.write_all(format!("{old}() {{ pwn_{hash}; {new} \"$@\"; }}\n").as_bytes())
+                        .await?;
                     installed_pwn_function = true;
                 }
                 out.write_all(new.as_bytes()).await?

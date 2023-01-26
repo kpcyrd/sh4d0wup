@@ -118,7 +118,7 @@ pub fn write_tar_entry<W: Write>(
     key: &str,
     buf: &[u8],
 ) -> Result<()> {
-    header.set_path(format!("{}/{}", id, key))?;
+    header.set_path(format!("{id}/{key}"))?;
     header.set_size(buf.len() as u64);
     header.set_cksum();
     builder.append(header, &mut &buf[..])?;
@@ -168,7 +168,7 @@ pub fn write_patch_layer<W: Write>(
     if let Some(payload) = &args.payload {
         let mut header = tar::Header::new_ustar();
         header.set_mode(0o755);
-        header.set_path(format!("{}/", id))?;
+        header.set_path(format!("{id}/"))?;
         header.set_cksum();
         builder.append(&header, &mut io::empty())?;
 
@@ -189,7 +189,7 @@ pub fn write_patch_layer<W: Write>(
         write_tar_entry(builder, &mut header, &id, "VERSION", buf.as_bytes())?;
 
         debug!("Generating metadata...");
-        config.set_entrypoint(vec![format!("/{}", entrypoint_name)]);
+        config.set_entrypoint(vec![format!("/{entrypoint_name}")]);
         config.add_rootfs_diff(rootfs_hash);
         let buf = serde_json::to_string(&config)?;
         debug!("Adding metadata to layer: {:?}", buf);
@@ -197,13 +197,13 @@ pub fn write_patch_layer<W: Write>(
 
         debug!("Adding fs data to layer");
         write_tar_entry(builder, &mut header, &id, "layer.tar", &layer_data)?;
-        Ok((format!("{}/json", id), Some(format!("{}/layer.tar", id))))
+        Ok((format!("{id}/json"), Some(format!("{id}/layer.tar"))))
     } else {
         let buf = serde_json::to_string(&config)?;
         debug!("Adding metadata to layer: {:?}", buf);
         let buf = buf.as_bytes();
 
-        let path = format!("{}.json", id);
+        let path = format!("{id}.json");
         let mut header = tar::Header::new_ustar();
         header.set_mode(0o644);
         header.set_path(&path)?;

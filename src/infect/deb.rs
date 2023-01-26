@@ -31,7 +31,7 @@ impl FromStr for DebControl {
                 let (_key, value) = map.last_mut().context(
                     "Invalid control data: Tried to continue a previous value that doesn't exist",
                 )?;
-                write!(value, "\n{}", line).ok();
+                write!(value, "\n{line}").ok();
             } else if let Some((key, value)) = line.split_once(": ") {
                 map.insert(key.to_string(), value.to_string());
             }
@@ -48,7 +48,7 @@ impl ToString for DebControl {
             let mut iter = value.split('\n');
             writeln!(out, "{}: {}", key, iter.next().unwrap()).ok();
             for extra_line in iter {
-                writeln!(out, " {}", extra_line).ok();
+                writeln!(out, " {extra_line}").ok();
             }
         }
         out
@@ -158,7 +158,7 @@ pub fn patch_control_tar(args: &Infect, buf: &[u8]) -> Result<Vec<u8>> {
         if let (Some(payload), false) = (&args.payload, had_postinst) {
             info!("Package has no postinst hook, creating one from scratch...");
             let mut header = control_header.context("Package had no control file")?;
-            let script = format!("#!/bin/sh\n{}\n", payload);
+            let script = format!("#!/bin/sh\n{payload}\n");
             let buf = script.as_bytes();
             header.set_path("./postinst")?;
             header.set_mode(0o755);

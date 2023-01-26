@@ -136,7 +136,7 @@ impl Commit {
         nonce: usize,
     ) -> Result<Option<String>> {
         let mut nonce_buf = BString::new(vec![]);
-        write!(nonce_buf, "{}", nonce)?;
+        write!(nonce_buf, "{nonce}")?;
         commit.extra_headers[idx].1 = nonce_buf;
 
         commit_buf.clear();
@@ -343,7 +343,7 @@ impl RefList {
     pub fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
         for (k, v) in &self.refs {
             let oid = v.resolve_oid(artifacts)?;
-            writeln!(out, "{}\t{}", oid, k)?;
+            writeln!(out, "{oid}\t{k}")?;
         }
         Ok(())
     }

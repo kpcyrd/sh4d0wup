@@ -123,7 +123,7 @@ impl Container {
             .first()
             .context("Command for container can't be empty")?;
         let cmd_args = &init[1..];
-        let entrypoint = format!("--entrypoint={}", bin);
+        let entrypoint = format!("--entrypoint={bin}");
         let mut podman_args = vec![
             "container",
             "run",
@@ -168,7 +168,7 @@ impl Container {
             a.push("-i".to_string());
         }
         for env in env {
-            a.push(format!("-e={}", env));
+            a.push(format!("-e={env}"));
         }
         a.extend(["--".to_string(), self.id.to_string()]);
         a.extend(args.iter().map(|x| x.as_ref().to_string()));

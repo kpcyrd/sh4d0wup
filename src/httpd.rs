@@ -48,7 +48,7 @@ pub mod log {
 
         fn append<T: std::fmt::Debug>(mut self, key: &str, value: Option<T>) -> Self {
             if let Some(value) = value {
-                write!(self.0, " {}={:?}", key, value).ok();
+                write!(self.0, " {key}={value:?}").ok();
             }
             self
         }
@@ -61,7 +61,7 @@ pub mod log {
     pub fn url_to_string(uri: &FullPath, params: &QueryParameters) -> String {
         let mut url = uri.as_str().to_string();
         if let Some(query) = params {
-            write!(url, "?{}", query).ok();
+            write!(url, "?{query}").ok();
         }
         url
     }

@@ -8,7 +8,7 @@ use tokio::process::{Child, Command};
 
 pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
     for b in data {
-        write!(out, "\\x{:02x}", b)?;
+        write!(out, "\\x{b:02x}")?;
     }
     Ok(())
 }

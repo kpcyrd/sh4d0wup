@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
                     serde_json::to_writer_pretty(io::stdout(), &ctx.plot)?;
                     println!();
                     for (key, value) in &ctx.extras.signing_keys {
-                        println!("signing_key {:?}: {:?}", key, value);
+                        println!("signing_key {key:?}: {value:?}");
                     }
                     for (key, value) in &ctx.extras.artifacts {
                         println!("artifact {:?}: {} bytes", key, value.len());
@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
             if let Some(cert) = pgp.cert {
                 keygen::pgp::debug_inspect(cert.as_bytes())
                     .context("Failed to inspect serialized pgp data")?;
-                print!("{}", cert);
+                print!("{cert}");
             }
             keygen::pgp::debug_inspect(pgp.secret_key.as_bytes())
                 .context("Failed to inspect serialized pgp data")?;
@@ -106,14 +106,14 @@ async fn main() -> Result<()> {
             if let Some(rev) = pgp.rev {
                 keygen::pgp::debug_inspect(rev.as_bytes())
                     .context("Failed to inspect serialized pgp data")?;
-                print!("{}", rev);
+                print!("{rev}");
             }
         }
         SubCommand::Keygen(Keygen::Ssh(ssh)) => {
             let ssh =
                 keygen::ssh::generate(&ssh.try_into()?).context("Failed to generate ssh key")?;
             if let Some(public_key) = ssh.public_key {
-                println!("{}", public_key);
+                println!("{public_key}");
             }
             print!("{}", ssh.secret_key);
         }
@@ -121,7 +121,7 @@ async fn main() -> Result<()> {
             let openssl = keygen::openssl::generate(&openssl.try_into()?)
                 .context("Failed to generate openssl key")?;
             if let Some(public_key) = openssl.public_key {
-                print!("{}", public_key);
+                print!("{public_key}");
             }
             print!("{}", openssl.secret_key);
         }
@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
             let in_toto = keygen::in_toto::generate(&in_toto.into())
                 .context("Failed to generate in-toto key")?;
             if let Some(public_key) = in_toto.public_key {
-                println!("{}", public_key);
+                println!("{public_key}");
             }
             println!("{}", in_toto.secret_key);
         }

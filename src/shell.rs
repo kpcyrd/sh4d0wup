@@ -60,7 +60,7 @@ pub fn inject_into_script(script: &str, payload: &str) -> Result<String> {
     }
 
     debug!("Patching payload into shell script: {:?}", payload);
-    let patched = format!("{}\n{}\n{}", header, payload, data);
+    let patched = format!("{header}\n{payload}\n{data}");
     debug!("Patched shell script: {:?}", patched);
     Ok(patched)
 }

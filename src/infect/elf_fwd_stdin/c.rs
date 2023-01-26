@@ -47,7 +47,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
             "close(pipefd[1]);\n",
             "if (dup2(pipefd[0], STDIN_FILENO) == -1) return 1;\n",
             &args_src,
-            &format!("execve(\"{}\", args, environ);\n", exec_path_escaped),
+            &format!("execve(\"{exec_path_escaped}\", args, environ);\n"),
             "exit(0);\n",
             "fwd:\n",
             "close(pipefd[0]);\n",

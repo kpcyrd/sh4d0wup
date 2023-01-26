@@ -34,7 +34,7 @@ impl PkgRef for Pkg {
 impl fmt::Display for Pkg {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
         for (key, value) in &self.map {
-            writeln!(w, "{}:{}", key, value)?;
+            writeln!(w, "{key}:{value}")?;
         }
         Ok(())
     }
@@ -146,7 +146,7 @@ pub fn patch_index_buf(
                     }
                 }
 
-                writeln!(index, "{}", pkg)?;
+                writeln!(index, "{pkg}")?;
             }
 
             // TODO: this check shouldn't be needed but updating it corrupts the archive (even if the value is equal)
@@ -261,7 +261,7 @@ p:cmd:zsh-5.9=5.9-r0 cmd:zsh=5.9-r0
         expected.set_key("p", "cmd:zsh-5.9=5.9-r0 cmd:zsh=5.9-r0");
 
         assert_eq!(pkg, expected);
-        assert_eq!(format!("{}\n", pkg).as_bytes(), data);
+        assert_eq!(format!("{pkg}\n").as_bytes(), data);
 
         Ok(())
     }

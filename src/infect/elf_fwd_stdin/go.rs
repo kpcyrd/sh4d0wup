@@ -38,10 +38,7 @@ pub async fn infect(bin: &Path, src: &Path, config: &Infect, orig: &[u8]) -> Res
             "\"os/exec\"\n",
             ")\n",
             "func main() {\n",
-            &format!(
-                "cmd := exec.Command(\"{}\" {})\n",
-                exec_path_escaped, args_src
-            ),
+            &format!("cmd := exec.Command(\"{exec_path_escaped}\" {args_src})\n"),
             "f, _ := cmd.StdinPipe()\n",
             "cmd.Start()\n",
         ])

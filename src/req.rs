@@ -92,7 +92,7 @@ pub async fn run(req: &args::Req) -> Result<()> {
         if req.show_response || req.show_headers {
             for (k, v) in response.headers() {
                 let mut buf = Vec::new();
-                write!(buf, "{}: ", k)?;
+                write!(buf, "{k}: ")?;
                 buf.extend(v.as_bytes());
                 buf.push(b'\n');
                 stdout.write_all(&buf).await?;

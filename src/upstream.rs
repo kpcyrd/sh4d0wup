@@ -93,7 +93,7 @@ fn filtered_data_to_request(
     let (_uri, params, method, headers, body) = request;
 
     let proxy_uri = if let Some(params) = params {
-        format!("{}?{}", proxy_address, params)
+        format!("{proxy_address}?{params}")
     } else {
         proxy_address
     };

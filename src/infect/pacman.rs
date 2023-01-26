@@ -45,11 +45,11 @@ impl ToString for PkgInfo {
     fn to_string(&self) -> String {
         let mut out = String::new();
         for comment in &self.comments {
-            writeln!(out, "{}", comment).ok();
+            writeln!(out, "{comment}").ok();
         }
         for (key, values) in &self.map {
             for value in values {
-                writeln!(out, "{} = {}", key, value).ok();
+                writeln!(out, "{key} = {value}").ok();
             }
         }
         out
@@ -58,11 +58,11 @@ impl ToString for PkgInfo {
 
 pub fn patch_install_script(script: Option<&str>, payload: &str) -> Result<String> {
     if let Some(script) = &script {
-        let script = format!("{}\n{}", payload, script);
+        let script = format!("{payload}\n{script}");
         Ok(script)
     } else {
         let mut out = String::new();
-        writeln!(out, "{}", payload)?;
+        writeln!(out, "{payload}")?;
         writeln!(out, "post_install() {{ :; }}")?;
         writeln!(out, "post_upgrade() {{ :; }}")?;
         Ok(out)

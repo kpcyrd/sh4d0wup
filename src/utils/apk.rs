@@ -45,7 +45,7 @@ pub fn patch_signature_container(
         entry.read_to_end(&mut buf)?;
 
         debug!("Replacing signature ({} bytes): {:?}", buf.len(), buf);
-        let name = format!(".SIGN.{}.{}", key_algo_id, signing_key_name);
+        let name = format!(".SIGN.{key_algo_id}.{signing_key_name}");
         debug!("Changing entry name from {:?} to {:?}", entry.path(), name);
         header.set_path(name)?;
         header.set_size(signature.len() as u64);

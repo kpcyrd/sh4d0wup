@@ -77,7 +77,7 @@ pub fn write_info(label: &str, status: Status) -> Result<()> {
     let stdout = BufferWriter::stdout(ColorChoice::Auto);
 
     let mut buffer = stdout.buffer();
-    write!(buffer, "{:50}", label)?;
+    write!(buffer, "{label:50}")?;
     match status {
         Status::Ok => {
             buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
@@ -88,11 +88,11 @@ pub fn write_info(label: &str, status: Status) -> Result<()> {
             buffer.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
             write!(buffer, "ERR")?;
             buffer.reset()?;
-            writeln!(buffer, " {:#}", err)?;
+            writeln!(buffer, " {err:#}")?;
         }
         Status::Other(text) => {
             buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true))?;
-            writeln!(buffer, "{}", text)?;
+            writeln!(buffer, "{text}")?;
             buffer.reset()?;
         }
     }

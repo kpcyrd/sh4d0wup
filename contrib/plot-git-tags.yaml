@@ -1,0 +1,90 @@
+---
+
+check:
+  image: cgr.dev/chainguard/git
+  cmds:
+    - 'git clone http://${SH4D0WUP_BOUND_ADDR}/hax.git'
+    - 'git -C hax log --all --decorate --graph'
+    - 'git -C hax cat-file tag v1.33.7 || true'
+    - |
+      set -x
+      cd hax
+      LATEST=$(git describe --tags --abbrev=0)
+      git checkout $LATEST
+
+artifacts:
+  blob:
+    type: git
+    git: blob
+    data: |
+      #!/bin/sh
+      id
+
+  tree:
+    type: git
+    git: tree
+    entries:
+      - mode: blob-executable
+        filename: configure
+        oid:
+          artifact: blob
+
+  commit:
+    type: git
+    git: commit
+    tree:
+      artifact: tree
+    author: kpcyrd <git@rxv.cc> 1637076383 +0100
+    committer: kpcyrd <git@rxv.cc> 1637076383 +0100
+    message: "Release v0.3.0\n"
+
+  tag:
+    type: git
+    git: tag
+    target:
+      artifact: commit
+    kind: commit
+    name: v1.33.7
+
+  refs:
+    type: git
+    git: ref-list
+    refs:
+      "refs/heads/main":
+        artifact: commit
+      "refs/tags/v1.33.7":
+        artifact: tag
+
+routes:
+  - path: '/hax.git/info/refs'
+    type: static
+    args:
+      artifact: refs
+  - path: '/hax.git/HEAD'
+    type: static
+    args:
+      data: |
+        ref: refs/heads/main
+
+  - path: '/hax.git/objects/info/packs'
+    type: static
+    args:
+      data: "\n"
+  - path: '/hax.git/objects/info/http-alternates'
+    type: static
+    args:
+      data: "\n"
+  - path: '/hax.git/objects/info/alternates'
+    type: static
+    args:
+      data: "\n"
+
+  - type: static
+    args:
+      path_template: '/hax.git/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}'
+      artifacts:
+        - commit
+        - tree
+        - blob
+        - tag
+      compress: zlib

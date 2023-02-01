@@ -125,6 +125,13 @@ impl Artifact {
                 .artifact
                 .as_ref()
                 .map(|artifact| hashset![artifact.as_str()]),
+            Artifact::Git(git::GitArtifact::Tag(tag)) => {
+                if let git::Oid::Artifact(oid) = &tag.target {
+                    Some(hashset![oid.artifact.as_str()])
+                } else {
+                    None
+                }
+            }
             Artifact::Git(git::GitArtifact::RefList(git)) => {
                 let mut set = HashSet::new();
                 for (_, r) in &git.refs {

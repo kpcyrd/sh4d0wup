@@ -18,6 +18,7 @@ pub enum GitArtifact {
     Commit(Commit),
     Tree(Tree),
     Blob(Blob),
+    Tag(Tag),
     RefList(RefList),
 }
 
@@ -28,9 +29,30 @@ impl GitArtifact {
             GitArtifact::Commit(commit) => commit.encode(&mut out, artifacts).await?,
             GitArtifact::Tree(tree) => tree.encode(&mut out, artifacts)?,
             GitArtifact::Blob(blob) => blob.encode(&mut out, artifacts)?,
+            GitArtifact::Tag(tag) => tag.encode(&mut out, artifacts)?,
             GitArtifact::RefList(refs) => refs.encode(&mut out, artifacts)?,
         }
         Ok(out)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Kind {
+    Tree,
+    Blob,
+    Commit,
+    Tag,
+}
+
+impl From<Kind> for git_object::Kind {
+    fn from(kind: Kind) -> Self {
+        match kind {
+            Kind::Tree => Self::Tree,
+            Kind::Blob => Self::Blob,
+            Kind::Commit => Self::Commit,
+            Kind::Tag => Self::Tag,
+        }
     }
 }
 
@@ -335,6 +357,52 @@ impl Blob {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Tag {
+    pub target: Oid,
+    pub kind: Kind,
+    pub name: BString,
+    pub tagger: Option<String>,
+    pub message: Option<BString>,
+    pub pgp_signature: Option<BString>,
+}
+
+impl Tag {
+    pub fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
+        let target = self.target.resolve_oid(artifacts)?;
+
+        let message = if let Some(message) = &self.message {
+            message.clone()
+        } else {
+            format!("Release {}\n", self.name).into()
+        };
+
+        let tagger = if let Some(tagger) = &self.tagger {
+            Some(
+                git_actor::SignatureRef::from_bytes::<()>(tagger.as_bytes())
+                    .context("Failed to parse tagger")?
+                    .to_owned(),
+            )
+        } else {
+            None
+        };
+
+        let tag = git_object::Tag {
+            target,
+            target_kind: self.kind.into(),
+            name: self.name.clone(),
+            tagger,
+            message,
+            pgp_signature: self.pgp_signature.clone(),
+        };
+
+        out.extend(&git_object::encode::loose_header(tag.kind(), tag.size()));
+        tag.write_to(out)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RefList {
     pub refs: IndexMap<String, Oid>,
 }
@@ -370,9 +438,44 @@ mod tests {
         let mut out = Vec::new();
         commit.encode(&mut out, &Default::default()).await.unwrap();
 
+        assert_eq!(
+            &out,
+            b"commit 201\x00tree 14e41dda390b0ec5a35a42f3ecadb97ca18ff32e
+parent e98fe89d6eef1a8da9663dda20317eebebffe57b
+author kpcyrd <git@rxv.cc> 1637076383 +0100
+committer kpcyrd <git@rxv.cc> 1637076383 +0100
+
+Release v0.3.0
+"
+        );
+
         let mut sha1 = Sha1::new();
         sha1.update(&out);
         let hash = hex::encode(sha1.finalize());
         assert_eq!(hash, "248bc188602dc3552b1c15634afd7592b88ed4bd");
+    }
+
+    #[test]
+    fn test_tag_encode() {
+        let tag = Tag {
+            target: Oid::Inline("248bc188602dc3552b1c15634afd7592b88ed4bd".to_string()),
+            kind: Kind::Commit,
+            name: "v1.33.7".into(),
+            tagger: None,
+            message: None,
+            pgp_signature: None,
+        };
+        let mut out = Vec::new();
+        tag.encode(&mut out, &Default::default()).unwrap();
+
+        assert_eq!(
+            &out,
+            b"tag 89\x00object 248bc188602dc3552b1c15634afd7592b88ed4bd
+type commit
+tag v1.33.7
+
+Release v1.33.7
+"
+        );
     }
 }

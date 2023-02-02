@@ -6,6 +6,7 @@ check:
     - 'git clone http://${SH4D0WUP_BOUND_ADDR}/hax.git'
     - 'git -C hax log --all --decorate --graph'
     - 'git -C hax cat-file tag v1.33.7 || true'
+    - 'git -C hax cat-file tag v1.33.8 || true'
     - |
       set -x
       cd hax
@@ -46,6 +47,15 @@ artifacts:
     kind: commit
     name: v1.33.7
 
+  # this is a tag that points to another tag, just because 😺
+  tag-tag:
+    type: git
+    git: tag
+    target:
+      artifact: tag
+    kind: tag
+    name: v1.33.8
+
   refs:
     type: git
     git: ref-list
@@ -54,6 +64,8 @@ artifacts:
         artifact: commit
       "refs/tags/v1.33.7":
         artifact: tag
+      "refs/tags/v1.33.8":
+        artifact: tag-tag
 
 routes:
   - path: '/hax.git/info/refs'
@@ -87,4 +99,5 @@ routes:
         - tree
         - blob
         - tag
+        - tag-tag
       compress: zlib

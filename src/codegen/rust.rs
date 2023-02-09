@@ -35,7 +35,8 @@ impl Compiler {
         let target = target.unwrap_or("x86_64-unknown-linux-musl");
         info!("Spawning Rust compiler...");
         let mut cmd = Command::new("rustc");
-        cmd.arg("-Cpanic=abort")
+        cmd.arg("-Copt-level=3")
+            .arg("-Cpanic=abort")
             .arg("-Cstrip=symbols")
             .arg(format!("--target={target}"))
             .arg("-o")

@@ -60,6 +60,9 @@ jobs:
         key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-release-
 
+    - name: Install dependencies
+      run: brew install pkg-config zstd
+
     - name: Build
       run: cargo build --release --verbose
 

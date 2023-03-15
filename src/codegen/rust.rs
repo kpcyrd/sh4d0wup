@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use crate::errors::*;
 use std::fmt::Write;
 use std::path::Path;
@@ -42,6 +44,9 @@ impl Compiler {
             .arg("-o")
             .arg(out)
             .arg("-")
+            // this is currently set to enable access to:
+            // - naked_functions
+            .env("RUSTC_BOOTSTRAP", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped());
         debug!(
@@ -72,6 +77,153 @@ impl Compiler {
 
     pub fn done(self) -> PendingCompile {
         PendingCompile { child: self.child }
+    }
+
+    pub async fn syscall0_readonly(&mut self, ret: &str, nr: u64) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
+    }
+
+    pub async fn syscall1_readonly(&mut self, ret: &str, nr: u64, a0: &str) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            &format!("in(\"rdi\") {a0},\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
+    }
+
+    pub async fn syscall2_readonly(
+        &mut self,
+        ret: &str,
+        nr: u64,
+        a0: &str,
+        a1: &str,
+    ) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            &format!("in(\"rdi\") {a0},\n"),
+            &format!("in(\"rsi\") {a1},\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
+    }
+
+    pub async fn syscall3_readonly(
+        &mut self,
+        ret: &str,
+        nr: u64,
+        a0: &str,
+        a1: &str,
+        a2: &str,
+    ) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            &format!("in(\"rdi\") {a0},\n"),
+            &format!("in(\"rsi\") {a1},\n"),
+            &format!("in(\"rdx\") {a2},\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
+    }
+
+    pub async fn syscall4_readonly(
+        &mut self,
+        ret: &str,
+        nr: u64,
+        a0: &str,
+        a1: &str,
+        a2: &str,
+        a3: &str,
+    ) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            &format!("in(\"rdi\") {a0},\n"),
+            &format!("in(\"rsi\") {a1},\n"),
+            &format!("in(\"rdx\") {a2},\n"),
+            &format!("in(\"r10\") {a3},\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
+    }
+
+    pub async fn syscall5_readonly(
+        &mut self,
+        ret: &str,
+        nr: u64,
+        a0: &str,
+        a1: &str,
+        a2: &str,
+        a3: &str,
+        a4: &str,
+    ) -> Result<()> {
+        self.add_lines(&[
+            "unsafe {\n",
+            &format!("let r0: {ret};\n"),
+            "asm!(\"syscall\",\n",
+            &format!("inlateout(\"rax\") {nr}{ret} => r0,\n"),
+            &format!("in(\"rdi\") {a0},\n"),
+            &format!("in(\"rsi\") {a1},\n"),
+            &format!("in(\"rdx\") {a2},\n"),
+            &format!("in(\"r10\") {a3},\n"),
+            &format!("in(\"r8\") {a4},\n"),
+            "lateout(\"rcx\") _,\n",
+            "lateout(\"r11\") _,\n",
+            "options(nostack, preserves_flags)\n",
+            ");\n",
+            "r0\n",
+            "}\n",
+        ])
+        .await?;
+        Ok(())
     }
 }
 

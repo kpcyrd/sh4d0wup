@@ -10,4 +10,5 @@ pub enum Backend {
     C,
     Go,
     Rust,
+    RustNostd,
 }

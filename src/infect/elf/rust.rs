@@ -20,6 +20,7 @@ pub async fn add_payload(compiler: &mut rust::Compiler, payload: &Payload<'_>) -
                 .await?;
             */
 
+            // TODO
             bail!("Embedding a shell payload is not yet supported for the rust backend");
         }
         Payload::Elf(payload) => {

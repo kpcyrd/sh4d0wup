@@ -27,6 +27,7 @@ pub async fn stream_bin_std(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     Ok(())
 }
 
+// TODO: this function does not behave like write_all and might need retries
 pub async fn stream_bin_nostd(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();

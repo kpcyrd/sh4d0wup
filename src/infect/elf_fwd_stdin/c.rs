@@ -59,7 +59,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
 
     compiler
         .add_lines(&[
-            "close(pipefd[1]);\n",
+            "close(f);\n",
             "if (c == -1) return 1;\n",
             "int wstatus;\n",
             "do {\n",

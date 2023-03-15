@@ -14,7 +14,7 @@ pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
     Ok(())
 }
 
-pub async fn stream_bin(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
+pub async fn stream_bin_std(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
@@ -23,6 +23,21 @@ pub async fn stream_bin(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
         stdin.write_all(b"if f.write_all(b\"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin.write_all(b"\").is_err() { exit(1) };\n").await?;
+    }
+    Ok(())
+}
+
+pub async fn stream_bin_nostd(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
+    debug!("Passing through binary...");
+    let mut buf = String::new();
+    for chunk in orig.chunks(2048) {
+        buf.clear();
+        escape(chunk, &mut buf)?;
+        stdin.write_all(b"if write(f, b\"").await?;
+        stdin.write_all(buf.as_bytes()).await?;
+        stdin.write_all(b"\".as_ptr(), ").await?;
+        stdin.write_all(chunk.len().to_string().as_bytes()).await?;
+        stdin.write_all(b") == -1 { exit(1) }\n").await?;
     }
     Ok(())
 }

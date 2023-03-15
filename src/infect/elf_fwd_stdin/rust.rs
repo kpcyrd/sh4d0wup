@@ -54,7 +54,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         ])
         .await?;
 
-    rust::stream_bin(orig, &mut compiler.stdin).await?;
+    rust::stream_bin_std(orig, &mut compiler.stdin).await?;
 
     compiler
         .add_lines(&[

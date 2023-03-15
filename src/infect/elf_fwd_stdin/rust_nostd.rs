@@ -1,19 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use crate::codegen::rust;
 use crate::errors::*;
 use crate::infect::elf_fwd_stdin::Infect;
 use std::path::Path;
-
-const SIGCHLD: u64 = 17;
-const __NR_write: u64 = 1;
-const __NR_close: u64 = 3;
-const __NR_pipe: u64 = 22;
-const __NR_dup2: u64 = 33;
-const __NR_fork: u64 = 57;
-const __NR_execve: u64 = 59;
-const __NR_exit: u64 = 60;
-const __NR_wait4: u64 = 61;
 
 fn gen_args_src(args: &[String]) -> Result<String> {
     let mut s = String::new();
@@ -72,107 +60,16 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         ])
         .await?;
 
-    // generate exit function
-    compiler
-        .add_lines(&[
-            "fn exit(code: i32) -> ! {\n",
-            &format!("unsafe {{ asm!(\"syscall\", in(\"rax\") {}, in(\"rdi\") code, options(noreturn)) }}\n", __NR_exit),
-            "}\n",
-        ])
-        .await?;
-
-    // generate execve function
-    compiler
-        .add_lines(&[
-            "fn execve(prog: *const u8, argv: *const *const u8, envp: *const *const u8) -> u64 {\n",
-        ])
-        .await?;
-    compiler
-        .syscall3_readonly("u64", __NR_execve, "prog", "argv", "envp")
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate fork function
-    compiler.add_lines(&["fn fork() -> i32 {\n"]).await?;
-    let zero = "ptr::null_mut::<u64>()";
-    compiler
-        .syscall5_readonly(
-            "i32",
-            __NR_fork,
-            &SIGCHLD.to_string(),
-            zero,
-            zero,
-            zero,
-            zero,
-        )
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate wait4 function
-    compiler.add_lines(&["fn wait4(pid: i32, status: *const i32, options: i32, rusage: *const core::ffi::c_void) -> i32 {\n"]).await?;
-    compiler
-        .syscall4_readonly("i32", __NR_wait4, "pid", "status", "options", "rusage")
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate pipe function
-    compiler
-        .add_lines(&["fn pipe(pipefd: *const i32) -> i32 {\n"])
-        .await?;
-    compiler
-        .syscall1_readonly("i32", __NR_pipe, "pipefd")
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate close function
-    compiler
-        .add_lines(&["fn close(fd: i32) -> i32 {\n"])
-        .await?;
-    compiler.syscall1_readonly("i32", __NR_close, "fd").await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate dup2 function
-    compiler
-        .add_lines(&["fn dup2(oldfd: i32, newfd: i32) -> i32 {\n"])
-        .await?;
-    compiler
-        .syscall2_readonly("i32", __NR_dup2, "oldfd", "newfd")
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate write function
-    compiler
-        .add_lines(&["fn write(fd: i32, buf: *const u8, count: usize) -> isize {\n"])
-        .await?;
-    compiler
-        .syscall3_readonly("isize", __NR_write, "fd", "buf", "count")
-        .await?;
-    compiler.add_lines(&["}\n"]).await?;
-
-    // generate write_all function
-    compiler
-        .add_lines(&[
-            "fn write_all(fd: i32, mut buf: *const u8, mut count: usize) -> i32 {\n",
-            "while count > 0 {\n",
-            "let n = write(fd, buf, count);\n",
-            "if n < 0 { return -1 }\n",
-            "buf = unsafe { buf.offset(n) };\n",
-            "count -= n as usize;\n",
-            "}\n",
-            "0",
-            "}\n",
-        ])
-        .await?;
-
-    // generate entry point
-    compiler
-        .add_lines(&[
-            "global_asm!(",
-            "\".global _start\",",
-            "\"_start:\", \"mov rdi, rsp\", \"call main\"",
-            ");\n",
-        ])
-        .await?;
+    compiler.generate_exit_fn().await?;
+    compiler.generate_execve_fn().await?;
+    compiler.generate_fork_fn().await?;
+    compiler.generate_wait4_fn().await?;
+    compiler.generate_pipe_fn().await?;
+    compiler.generate_close_fn().await?;
+    compiler.generate_dup2_fn().await?;
+    compiler.generate_write_fn().await?;
+    compiler.generate_write_all_fn().await?;
+    compiler.generate_entrypoint().await?;
 
     // generate main
     compiler

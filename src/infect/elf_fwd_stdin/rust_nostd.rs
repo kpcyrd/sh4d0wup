@@ -51,9 +51,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         .add_lines(&[
             "#![no_std]\n",
             "#![no_main]\n",
-            // TODO: naked functions are not stable yet
-            "#![feature(naked_functions)]\n",
-            "use core::arch::asm;\n",
+            "use core::arch::{asm, global_asm};\n",
             "use core::ffi::CStr;\n",
             "use core::ptr;\n",
         ])
@@ -149,11 +147,10 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     // generate entry point
     compiler
         .add_lines(&[
-            "#[no_mangle]\n",
-            "#[naked]\n",
-            "pub unsafe extern \"C\" fn _start() -> ! {\n",
-            "asm!(\"mov rdi, rsp\", \"call main\", options(noreturn))\n",
-            "}\n",
+            "global_asm!(",
+            "\".global _start\",",
+            "\"_start:\", \"mov rdi, rsp\", \"call main\"",
+            ");\n",
         ])
         .await?;
 

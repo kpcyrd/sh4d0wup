@@ -59,9 +59,6 @@ impl Compiler {
             .arg("-o")
             .arg(out)
             .arg("-")
-            // this is currently set to enable access to:
-            // - naked_functions
-            .env("RUSTC_BOOTSTRAP", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped());
         debug!(

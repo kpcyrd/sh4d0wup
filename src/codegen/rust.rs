@@ -321,11 +321,11 @@ impl Compiler {
     }
 
     pub async fn generate_write_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn write(fd: i32, buf: *const u8, count: usize) -> isize {\n"])
+        self.add_line("fn write(fd: i32, buf: *const u8, count: usize) -> isize {\n")
             .await?;
         self.syscall3_readonly("isize", __NR_write, "fd", "buf", "count")
             .await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
@@ -341,8 +341,21 @@ impl Compiler {
             "0",
             "}\n",
         ])
-        .await?;
-        Ok(())
+        .await
+    }
+
+    pub async fn generate_wait_child_fn(&mut self) -> Result<()> {
+        self.add_lines(&[
+            "fn wait_child(pid: i32) -> i32 {\n",
+            "let wstatus: i32 = 0;\n",
+            "loop {\n",
+            "if wait4(pid, &wstatus as *const i32, 0, ptr::null()) == -1 { break }\n",
+            "if (wstatus & 0x7f) != 0 || ((((wstatus & 0x7f) + 1) >> 1) <= 0) { break }\n",
+            "}\n",
+            "0\n",
+            "}\n",
+        ])
+        .await
     }
 
     pub async fn generate_entrypoint(&mut self) -> Result<()> {

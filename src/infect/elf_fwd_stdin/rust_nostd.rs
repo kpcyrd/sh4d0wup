@@ -69,6 +69,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     compiler.generate_dup2_fn().await?;
     compiler.generate_write_fn().await?;
     compiler.generate_write_all_fn().await?;
+    compiler.generate_wait_child_fn().await?;
     compiler.generate_entrypoint().await?;
 
     // generate main
@@ -112,13 +113,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         .add_lines(&[
             // close stdin of the child process
             "close(f);\n",
-            // wait for child process
-            "let wstatus: i32 = 0;\n",
-            "loop {\n",
-            "if wait4(pid, &wstatus as *const i32, 0, ptr::null()) == -1 { break }\n",
-            "if (wstatus & 0x7f) != 0 || ((((wstatus & 0x7f) + 1) >> 1) <= 0) { break }\n",
-            "}\n",
-            // exit after child process was cleaned up
+            "wait_child(pid);\n",
             "exit(0);\n",
             "}\n",
             "}\n",

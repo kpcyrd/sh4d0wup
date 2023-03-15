@@ -250,6 +250,26 @@ impl Compiler {
         Ok(())
     }
 
+    pub async fn generate_entrypoint(&mut self) -> Result<()> {
+        self.add_lines(&[
+            "global_asm!(",
+            "\".global _start\",",
+            "\"_start:\", \"mov rdi, rsp\", \"call main\"",
+            ");\n",
+        ])
+        .await
+    }
+
+    pub async fn generate_panic_handler(&mut self) -> Result<()> {
+        self.add_lines(&[
+            "#[panic_handler]\n",
+            "fn panic(__info: &core::panic::PanicInfo) -> ! {\n",
+            "exit(1)\n",
+            "}\n",
+        ])
+        .await
+    }
+
     pub async fn generate_exit_fn(&mut self) -> Result<()> {
         self
         .add_lines(&[
@@ -261,18 +281,18 @@ impl Compiler {
     }
 
     pub async fn generate_execve_fn(&mut self) -> Result<()> {
-        self.add_lines(&[
+        self.add_line(
             "fn execve(prog: *const u8, argv: *const *const u8, envp: *const *const u8) -> u64 {\n",
-        ])
+        )
         .await?;
         self.syscall3_readonly("u64", __NR_execve, "prog", "argv", "envp")
             .await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
     pub async fn generate_fork_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn fork() -> i32 {\n"]).await?;
+        self.add_line("fn fork() -> i32 {\n").await?;
         let zero = "ptr::null_mut::<u64>()";
         self.syscall5_readonly(
             "i32",
@@ -284,39 +304,39 @@ impl Compiler {
             zero,
         )
         .await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
     pub async fn generate_wait4_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn wait4(pid: i32, status: *const i32, options: i32, rusage: *const core::ffi::c_void) -> i32 {\n"]).await?;
+        self.add_line("fn wait4(pid: i32, status: *const i32, options: i32, rusage: *const core::ffi::c_void) -> i32 {\n").await?;
         self.syscall4_readonly("i32", __NR_wait4, "pid", "status", "options", "rusage")
             .await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
     pub async fn generate_pipe_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn pipe(pipefd: *const i32) -> i32 {\n"])
+        self.add_line("fn pipe(pipefd: *const i32) -> i32 {\n")
             .await?;
         self.syscall1_readonly("i32", __NR_pipe, "pipefd").await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
     pub async fn generate_close_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn close(fd: i32) -> i32 {\n"]).await?;
+        self.add_line("fn close(fd: i32) -> i32 {\n").await?;
         self.syscall1_readonly("i32", __NR_close, "fd").await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
     pub async fn generate_dup2_fn(&mut self) -> Result<()> {
-        self.add_lines(&["fn dup2(oldfd: i32, newfd: i32) -> i32 {\n"])
+        self.add_line("fn dup2(oldfd: i32, newfd: i32) -> i32 {\n")
             .await?;
         self.syscall2_readonly("i32", __NR_dup2, "oldfd", "newfd")
             .await?;
-        self.add_lines(&["}\n"]).await?;
+        self.add_line("}\n").await?;
         Ok(())
     }
 
@@ -354,16 +374,6 @@ impl Compiler {
             "}\n",
             "0\n",
             "}\n",
-        ])
-        .await
-    }
-
-    pub async fn generate_entrypoint(&mut self) -> Result<()> {
-        self.add_lines(&[
-            "global_asm!(",
-            "\".global _start\",",
-            "\"_start:\", \"mov rdi, rsp\", \"call main\"",
-            ");\n",
         ])
         .await
     }

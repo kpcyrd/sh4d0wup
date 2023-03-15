@@ -50,16 +50,7 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         ])
         .await?;
 
-    // add panic handler
-    compiler
-        .add_lines(&[
-            "#[panic_handler]\n",
-            "fn panic(__info: &core::panic::PanicInfo) -> ! {\n",
-            "exit(1)\n",
-            "}\n",
-        ])
-        .await?;
-
+    compiler.generate_panic_handler().await?;
     compiler.generate_exit_fn().await?;
     compiler.generate_execve_fn().await?;
     compiler.generate_fork_fn().await?;

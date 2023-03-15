@@ -149,6 +149,21 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
         .await?;
     compiler.add_lines(&["}\n"]).await?;
 
+    // generate write_all function
+    compiler
+        .add_lines(&[
+            "fn write_all(fd: i32, mut buf: *const u8, mut count: usize) -> i32 {\n",
+            "while count > 0 {\n",
+            "let n = write(fd, buf, count);\n",
+            "if n < 0 { return -1 }\n",
+            "buf = unsafe { buf.offset(n) };\n",
+            "count -= n as usize;\n",
+            "}\n",
+            "0",
+            "}\n",
+        ])
+        .await?;
+
     // generate entry point
     compiler
         .add_lines(&[

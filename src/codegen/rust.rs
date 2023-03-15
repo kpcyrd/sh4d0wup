@@ -27,14 +27,13 @@ pub async fn stream_bin_std(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     Ok(())
 }
 
-// TODO: this function does not behave like write_all and might need retries
 pub async fn stream_bin_nostd(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
         escape(chunk, &mut buf)?;
-        stdin.write_all(b"if write(f, b\"").await?;
+        stdin.write_all(b"if write_all(f, b\"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin.write_all(b"\".as_ptr(), ").await?;
         stdin.write_all(chunk.len().to_string().as_bytes()).await?;

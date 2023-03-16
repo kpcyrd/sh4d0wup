@@ -30,7 +30,9 @@ FROM basic as full
 RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
     apk add fuse-overlayfs gcc go linux-headers musl-dev podman rustup && \
     rm /etc/apk/cache
-RUN rustup-init -y && ln -vs /root/.cargo/bin/rustc /usr/bin
+RUN rustup-init -y && \
+    ln -vs /root/.cargo/bin/rustc /usr/bin && \
+    /root/.cargo/bin/rustup target add x86_64-unknown-none
 # do some configuration to enable nested rootless podman
 RUN adduser -Du 1000 podman && \
     printf "podman:1:999\npodman:1001:64535\n" | tee /etc/subuid | tee /etc/subgid > /dev/null

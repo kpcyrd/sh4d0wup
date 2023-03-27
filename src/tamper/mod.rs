@@ -119,7 +119,7 @@ pub async fn run(tamper: Tamper) -> Result<()> {
                     .read_to_end(&mut buf)
                     .context("Failed to read commit from stdin")?;
 
-                let commit = git_object::CommitRef::from_bytes(&buf)
+                let commit = gix_object::CommitRef::from_bytes(&buf)
                     .context("Failed to parse stdin as commit")?;
 
                 tree = Some(git_oid_to_string(commit.tree)?);
@@ -182,7 +182,7 @@ pub async fn run(tamper: Tamper) -> Result<()> {
 
             commit.encode(&mut out, &Default::default()).await?;
             let out = if tamper.strip_header {
-                let (_, _, consumed) = git_object::decode::loose_header(&out)?;
+                let (_, _, consumed) = gix_object::decode::loose_header(&out)?;
                 &out[consumed..]
             } else {
                 &out[..]
@@ -200,7 +200,7 @@ pub fn git_oid_to_string(oid: &bstr::BStr) -> Result<String> {
     Ok(s.to_string())
 }
 
-pub fn git_author_to_string(author: &git_actor::SignatureRef) -> Result<String> {
+pub fn git_author_to_string(author: &gix_actor::SignatureRef) -> Result<String> {
     let mut buf = Vec::new();
     author.write_to(&mut buf)?;
     let buf = String::from_utf8(buf)?;

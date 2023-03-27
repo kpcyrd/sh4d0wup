@@ -1,9 +1,9 @@
 use crate::errors::*;
 use crate::plot::Artifacts;
 use bstr::BString;
-use git_hash::ObjectId;
-use git_object::tree::EntryMode;
-use git_object::WriteTo;
+use gix_hash::ObjectId;
+use gix_object::tree::EntryMode;
+use gix_object::WriteTo;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -45,7 +45,7 @@ pub enum Kind {
     Tag,
 }
 
-impl From<Kind> for git_object::Kind {
+impl From<Kind> for gix_object::Kind {
     fn from(kind: Kind) -> Self {
         match kind {
             Kind::Tree => Self::Tree,
@@ -112,10 +112,10 @@ pub struct Commit {
 impl Commit {
     pub async fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
         let tree = self.tree.resolve_oid(artifacts)?;
-        let author = git_actor::SignatureRef::from_bytes::<()>(self.author.as_bytes())
+        let author = gix_actor::SignatureRef::from_bytes::<()>(self.author.as_bytes())
             .context("Failed to parse author")?
             .to_owned();
-        let committer = git_actor::SignatureRef::from_bytes::<()>(self.committer.as_bytes())
+        let committer = gix_actor::SignatureRef::from_bytes::<()>(self.committer.as_bytes())
             .context("Failed to parse committer")?
             .to_owned();
         let parents = self
@@ -127,7 +127,7 @@ impl Commit {
         if let Some(nonce) = &self.nonce {
             extra_headers.push(("nonce".into(), nonce.as_str().into()));
         }
-        let mut commit = git_object::Commit {
+        let mut commit = gix_object::Commit {
             tree,
             parents,
             author,
@@ -141,7 +141,7 @@ impl Commit {
             Self::bruteforce_partial_collision(&mut commit, prefix).await?;
         }
 
-        out.extend(&git_object::encode::loose_header(
+        out.extend(&gix_object::encode::loose_header(
             commit.kind(),
             commit.size(),
         ));
@@ -151,7 +151,7 @@ impl Commit {
     }
 
     pub fn try_nonce_for_commit(
-        commit: &mut git_object::Commit,
+        commit: &mut gix_object::Commit,
         commit_buf: &mut Vec<u8>,
         prefix: &str,
         idx: usize,
@@ -162,7 +162,7 @@ impl Commit {
         commit.extra_headers[idx].1 = nonce_buf;
 
         commit_buf.clear();
-        commit_buf.extend(&git_object::encode::loose_header(
+        commit_buf.extend(&gix_object::encode::loose_header(
             commit.kind(),
             commit.size(),
         ));
@@ -188,7 +188,7 @@ impl Commit {
     }
 
     pub async fn bruteforce_partial_collision(
-        commit: &mut git_object::Commit,
+        commit: &mut gix_object::Commit,
         prefix: &str,
     ) -> Result<()> {
         info!(
@@ -293,8 +293,8 @@ impl Tree {
             .iter()
             .map(|e| e.resolve(artifacts))
             .collect::<Result<_>>()?;
-        let tree = git_object::Tree { entries };
-        out.extend(&git_object::encode::loose_header(tree.kind(), tree.size()));
+        let tree = gix_object::Tree { entries };
+        out.extend(&gix_object::encode::loose_header(tree.kind(), tree.size()));
         tree.write_to(out)?;
         Ok(())
     }
@@ -308,7 +308,7 @@ pub struct TreeEntry {
 }
 
 impl TreeEntry {
-    pub fn resolve(&self, artifacts: &Artifacts) -> Result<git_object::tree::Entry> {
+    pub fn resolve(&self, artifacts: &Artifacts) -> Result<gix_object::tree::Entry> {
         let mode = match self.mode.as_str() {
             "tree" => EntryMode::Tree,
             "blob" => EntryMode::Blob,
@@ -318,7 +318,7 @@ impl TreeEntry {
             unknown => bail!("Unknown tree entry mode: {:?}", unknown),
         };
         let oid = self.oid.resolve_oid(artifacts)?;
-        Ok(git_object::tree::Entry {
+        Ok(gix_object::tree::Entry {
             mode,
             filename: self.filename.clone().into(),
             oid,
@@ -335,8 +335,8 @@ pub struct Blob {
 impl Blob {
     pub fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
         let data = self.resolve(artifacts)?;
-        let blob = git_object::BlobRef { data };
-        out.extend(&git_object::encode::loose_header(blob.kind(), blob.size()));
+        let blob = gix_object::BlobRef { data };
+        out.extend(&gix_object::encode::loose_header(blob.kind(), blob.size()));
         blob.write_to(out)?;
         Ok(())
     }
@@ -378,7 +378,7 @@ impl Tag {
 
         let tagger = if let Some(tagger) = &self.tagger {
             Some(
-                git_actor::SignatureRef::from_bytes::<()>(tagger.as_bytes())
+                gix_actor::SignatureRef::from_bytes::<()>(tagger.as_bytes())
                     .context("Failed to parse tagger")?
                     .to_owned(),
             )
@@ -386,7 +386,7 @@ impl Tag {
             None
         };
 
-        let tag = git_object::Tag {
+        let tag = gix_object::Tag {
             target,
             target_kind: self.kind.into(),
             name: self.name.clone(),
@@ -395,7 +395,7 @@ impl Tag {
             pgp_signature: self.pgp_signature.clone(),
         };
 
-        out.extend(&git_object::encode::loose_header(tag.kind(), tag.size()));
+        out.extend(&gix_object::encode::loose_header(tag.kind(), tag.size()));
         tag.write_to(out)?;
 
         Ok(())

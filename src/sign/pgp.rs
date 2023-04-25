@@ -139,7 +139,7 @@ mod tests {
         let output = sq_verify(
             &[
                 "verify",
-                "--signer-cert",
+                "--signer-file",
                 &cert_path,
                 "--detached",
                 &sig_path,
@@ -165,7 +165,7 @@ mod tests {
         let output = sq_verify(
             &[
                 "verify",
-                "--signer-cert",
+                "--signer-file",
                 &cert_path,
                 "--detached",
                 &sig_path,
@@ -188,7 +188,7 @@ mod tests {
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
         let msg_path = temp_put(&dir, "msg.txt", msg)?;
 
-        let output = sq_verify(&["verify", "--signer-cert", &cert_path, &msg_path], data)?;
+        let output = sq_verify(&["verify", "--signer-file", &cert_path, &msg_path], data)?;
         assert_eq!(output, data);
         Ok(())
     }

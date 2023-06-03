@@ -209,6 +209,11 @@ pub fn patch<W: Write>(
                         debug!("Patching sha256 for {:?} to {:?}", checksum.path, sha256);
                         checksum.hash = sha256;
                     }
+                    "SHA512" => {
+                        let sha512 = artifact.sha512().to_string();
+                        debug!("Patching sha512 for {:?} to {:?}", checksum.path, sha512);
+                        checksum.hash = sha512;
+                    }
                     ns => warn!("Unknown checksum namespace: {:?}", ns),
                 }
             }

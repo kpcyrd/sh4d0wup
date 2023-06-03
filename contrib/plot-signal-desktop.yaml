@@ -61,7 +61,7 @@ artifacts:
         artifact: index_patched_bz2
 
 check:
-  image: ubuntu:18.04
+  image: ubuntu:20.04
   install_keys:
     - key: apt
       binary: true

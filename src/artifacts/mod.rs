@@ -12,7 +12,7 @@ use maplit::hashset;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 use std::collections::HashSet;
 use std::mem;
 use std::path::PathBuf;
@@ -237,6 +237,7 @@ pub struct InlineArtifact {
 #[derive(Debug)]
 pub struct HashedArtifact {
     pub bytes: Vec<u8>,
+    sha512: RwLock<Option<Arc<String>>>,
     sha256: RwLock<Option<Arc<String>>>,
     sha1: RwLock<Option<Arc<String>>>,
     md5: RwLock<Option<Arc<String>>>,
@@ -246,6 +247,7 @@ impl HashedArtifact {
     pub fn new(bytes: Vec<u8>) -> HashedArtifact {
         HashedArtifact {
             bytes,
+            sha512: RwLock::new(None),
             sha256: RwLock::new(None),
             md5: RwLock::new(None),
             sha1: RwLock::new(None),
@@ -274,6 +276,10 @@ impl HashedArtifact {
             *lock = Some(hash.clone());
             hash
         }
+    }
+
+    pub fn sha512(&self) -> Arc<String> {
+        self.lazy_init_hash::<Sha512>(&self.sha512, "sha512sum")
     }
 
     pub fn sha256(&self) -> Arc<String> {

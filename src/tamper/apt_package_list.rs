@@ -183,6 +183,9 @@ pub fn patch<W: Write>(
 
             pkg.set_key("SHA256".to_string(), vec![artifact.sha256().to_string()])
                 .context("Failed to patch package")?;
+
+            pkg.set_key("SHA512".to_string(), vec![artifact.sha512().to_string()])
+                .context("Failed to patch package")?;
         }
 
         if let Some(patch) = config.get_patches(&pkg) {

@@ -5,11 +5,10 @@ use flate2::read::GzDecoder;
 use flate2::read::ZlibDecoder;
 use flate2::write::GzEncoder;
 use flate2::write::ZlibEncoder;
+use lzma::{LzmaReader, LzmaWriter};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::io::prelude::*;
-use xz::read::XzDecoder;
-use xz::write::XzEncoder;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -48,7 +47,7 @@ pub fn stream_decompress<'a, R: Read + 'a>(
     match comp {
         CompressedWith::Gzip => Ok(Box::new(GzDecoder::new(r))),
         CompressedWith::Bzip2 => Ok(Box::new(BzDecoder::new(r))),
-        CompressedWith::Xz => Ok(Box::new(XzDecoder::new(r))),
+        CompressedWith::Xz => Ok(Box::new(LzmaReader::new_decompressor(r)?)),
         CompressedWith::Zlib => Ok(Box::new(ZlibDecoder::new(r))),
         CompressedWith::Zstd => Ok(Box::new(zstd::Decoder::new(r)?)),
         CompressedWith::None => Ok(Box::new(r)),
@@ -58,7 +57,7 @@ pub fn stream_decompress<'a, R: Read + 'a>(
 pub enum Compressor<'a, W: Write> {
     Gzip(GzEncoder<W>),
     Bzip2(BzEncoder<W>),
-    Xz(XzEncoder<W>),
+    Xz(LzmaWriter<W>),
     Zlib(ZlibEncoder<W>),
     Zstd(zstd::Encoder<'a, W>),
     Passthru(W),
@@ -122,7 +121,7 @@ pub fn stream_compress<W: Write>(w: W, comp: CompressedWith) -> Result<Compresso
             w,
             bzip2::Compression::default(),
         ))),
-        CompressedWith::Xz => Ok(Compressor::Xz(XzEncoder::new(w, 6))),
+        CompressedWith::Xz => Ok(Compressor::Xz(LzmaWriter::new_compressor(w, 6)?)),
         CompressedWith::Zlib => Ok(Compressor::Zlib(ZlibEncoder::new(
             w,
             flate2::Compression::default(),
@@ -150,7 +149,7 @@ pub fn compress(comp: CompressedWith, bytes: &[u8]) -> Result<Vec<u8>> {
             out = e.finish()?;
         }
         CompressedWith::Xz => {
-            let mut e = XzEncoder::new(out, 6);
+            let mut e = LzmaWriter::new_compressor(out, 6)?;
             e.write_all(bytes)?;
             out = e.finish()?;
         }

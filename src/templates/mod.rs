@@ -1,68 +1,60 @@
-use crate::artifacts::HashedArtifact;
+pub mod route;
+pub mod url;
+
 use crate::errors::*;
+use ::url::Url;
 use handlebars::{
-    Context, Handlebars, Helper, HelperDef, HelperResult, Output, PathAndJson, RenderContext,
-    RenderError,
+    Context, Handlebars, Helper, HelperResult, Output, PathAndJson, RenderContext, RenderError,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
-#[derive(Debug)]
-enum HashType {
-    Sha256,
-    Sha1,
-    Md5,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArtifactMetadata {
+    pub url: Url,
+    pub filename: Option<String>,
+    pub version: Option<String>,
+    pub sha256: Option<String>,
 }
 
-struct HashHelper<'a> {
-    artifact: &'a HashedArtifact,
-    hash: HashType,
-}
+impl ArtifactMetadata {
+    pub fn from_json(bytes: &[u8]) -> Result<Self> {
+        let artifact = serde_json::from_slice(bytes)?;
+        Ok(artifact)
+    }
 
-impl<'a> HashHelper<'a> {
-    fn new(artifact: &HashedArtifact, hash: HashType) -> HashHelper {
-        HashHelper { artifact, hash }
+    pub fn to_json(&self) -> Result<Vec<u8>> {
+        let buf = serde_json::to_vec(self)?;
+        Ok(buf)
+    }
+
+    pub fn to_values(&self) -> HashMap<&'static str, String> {
+        let mut values = HashMap::new();
+        values.insert("url", self.url.to_string());
+
+        if let Some(filename) = &self.filename {
+            values.insert("filename", filename.to_string());
+        }
+
+        if let Some(version) = &self.version {
+            values.insert("version", version.to_string());
+        }
+
+        values
     }
 }
 
-impl<'a> HelperDef for HashHelper<'a> {
-    fn call<'_reg: '_rc, '_rc>(
-        &self,
-        _: &Helper,
-        _: &'_reg Handlebars,
-        _: &Context,
-        _: &mut RenderContext,
-        out: &mut dyn Output,
-    ) -> Result<(), RenderError> {
-        let hash = match self.hash {
-            HashType::Sha256 => self.artifact.sha256(),
-            HashType::Sha1 => self.artifact.sha1(),
-            HashType::Md5 => self.artifact.md5(),
-        };
-        out.write(&hash).map_err(RenderError::from)
-    }
-}
-
-pub fn render(path_template: &str, artifact: &HashedArtifact) -> Result<String> {
+pub fn create_engine(template: &str) -> Result<Handlebars> {
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
     handlebars
-        .register_template_string("t", path_template)
-        .with_context(|| anyhow!("Failed to parse path_template: {:?}", path_template))?;
+        .register_template_string("t", template)
+        .with_context(|| anyhow!("Failed to parse template: {:?}", template))?;
     handlebars.register_helper("slice-until", Box::new(slice_until));
     handlebars.register_helper("slice-after", Box::new(slice_after));
 
-    handlebars.register_helper(
-        "sha256",
-        Box::new(HashHelper::new(artifact, HashType::Sha256)),
-    );
-    handlebars.register_helper("sha1", Box::new(HashHelper::new(artifact, HashType::Sha1)));
-    handlebars.register_helper("md5", Box::new(HashHelper::new(artifact, HashType::Md5)));
-
-    let rendered = handlebars
-        .render("t", &())
-        .context("Failed to render path_template")?;
-    debug!("Rendered path for route: {:?}", rendered);
-    Ok(rendered)
+    Ok(handlebars)
 }
 
 fn param_to_str<'a>(

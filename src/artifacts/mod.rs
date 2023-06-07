@@ -2,6 +2,7 @@ pub mod compress;
 pub mod extract;
 pub mod git;
 pub mod infect;
+pub mod pkgs;
 pub mod signature;
 pub mod tamper;
 pub mod url;
@@ -22,6 +23,7 @@ use std::sync::RwLock;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Artifact {
+    Memory,
     File(FileArtifact),
     Url(url::UrlArtifact),
     Inline(InlineArtifact),
@@ -31,12 +33,13 @@ pub enum Artifact {
     Compress(compress::CompressArtifact),
     Extract(extract::ExtractArtifact),
     Git(git::GitArtifact),
-    Memory,
+    PacmanPkg(pkgs::PacmanPkg),
 }
 
 impl Artifact {
     pub fn depends_on(&self) -> Option<HashSet<&str>> {
         match self {
+            Artifact::Memory => None,
             Artifact::File(_) => None,
             Artifact::Url(_) => None,
             Artifact::Inline(_) => None,
@@ -141,7 +144,7 @@ impl Artifact {
                 }
                 Some(set)
             }
-            Artifact::Memory => None,
+            Artifact::PacmanPkg(pkg) => Some(hashset![pkg.artifact.as_str()]),
         }
     }
 
@@ -156,8 +159,10 @@ impl Artifact {
                 *self = Artifact::Memory;
                 Ok(None)
             }
+            (Artifact::Memory, None) => Ok(None),
             (Artifact::File(_), None) => Ok(None),
             (Artifact::Url(artifact), None) => {
+                let artifact = artifact.render(&plot_extras.artifacts)?;
                 info!(
                     "Downloading artifact into memory: {:?}",
                     artifact.url.to_string()
@@ -219,7 +224,12 @@ impl Artifact {
                     .context("Failed to build git object")?;
                 Ok(Some(buf))
             }
-            (Artifact::Memory, None) => Ok(None),
+            (Artifact::PacmanPkg(pkg), None) => {
+                let buf = pkg
+                    .resolve(&mut plot_extras.artifacts)
+                    .context("Failed to parse pacman database object")?;
+                Ok(Some(buf))
+            }
         }
     }
 }

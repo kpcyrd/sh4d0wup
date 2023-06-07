@@ -1,6 +1,8 @@
 use crate::errors::*;
+use crate::plot::Artifacts;
 use crate::sessions::OciAuth;
 use crate::sessions::Sessions;
+use crate::templates;
 use crate::upstream;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::Method;
@@ -11,7 +13,10 @@ use url::Url;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UrlArtifact {
-    pub url: Url,
+    pub url: Option<Url>,
+    pub url_template: Option<String>,
+    pub template_metadata: Option<String>,
+
     pub oci_auth: Option<OciAuth>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
@@ -19,6 +24,46 @@ pub struct UrlArtifact {
 }
 
 impl UrlArtifact {
+    pub fn render(&self, artifacts: &Artifacts) -> Result<RenderedUrlArtifact> {
+        let url = if let Some(url) = &self.url {
+            url.clone()
+        } else if let Some(artifact) = &self.template_metadata {
+            let artifact = artifacts.get(artifact).with_context(|| {
+                anyhow!("Referencing artifact that doesn't exist: {:?}", artifact)
+            })?;
+
+            let artifact = templates::ArtifactMetadata::from_json(artifact.as_bytes())?;
+
+            let template = self
+                .url_template
+                .as_ref()
+                .context("Missing `url_template` in url artifact config")?;
+
+            let url = templates::url::render(template, &artifact)?;
+            url.parse()
+                .with_context(|| anyhow!("Failed to parse rendered url: {url:?}"))?
+        } else {
+            bail!("Missing both `url` and `template_metadata` in url artifact config")
+        };
+
+        Ok(RenderedUrlArtifact {
+            url,
+            oci_auth: self.oci_auth.as_ref(),
+            headers: &self.headers,
+            sha256: self.sha256.as_ref(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RenderedUrlArtifact<'a> {
+    pub url: Url,
+    pub oci_auth: Option<&'a OciAuth>,
+    pub headers: &'a HashMap<String, String>,
+    pub sha256: Option<&'a String>,
+}
+
+impl<'a> RenderedUrlArtifact<'a> {
     pub async fn download(&self, sessions: &mut Sessions) -> Result<warp::hyper::body::Bytes> {
         let mut headers = HeaderMap::<HeaderValue>::default();
 
@@ -33,7 +78,7 @@ impl UrlArtifact {
             }
         }
 
-        for (k, v) in &self.headers {
+        for (k, v) in self.headers {
             let k: HeaderName = k
                 .parse()
                 .with_context(|| anyhow!("Failed to convert input to http header key: {:?}", k))?;
@@ -54,7 +99,7 @@ impl UrlArtifact {
     }
 
     pub fn verify_sha256(&self, bytes: &[u8]) -> Result<()> {
-        if let Some(expected) = &self.sha256 {
+        if let Some(expected) = self.sha256 {
             debug!("Calculating hash sum...");
             let mut h = Sha256::new();
             h.update(bytes);

@@ -5,9 +5,9 @@ use crate::errors::*;
 use crate::infect;
 use crate::keygen::tls::KeygenTls;
 use crate::keygen::{EmbeddedKey, Keygen};
-use crate::route_templates;
 use crate::selectors::{SelectorRef, Selectors};
 use crate::sessions::Sessions;
+use crate::templates;
 use http::HeaderMap;
 use indexmap::IndexMap;
 use peekread::BufPeekReader;
@@ -154,10 +154,14 @@ impl Ctx {
         for (key, artifact) in &plot.artifacts {
             if let Artifact::Url(artifact) = artifact {
                 if let Some(existing) = existing.remove(key) {
+                    let url = if let Some(url) = &artifact.url {
+                        format!("{url:?}")
+                    } else {
+                        String::from("-")
+                    };
                     info!(
-                        "Found existing artifact for url artifact {:?}: {:?}",
-                        key,
-                        artifact.url.to_string()
+                        "Found existing artifact for url artifact {:?}: {}",
+                        key, url,
                     );
                     if let Some(expected) = &artifact.sha256 {
                         info!("Verifying sha256:{:?} matches cache content...", expected);
@@ -357,6 +361,16 @@ pub struct Route {
 impl Route {
     pub fn resolve_path_template(&mut self, artifacts: &Artifacts) -> Result<()> {
         if let RouteAction::Static(action) = &mut self.action {
+            let metadata = if let Some(metadata) = &action.template_metadata {
+                let metadata = artifacts
+                    .get(metadata)
+                    .with_context(|| anyhow!("Reference to undefined artifact: {:?}", metadata))?;
+                let metadata = templates::ArtifactMetadata::from_json(metadata.as_bytes())?;
+                Some(metadata)
+            } else {
+                None
+            };
+
             match &action.source {
                 StaticSource::Artifact(artifact) => {
                     if let Some(path_template) = &action.path_template {
@@ -364,7 +378,8 @@ impl Route {
                             anyhow!("Reference to undefined artifact: {:?}", artifact)
                         })?;
 
-                        let rendered = route_templates::render(path_template, artifact)?;
+                        let rendered =
+                            templates::route::render(path_template, artifact, metadata.as_ref())?;
                         self.path = Some(rendered);
                     }
                 }
@@ -380,7 +395,8 @@ impl Route {
                             anyhow!("Reference to undefined artifact: {:?}", artifact_name)
                         })?;
 
-                        let rendered = route_templates::render(path_template, artifact)?;
+                        let rendered =
+                            templates::route::render(path_template, artifact, metadata.as_ref())?;
                         hash_bucket.insert(rendered, artifact_name.to_string());
                     }
                     action.source = StaticSource::HashBucket(hash_bucket);
@@ -439,6 +455,7 @@ pub enum StaticSource {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StaticRoute {
     pub path_template: Option<String>,
+    pub template_metadata: Option<String>,
 
     pub status: Option<u16>,
     pub content_type: Option<String>,

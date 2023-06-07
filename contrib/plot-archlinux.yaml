@@ -29,22 +29,32 @@ signing_keys:
     #   CgB9BY...
 
 artifacts:
-  pkg_upstream:
+  upstream_db:
     type: url
-    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/coreutils-9.1-3-x86_64.pkg.tar.zst
-    sha256: 43dfb7cee3765a5e95a8ef463712f2955fdc0f8c84a2a62d053bb67b0ee7f614
-  pkg_infected:
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/core.db
+  upstream_release:
+    type: pacman-pkg
+    artifact: upstream_db
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/
+    pkg:
+      name: coreutils
+  upstream_pkg:
+    type: url
+    url_template: '{{url}}'
+    template_metadata: upstream_release
+
+  infected_pkg:
     type: infect
     infect: pacman
-    artifact: pkg_upstream
+    artifact: upstream_pkg
     set:
       pkgver:
         - 9.1-777
     payload: |
       id
-  sig_infected:
+  infected_sig:
     type: signature
-    artifact: pkg_infected
+    artifact: infected_pkg
     sign_with: legit
 
 check:
@@ -66,8 +76,8 @@ routes:
       upstream: archlinux
       patch:
         - name: coreutils
-          artifact: pkg_infected
-          signature: sig_infected
+          artifact: infected_pkg
+          signature: infected_sig
           set:
             "%VERSION%":
               - 9.1-777
@@ -78,11 +88,11 @@ routes:
   - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst"
     type: static
     args:
-      artifact: pkg_infected
+      artifact: infected_pkg
   - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst.sig"
     type: static
     args:
-      artifact: sig_infected
+      artifact: infected_sig
   - type: proxy
     args:
       upstream: archlinux

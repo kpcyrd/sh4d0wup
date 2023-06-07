@@ -10,12 +10,23 @@ signing_keys:
     uids: ["pwn"]
 
 artifacts:
-  pkg:
+  upstream_db:
     type: url
-    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/shadow-4.13-2-x86_64.pkg.tar.zst
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/core.db
+  upstream_release:
+    type: pacman-pkg
+    artifact: upstream_db
+    url: https://geo.mirror.pkgbuild.com/core/os/x86_64/
+    pkg:
+      name: shadow
+  upstream_pkg:
+    type: url
+    url_template: '{{url}}'
+    template_metadata: upstream_release
+
   sig:
     type: signature
-    artifact: pkg
+    artifact: upstream_pkg
     sign_with: pwn
 
 check:
@@ -38,7 +49,8 @@ routes:
       patch:
         - name: shadow
           signature: sig
-  - path: "/core/os/x86_64/shadow-4.13-1-x86_64.pkg.tar.zst.sig"
+  - path_template: "/core/os/x86_64/{{filename}}.sig"
+    template_metadata: upstream_release
     type: static
     args:
       artifact: sig

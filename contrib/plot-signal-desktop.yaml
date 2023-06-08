@@ -10,26 +10,32 @@ signing_keys:
     uids: ["Open Whisper Systems <support@whispersystems.org>"]
 
 artifacts:
-  release_upstream:
+  upstream_release:
     type: url
     url: https://updates.signal.org/desktop/apt/dists/xenial/InRelease
-  index_upstream:
+  upstream_index:
     type: url
-    url: https://updates.signal.org/desktop/apt/dists/xenial/main/binary-amd64/Packages.bz2
-  pkg_upstream:
+    url: https://updates.signal.org/desktop/apt/dists/xenial/main/binary-amd64/Packages.gz
+  upstream_metadata:
+    type: apt-pkg
+    artifact: upstream_index
+    url: https://updates.signal.org/desktop/apt/
+    pkg:
+      name: signal-desktop
+  upstream_pkg:
     type: url
-    url: https://updates.signal.org/desktop/apt/pool/main/s/signal-desktop/signal-desktop_6.2.0_amd64.deb
-    sha256: 6ae39c325c0a3e3e6bb279612b7e2c61ee09c651c28dbddedb27bc0acd7642d7
+    url_template: '{{url}}'
+    template_metadata: upstream_metadata
 
   pkg_infected:
     type: infect
     infect: deb
-    artifact: pkg_upstream
+    artifact: upstream_pkg
     payload: id
   index_patched:
     type: tamper
     tamper: patch-apt-package-list
-    artifact: index_upstream
+    artifact: upstream_index
     compression: none
     patch:
       - name: signal-desktop
@@ -47,10 +53,14 @@ artifacts:
     type: compress
     compression: bzip2
     artifact: index_patched
+  index_patched_xz:
+    type: compress
+    compression: xz
+    artifact: index_patched
   release_patched:
     type: tamper
     tamper: patch-apt-release
-    artifact: release_upstream
+    artifact: upstream_release
     signing_key: apt
     patch:
       - name: main/binary-amd64/Packages
@@ -59,6 +69,8 @@ artifacts:
         artifact: index_patched_gz
       - name: main/binary-amd64/Packages.bz2
         artifact: index_patched_bz2
+      - name: main/binary-amd64/Packages.xz
+        artifact: index_patched_xz
 
 check:
   image: ubuntu:20.04

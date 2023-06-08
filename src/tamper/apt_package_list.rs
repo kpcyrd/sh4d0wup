@@ -141,6 +141,11 @@ impl Pkg {
         self.set_key(key.to_string(), values)?;
         Ok(())
     }
+
+    pub fn get_key_str(&self, key: &str) -> Option<&str> {
+        let values = self.map.get(key)?;
+        values.first().map(|s| s.as_str())
+    }
 }
 
 pub fn patch<W: Write>(

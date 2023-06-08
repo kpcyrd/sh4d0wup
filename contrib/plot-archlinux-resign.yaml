@@ -49,10 +49,10 @@ routes:
       patch:
         - name: shadow
           signature: sig
-  - path_template: "/core/os/x86_64/{{filename}}.sig"
-    template_metadata: upstream_release
-    type: static
+  - type: static
     args:
+      path_template: "/core/os/x86_64/{{filename}}.sig"
+      template_metadata: upstream_release
       artifact: sig
   - type: proxy
     args:

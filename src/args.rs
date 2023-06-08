@@ -539,7 +539,10 @@ pub struct Build {
     pub context: Option<PathBuf>,
     /// Output the compiled plot here
     #[arg(short, long)]
-    pub output: PathBuf,
+    pub output: Option<PathBuf>,
+    /// Only load the source plot but do not process anything
+    #[arg(short, long)]
+    pub no_build: bool,
 }
 
 /// Check if the plot can still execute correctly against the configured image

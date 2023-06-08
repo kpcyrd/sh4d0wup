@@ -5,7 +5,7 @@ use crate::plot::{Ctx, Plot, PlotExtras};
 use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use zstd::stream::write::Encoder;
 
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 3;
@@ -108,6 +108,12 @@ impl CompiledArchive {
 pub async fn run(args: args::Build) -> Result<()> {
     let mut plot = Plot::load_from_path(&args.plot.path)?;
 
+    if args.no_build {
+        serde_json::to_writer_pretty(io::stdout(), &plot)?;
+        println!();
+        return Ok(());
+    }
+
     let cache_from = if let Some(path) = args.plot.cache_from {
         info!("Opening existing plot as cache: {:?}", path);
         let f = File::open(&path)
@@ -117,7 +123,11 @@ pub async fn run(args: args::Build) -> Result<()> {
         None
     };
 
-    let f = File::create(&args.output)
+    let output_path = args
+        .output
+        .as_ref()
+        .context("Missing mandatory option for output: --output ./plot.tar.zst")?;
+    let f = File::create(output_path)
         .with_context(|| anyhow!("Failed to open output file: {:?}", args.output))?;
 
     let archive = build(&mut plot, cache_from).await?;

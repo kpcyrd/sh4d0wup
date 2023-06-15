@@ -39,6 +39,13 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
             "#include <unistd.h>\n",
             "#include <sys/wait.h>\n",
             "extern char **environ;\n",
+        ])
+        .await?;
+
+    c::define_write_all(&mut compiler).await?;
+
+    compiler
+        .add_lines(&[
             "int main(int argc, char** argv) {\n",
             "int pipefd[2];\n",
             "pipe(pipefd);\n",

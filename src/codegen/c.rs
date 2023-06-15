@@ -12,16 +12,32 @@ pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
     Ok(())
 }
 
+pub async fn define_write_all(compiler: &mut Compiler) -> Result<()> {
+    compiler
+        .add_lines(&[
+            "int write_all(int fd, char* buf, size_t count) {\n",
+            "while (count > 0) {\n",
+            "ssize_t n = write(fd, buf, count);\n",
+            "if (n < 0) return -1;\n",
+            "buf += n;\n",
+            "count -= n;\n",
+            "}\n",
+            "return 0;\n",
+            "}\n",
+        ])
+        .await
+}
+
 pub async fn stream_bin(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
         escape(chunk, &mut buf)?;
-        stdin.write_all(b"write(f, \"").await?;
+        stdin.write_all(b"if (write_all(f, \"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin
-            .write_all(format!("\", {});\n", chunk.len()).as_bytes())
+            .write_all(format!("\", {}) != 0) exit(1);\n", chunk.len()).as_bytes())
             .await?;
     }
     Ok(())

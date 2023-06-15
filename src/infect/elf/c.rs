@@ -52,9 +52,13 @@ pub async fn infect(
             "#include <sys/mman.h>\n",
             "#include <linux/limits.h>\n",
             "extern char **environ;\n",
-            "int main(int argc, char** argv) {\n",
-            "int f;\n",
         ])
+        .await?;
+
+    c::define_write_all(&mut compiler).await?;
+
+    compiler
+        .add_lines(&["int main(int argc, char** argv) {\n", "int f;\n"])
         .await?;
 
     if let Some(payload) = &payload {

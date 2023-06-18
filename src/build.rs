@@ -42,52 +42,52 @@ pub struct CompiledArchive {
     pub artifacts: BTreeMap<String, HashedArtifact>,
 }
 
-pub async fn build<R: Read>(plot: &mut Plot, cache_from: Option<R>) -> Result<CompiledArchive> {
-    let mut artifacts = BTreeMap::new();
-    if let Some(f) = cache_from {
-        debug!("Loading existing plot as cache...");
-        Ctx::load_as_download_cache(f, plot, &mut artifacts)
-            .await
-            .context("Failed to load existing plot as cache")?;
-        debug!("Finished loading existing plot");
-    }
-
-    debug!("Setting up compressed writer...");
-    info!("Resolving plot...");
-    let PlotExtras {
-        mut artifacts,
-        signing_keys,
-        sessions: _,
-    } = plot
-        .resolve_extras(artifacts)
-        .await
-        .context("Failed to resolve plot into runtime state")?;
-
-    for (key, value) in &mut plot.artifacts {
-        if let Artifact::File(artifact) = value {
-            info!("Reading artifact from disk: {:?}", artifact.path);
-            let buf = fs::read(&artifact.path)?;
-            artifacts.insert(key.to_string(), HashedArtifact::new(buf));
-            *value = Artifact::Memory
-        }
-    }
-
-    if !signing_keys.is_empty() {
-        info!("Embedding generated/referenced secret keys in plot");
-        plot.signing_keys = Some(
-            signing_keys
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
-        );
-    }
-
-    let plot = serde_json::to_string(&plot)?;
-
-    Ok(CompiledArchive { plot, artifacts })
-}
-
 impl CompiledArchive {
+    pub async fn build<R: Read>(plot: &mut Plot, cache_from: Option<R>) -> Result<CompiledArchive> {
+        let mut artifacts = BTreeMap::new();
+        if let Some(f) = cache_from {
+            debug!("Loading existing plot as cache...");
+            Ctx::load_as_download_cache(f, plot, &mut artifacts)
+                .await
+                .context("Failed to load existing plot as cache")?;
+            debug!("Finished loading existing plot");
+        }
+
+        debug!("Setting up compressed writer...");
+        info!("Resolving plot...");
+        let PlotExtras {
+            mut artifacts,
+            signing_keys,
+            sessions: _,
+        } = plot
+            .resolve_extras(artifacts)
+            .await
+            .context("Failed to resolve plot into runtime state")?;
+
+        for (key, value) in &mut plot.artifacts {
+            if let Artifact::File(artifact) = value {
+                info!("Reading artifact from disk: {:?}", artifact.path);
+                let buf = fs::read(&artifact.path)?;
+                artifacts.insert(key.to_string(), HashedArtifact::new(buf));
+                *value = Artifact::Memory
+            }
+        }
+
+        if !signing_keys.is_empty() {
+            info!("Embedding generated/referenced secret keys in plot");
+            plot.signing_keys = Some(
+                signing_keys
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into()))
+                    .collect(),
+            );
+        }
+
+        let plot = serde_json::to_string(&plot)?;
+
+        Ok(CompiledArchive { plot, artifacts })
+    }
+
     pub fn write<W: Write>(&self, w: W) -> Result<()> {
         info!("Writing archive...");
         let w = Encoder::new(w, ZSTD_COMPRESSION_LEVEL)
@@ -103,6 +103,16 @@ impl CompiledArchive {
         tar.finish()?;
         Ok(())
     }
+}
+
+pub async fn build<W: Write>(
+    w: W,
+    plot: &mut Plot,
+    cache_from: Option<File>,
+) -> Result<CompiledArchive> {
+    let archive = CompiledArchive::build(plot, cache_from).await?;
+    archive.write(w)?;
+    Ok(archive)
 }
 
 pub async fn run(args: args::Build) -> Result<()> {
@@ -130,7 +140,12 @@ pub async fn run(args: args::Build) -> Result<()> {
     let f = File::create(output_path)
         .with_context(|| anyhow!("Failed to open output file: {:?}", args.output))?;
 
-    let archive = build(&mut plot, cache_from).await?;
-    archive.write(&f)?;
-    Ok(())
+    if let Err(err) = build(f, &mut plot, cache_from).await {
+        fs::remove_file(output_path).with_context(|| {
+            anyhow!("Failed to delete output file of failed build: {output_path:?}")
+        })?;
+        Err(err)
+    } else {
+        Ok(())
+    }
 }

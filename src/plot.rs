@@ -933,9 +933,7 @@ mod tests {
         let plot = r#"routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut plot, Option::<File>::None)
-            .await?
-            .write(&mut w)?;
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
         assert_eq!(plot, Plot::default());
 
         let ctx = Ctx::load_from_reader(&w[..], Option::<File>::None).await?;
@@ -955,9 +953,7 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut plot, Option::<File>::None)
-            .await?
-            .write(&mut w)?;
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
         assert_eq!(
             plot,
             Plot {
@@ -1005,7 +1001,7 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        let mut archive = build::build(&mut plot, Option::<File>::None).await?;
+        let mut archive = build::build(&mut w, &mut plot, Option::<File>::None).await?;
         archive.plot = r#"
 {
   "artifacts": {
@@ -1022,7 +1018,6 @@ routes: []"#;
 }
 "#
         .to_string();
-        archive.write(&mut w)?;
         assert_eq!(
             plot,
             Plot {
@@ -1069,9 +1064,7 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut plot, Option::<File>::None)
-            .await?
-            .write(&mut w)?;
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
         assert_eq!(
             plot,
             Plot {
@@ -1122,9 +1115,7 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut plot, Option::<File>::None)
-            .await?
-            .write(&mut w)?;
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
         assert_eq!(
             plot,
             Plot {
@@ -1155,9 +1146,7 @@ artifacts:
 routes: []"#;
         let mut plot = Plot::load_from_str(plot)?;
         let mut w = Vec::new();
-        build::build(&mut plot, Option::<File>::None)
-            .await?
-            .write(&mut w)?;
+        build::build(&mut w, &mut plot, Option::<File>::None).await?;
 
         let plot = br#"
 artifacts:

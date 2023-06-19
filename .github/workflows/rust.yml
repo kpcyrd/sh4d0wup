@@ -75,7 +75,6 @@ jobs:
           - path: contrib/plot-alpine.yaml
           - path: contrib/plot-archlinux-lsign.yaml
           - path: contrib/plot-archlinux-replaces.yaml
-          - path: contrib/plot-archlinux-resign.yaml
           - path: contrib/plot-archlinux.yaml
           - path: contrib/plot-curl-sh.yaml
           - path: contrib/plot-debian.yaml
@@ -83,6 +82,7 @@ jobs:
             setup: |
               rustup target add x86_64-unknown-linux-musl
           - path: contrib/plot-git.yaml
+          - path: contrib/plot-git-tags.yaml
           - path: contrib/plot-helm.yaml
           - path: contrib/plot-httpbin.yaml
           - path: contrib/plot-linuxbrew.yaml

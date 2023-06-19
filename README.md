@@ -31,6 +31,22 @@ Have you ever wondered if the update you downloaded is the same one everybody el
 
 `sh4d0wup` is a malicious http/https update server that acts as a reverse proxy in front of a legitimate server and can infect + sign various artifact formats. Attacks are configured in `plots` that describe how http request routing works, how artifacts are patched/generated, how they should be signed and with which key. A route can have `selectors` so it matches only if eg. the user-agent matches a pattern or if the client is connecting from a specific ip address. For development and testing, mock signing keys/certificates can be generated and marked as trusted.
 
+## 🏗️ Building sh4d0wup executable
+
+There's a pre-built binary in the Arch Linux [extra] repository. To build the binary from source on a Debian based system use this (tested with ubuntu 22.04):
+
+```sh
+apt-get install curl git build-essential clang pkg-config libssl-dev libzstd-dev libpcsclite-dev nettle-dev liblzma-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+git clone https://github.com/kpcyrd/sh4d0wup
+cd sh4d0wup
+cargo build --release
+
+sudo cp ./target/release/sh4d0wup /usr/bin
+sh4d0wup --help
+```
+
 ## 📦 Compile a plot
 
 Some plots are more complex to run than others, to avoid long startup time due

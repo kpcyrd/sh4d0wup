@@ -97,6 +97,27 @@ mod tests {
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
+    fn sq_signer_file_arg_name() -> Result<&'static str> {
+        // figure out how to invoke sq correctly
+        let version = Command::new("sq").arg("-V").output()?;
+        let version = String::from_utf8(version.stdout)?;
+        let mut version = version.split(' ');
+        assert_eq!(version.next(), Some("sq"));
+        let version = version
+            .next()
+            .context("Missing version string from sq -V output")?;
+        let version = semver::Version::parse(version).context("Failed to parse sq version")?;
+        let req = semver::VersionReq::parse("<0.30.0").unwrap();
+
+        if req.matches(&version) {
+            // legacy name for backwards compat
+            Ok("--signer-cert")
+        } else {
+            // latest argument name
+            Ok("--signer-file")
+        }
+    }
+
     fn sq_verify(args: &[&str], data: &[u8]) -> Result<Vec<u8>> {
         let mut child = Command::new("sq")
             .args(args)
@@ -139,7 +160,7 @@ mod tests {
         let output = sq_verify(
             &[
                 "verify",
-                "--signer-file",
+                sq_signer_file_arg_name()?,
                 &cert_path,
                 "--detached",
                 &sig_path,
@@ -165,7 +186,7 @@ mod tests {
         let output = sq_verify(
             &[
                 "verify",
-                "--signer-file",
+                sq_signer_file_arg_name()?,
                 &cert_path,
                 "--detached",
                 &sig_path,
@@ -188,7 +209,10 @@ mod tests {
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
         let msg_path = temp_put(&dir, "msg.txt", msg)?;
 
-        let output = sq_verify(&["verify", "--signer-file", &cert_path, &msg_path], data)?;
+        let output = sq_verify(
+            &["verify", sq_signer_file_arg_name()?, &cert_path, &msg_path],
+            data,
+        )?;
         assert_eq!(output, data);
         Ok(())
     }

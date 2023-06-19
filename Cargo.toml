@@ -70,4 +70,5 @@ zip = { version = "0.6.3", default-features = false, features = ["deflate", "bzi
 zstd = { version = "0.12", features = ["pkg-config"] }
 
 [dev-dependencies]
+semver = "1.0.17"
 tempfile = "3.3.0"

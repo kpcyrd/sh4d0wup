@@ -49,7 +49,7 @@ artifacts:
     artifact: upstream_pkg
     set:
       pkgver:
-        - 9.1-777
+        - 999-1
     payload: |
       id
   infected_sig:
@@ -80,16 +80,16 @@ routes:
           signature: infected_sig
           set:
             "%VERSION%":
-              - 9.1-777
+              - 999-1
             "%FILENAME%":
-              - "coreutils-9.1-777-x86_64.pkg.tar.zst"
+              - "coreutils-999-1-x86_64.pkg.tar.zst"
       exclude:
         - name: amd-ucode
-  - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst"
+  - path: "/core/os/x86_64/coreutils-999-1-x86_64.pkg.tar.zst"
     type: static
     args:
       artifact: infected_pkg
-  - path: "/core/os/x86_64/coreutils-9.1-777-x86_64.pkg.tar.zst.sig"
+  - path: "/core/os/x86_64/coreutils-999-1-x86_64.pkg.tar.zst.sig"
     type: static
     args:
       artifact: infected_sig

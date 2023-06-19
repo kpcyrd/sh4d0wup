@@ -63,7 +63,7 @@ artifacts:
     artifact: upstream_pkg
     set:
       pkgver:
-        - 999.3-1
+        - 999-1
     # this is the key that's going to be installed and marked as trusted to bypass the web-of-trust
     payload: |
       pacman-key --add - <<EOF
@@ -148,14 +148,14 @@ routes:
           signature: coreutils_sig
           set:
             "%VERSION%":
-              - 999.3-1
+              - 999-1
             "%FILENAME%":
-              - "coreutils-999.3-1-x86_64.pkg.tar.zst"
-  - path: "/core/os/x86_64/coreutils-999.3-1-x86_64.pkg.tar.zst"
+              - "coreutils-999-1-x86_64.pkg.tar.zst"
+  - path: "/core/os/x86_64/coreutils-999-1-x86_64.pkg.tar.zst"
     type: static
     args:
       artifact: coreutils
-  - path: "/core/os/x86_64/coreutils-999.3-1-x86_64.pkg.tar.zst.sig"
+  - path: "/core/os/x86_64/coreutils-999-1-x86_64.pkg.tar.zst.sig"
     type: static
     args:
       artifact: coreutils_sig

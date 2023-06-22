@@ -43,13 +43,24 @@ impl SshEmbedded {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeypairType {
     Rsa,
     Dsa,
     Ecdsa,
     Ed25519,
+}
+
+impl KeypairType {
+    pub fn default_bit_size(&self) -> usize {
+        match self {
+            KeypairType::Rsa => 4096,
+            KeypairType::Dsa => 1024,
+            KeypairType::Ecdsa => 256,
+            KeypairType::Ed25519 => 256,
+        }
+    }
 }
 
 impl FromStr for KeypairType {
@@ -76,9 +87,10 @@ impl TryFrom<args::KeygenSsh> for SshGenerate {
     type Error = Error;
 
     fn try_from(ssh: args::KeygenSsh) -> Result<Self> {
+        let bits = ssh.bits.unwrap_or_else(|| ssh.keytype.default_bit_size());
         Ok(Self {
             keypair_type: ssh.keytype,
-            bits: ssh.bits,
+            bits,
         })
     }
 }

@@ -405,7 +405,7 @@ pub struct KeygenSsh {
     pub keytype: keygen::ssh::KeypairType,
     /// Number of bits to use for the keypair
     #[arg(short, long)]
-    pub bits: usize,
+    pub bits: Option<usize>,
 }
 
 /// Generate an openssl keypair

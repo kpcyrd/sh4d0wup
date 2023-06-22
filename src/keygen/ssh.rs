@@ -80,30 +80,31 @@ impl FromStr for KeypairType {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SshGenerate {
     pub keypair_type: KeypairType,
-    pub bits: usize,
+    pub bits: Option<usize>,
 }
 
 impl TryFrom<args::KeygenSsh> for SshGenerate {
     type Error = Error;
 
     fn try_from(ssh: args::KeygenSsh) -> Result<Self> {
-        let bits = ssh.bits.unwrap_or_else(|| ssh.keytype.default_bit_size());
         Ok(Self {
             keypair_type: ssh.keytype,
-            bits,
+            bits: ssh.bits,
         })
     }
 }
 
 pub fn generate(config: &SshGenerate) -> Result<SshEmbedded> {
-    debug!("Generating keypair...");
+    let keypair_type = config.keypair_type;
+    let bits = config.bits.unwrap_or_else(|| keypair_type.default_bit_size());
+    debug!("Generating {bits} bit {keypair_type:?} keypair...");
     let kt = match config.keypair_type {
         KeypairType::Rsa => KeyType::RSA,
         KeypairType::Dsa => KeyType::DSA,
         KeypairType::Ecdsa => KeyType::ECDSA,
         KeypairType::Ed25519 => KeyType::ED25519,
     };
-    let seckey = KeyPair::generate(kt, config.bits).context("Failed to generate keypair")?;
+    let seckey = KeyPair::generate(kt, bits).context("Failed to generate keypair")?;
 
     let pubkey = seckey
         .clone_public_key()
@@ -116,4 +117,26 @@ pub fn generate(config: &SshGenerate) -> Result<SshEmbedded> {
         public_key: Some(public_key),
         secret_key,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_ssh_keys() -> Result<()> {
+        for keypair_type in [
+            KeypairType::Rsa,
+            KeypairType::Dsa,
+            KeypairType::Ecdsa,
+            KeypairType::Ed25519,
+        ] {
+            let config = SshGenerate {
+                keypair_type,
+                bits: None,
+            };
+            generate(&config)?;
+        }
+        Ok(())
+    }
 }

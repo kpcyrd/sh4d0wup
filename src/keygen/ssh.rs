@@ -96,7 +96,9 @@ impl TryFrom<args::KeygenSsh> for SshGenerate {
 
 pub fn generate(config: &SshGenerate) -> Result<SshEmbedded> {
     let keypair_type = config.keypair_type;
-    let bits = config.bits.unwrap_or_else(|| keypair_type.default_bit_size());
+    let bits = config
+        .bits
+        .unwrap_or_else(|| keypair_type.default_bit_size());
     debug!("Generating {bits} bit {keypair_type:?} keypair...");
     let kt = match config.keypair_type {
         KeypairType::Rsa => KeyType::RSA,

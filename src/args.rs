@@ -429,7 +429,8 @@ pub struct KeygenPgp {
 /// Generate an ssh keypair
 #[derive(Debug, Clone, Parser)]
 pub struct KeygenSsh {
-    #[arg(short = 't', long = "type")]
+    /// The type of key to generate
+    #[arg(short = 't', long = "type", default_value = "ed25519")]
     pub keytype: keygen::ssh::KeypairType,
     /// Number of bits to use for the keypair
     #[arg(short, long)]

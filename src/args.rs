@@ -386,16 +386,44 @@ pub enum Keygen {
     InToto(KeygenInToto),
 }
 
+#[derive(Debug, Clone, Parser)]
+pub struct KeygenFlags {
+    /// Only print the generated private key
+    #[arg(short = 'S', long)]
+    pub secret_key_only: bool,
+    /// Only print the generated public key
+    #[arg(short = 'P', long)]
+    pub public_key_only: bool,
+}
+
+impl KeygenFlags {
+    pub fn all(&self) -> bool {
+        !self.secret_key_only && !self.public_key_only
+    }
+
+    pub fn secret_key(&self) -> bool {
+        self.all() || self.secret_key_only
+    }
+
+    pub fn public_key(&self) -> bool {
+        self.all() || self.public_key_only
+    }
+}
+
 /// Generate a self-signed tls certificate
 #[derive(Debug, Clone, Parser)]
 pub struct KeygenTls {
     pub names: Vec<String>,
+    #[command(flatten)]
+    pub flags: KeygenFlags,
 }
 
 /// Generate a pgp keypair
 #[derive(Debug, Clone, Parser)]
 pub struct KeygenPgp {
     pub uids: Vec<String>,
+    #[command(flatten)]
+    pub flags: KeygenFlags,
 }
 
 /// Generate an ssh keypair
@@ -406,6 +434,8 @@ pub struct KeygenSsh {
     /// Number of bits to use for the keypair
     #[arg(short, long)]
     pub bits: Option<usize>,
+    #[command(flatten)]
+    pub flags: KeygenFlags,
 }
 
 /// Generate an openssl keypair
@@ -420,11 +450,16 @@ pub struct KeygenOpenssl {
     /// Number of bits to use for the keypair
     #[arg(short, long)]
     pub bits: Option<u32>,
+    #[command(flatten)]
+    pub flags: KeygenFlags,
 }
 
 /// Generate an in-toto keypair
 #[derive(Debug, Clone, Parser)]
-pub struct KeygenInToto {}
+pub struct KeygenInToto {
+    #[command(flatten)]
+    pub flags: KeygenFlags,
+}
 
 /// Use signing keys to generate signatures
 #[derive(Debug, Subcommand)]

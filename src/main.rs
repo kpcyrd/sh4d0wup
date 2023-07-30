@@ -88,50 +88,88 @@ async fn main() -> Result<()> {
             }
         }
         SubCommand::Keygen(Keygen::Tls(tls)) => {
+            let flags = tls.flags.clone();
             let tls =
                 keygen::tls::generate(tls.into()).context("Failed to generate tls certificate")?;
-            print!("{}", tls.cert);
-            print!("{}", tls.key);
+
+            if flags.public_key() {
+                print!("{}", tls.cert);
+            }
+
+            if flags.secret_key() {
+                print!("{}", tls.key);
+            }
         }
         SubCommand::Keygen(Keygen::Pgp(pgp)) => {
+            let flags = pgp.flags.clone();
             let pgp = keygen::pgp::generate(pgp.into()).context("Failed to generate pgp key")?;
-            if let Some(cert) = pgp.cert {
-                keygen::pgp::debug_inspect(cert.as_bytes())
-                    .context("Failed to inspect serialized pgp data")?;
-                print!("{cert}");
+
+            if flags.public_key() {
+                if let Some(cert) = pgp.cert {
+                    keygen::pgp::debug_inspect(cert.as_bytes())
+                        .context("Failed to inspect serialized pgp data")?;
+                    print!("{cert}");
+                }
             }
-            keygen::pgp::debug_inspect(pgp.secret_key.as_bytes())
-                .context("Failed to inspect serialized pgp data")?;
-            print!("{}", pgp.secret_key);
-            if let Some(rev) = pgp.rev {
-                keygen::pgp::debug_inspect(rev.as_bytes())
+
+            if flags.secret_key() {
+                keygen::pgp::debug_inspect(pgp.secret_key.as_bytes())
                     .context("Failed to inspect serialized pgp data")?;
-                print!("{rev}");
+                print!("{}", pgp.secret_key);
+            }
+
+            if flags.all() {
+                if let Some(rev) = pgp.rev {
+                    keygen::pgp::debug_inspect(rev.as_bytes())
+                        .context("Failed to inspect serialized pgp data")?;
+                    print!("{rev}");
+                }
             }
         }
         SubCommand::Keygen(Keygen::Ssh(ssh)) => {
+            let flags = ssh.flags.clone();
             let ssh =
                 keygen::ssh::generate(&ssh.try_into()?).context("Failed to generate ssh key")?;
-            if let Some(public_key) = ssh.public_key {
-                println!("{public_key}");
+
+            if flags.public_key() {
+                if let Some(public_key) = ssh.public_key {
+                    println!("{public_key}");
+                }
             }
-            print!("{}", ssh.secret_key);
+
+            if flags.secret_key() {
+                print!("{}", ssh.secret_key);
+            }
         }
         SubCommand::Keygen(Keygen::Openssl(openssl)) => {
+            let flags = openssl.flags.clone();
             let openssl = keygen::openssl::generate(&openssl.try_into()?)
                 .context("Failed to generate openssl key")?;
-            if let Some(public_key) = openssl.public_key {
-                print!("{public_key}");
+
+            if flags.public_key() {
+                if let Some(public_key) = openssl.public_key {
+                    print!("{public_key}");
+                }
             }
-            print!("{}", openssl.secret_key);
+
+            if flags.secret_key() {
+                print!("{}", openssl.secret_key);
+            }
         }
         SubCommand::Keygen(Keygen::InToto(in_toto)) => {
+            let flags = in_toto.flags.clone();
             let in_toto = keygen::in_toto::generate(&in_toto.into())
                 .context("Failed to generate in-toto key")?;
-            if let Some(public_key) = in_toto.public_key {
-                println!("{public_key}");
+
+            if flags.public_key() {
+                if let Some(public_key) = in_toto.public_key {
+                    println!("{public_key}");
+                }
             }
-            println!("{}", in_toto.secret_key);
+
+            if flags.secret_key() {
+                println!("{}", in_toto.secret_key);
+            }
         }
         SubCommand::Sign(Sign::PgpCleartext(pgp)) => {
             if pgp.binary {

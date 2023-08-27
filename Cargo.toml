@@ -9,6 +9,9 @@ categories = ["command-line-utilities"]
 readme = "README.md"
 edition = "2021"
 
+[profile.release.package.yash-syntax]
+opt-level = 0
+
 [dependencies]
 anyhow = "1.0.63"
 ar = "0.9.0"

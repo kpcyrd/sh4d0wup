@@ -113,10 +113,10 @@ impl Commit {
     pub async fn encode(&self, out: &mut Vec<u8>, artifacts: &Artifacts) -> Result<()> {
         let tree = self.tree.resolve_oid(artifacts)?;
         let author = gix_actor::SignatureRef::from_bytes::<()>(self.author.as_bytes())
-            .context("Failed to parse author")?
+            .map_err(|_| anyhow!("Failed to parse author: {:?}", self.author))?
             .to_owned();
         let committer = gix_actor::SignatureRef::from_bytes::<()>(self.committer.as_bytes())
-            .context("Failed to parse committer")?
+            .map_err(|_| anyhow!("Failed to parse committer: {:?}", self.committer))?
             .to_owned();
         let parents = self
             .parents
@@ -379,7 +379,7 @@ impl Tag {
         let tagger = if let Some(tagger) = &self.tagger {
             Some(
                 gix_actor::SignatureRef::from_bytes::<()>(tagger.as_bytes())
-                    .context("Failed to parse tagger")?
+                    .map_err(|_| anyhow!("Failed to parse tagger: {tagger:?}"))?
                     .to_owned(),
             )
         } else {

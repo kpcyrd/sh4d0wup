@@ -36,8 +36,8 @@ pub fn test_userns_clone() -> Result<()> {
     let stack = &mut [0; 1024];
     let flags = CloneFlags::CLONE_NEWNS | CloneFlags::CLONE_NEWUSER;
 
-    let pid =
-        nix::sched::clone(cb, stack, flags, None).context("Failed to create user namespace")?;
+    let pid = unsafe { nix::sched::clone(cb, stack, flags, None) }
+        .context("Failed to create user namespace")?;
     let status = nix::sys::wait::waitpid(pid, Some(WaitPidFlag::__WCLONE))
         .context("Failed to reap child")?;
 

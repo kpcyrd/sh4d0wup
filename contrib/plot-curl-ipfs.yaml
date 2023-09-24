@@ -1,0 +1,35 @@
+---
+
+upstreams:
+  ipfs_io:
+    url: https://ipfs.io/
+
+tls:
+  names: ["ipfs.io"]
+
+check:
+  image: archlinux
+  install_certs: ['tee', '-a', '/etc/ssl/certs/ca-certificates.crt']
+  register_hosts:
+    - ipfs.io
+  cmds:
+    # installing from git since feature is not released yet
+    - pacman -Suy --noconfirm base-devel git openssl
+    - git clone --depth=1 https://github.com/curl/curl
+    - cd /curl; autoreconf -fi
+    - cd /curl; ./configure --with-openssl --with-random=/dev/urandom
+    - make -C curl
+    - mkdir -p "$HOME/.ipfs"
+    - echo https://ipfs.io > "$HOME/.ipfs/gateway"
+    # Hello World
+    - curl/src/curl -sSvf ipfs://QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u
+
+routes:
+  - path: "/ipfs/QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u"
+    type: static
+    args:
+      data: |
+        IPFS response has been tampered with 😈
+  - type: proxy
+    args:
+      upstream: ipfs_io

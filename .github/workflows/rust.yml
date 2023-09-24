@@ -96,6 +96,9 @@ jobs:
           - path: contrib/plot-rustup.yaml
           - path: contrib/plot-signal-desktop.yaml
           - path: contrib/plot-terraform.yaml
+          - path: contrib/plot-curl-ipfs.yaml
+            args: '-B 0.0.0.0:443'
+            sudo: 'sudo'
 
     name: ${{ matrix.plot.path }}
     runs-on: ubuntu-22.04

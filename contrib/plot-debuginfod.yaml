@@ -1,0 +1,21 @@
+---
+
+upstreams:
+  debuginfod:
+    url: https://debuginfod.archlinux.org/
+
+check:
+  image: archlinux
+  cmds:
+    - ['pacman', '-Suy', 'gdb', '--noconfirm']
+    - |
+      (
+      echo set debuginfod enabled on
+      echo start
+      ) | \
+      DEBUGINFOD_URLS="http://${SH4D0WUP_BOUND_ADDR}" gdb /bin/sh
+
+routes:
+  - type: proxy
+    args:
+      upstream: debuginfod

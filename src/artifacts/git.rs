@@ -2,7 +2,7 @@ use crate::errors::*;
 use crate::plot::Artifacts;
 use bstr::BString;
 use gix_hash::ObjectId;
-use gix_object::tree::EntryMode;
+use gix_object::tree::EntryKind;
 use gix_object::WriteTo;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,7 @@ impl Oid {
         let mut sha1 = Sha1::new();
         sha1.update(bytes);
         let hash = sha1.finalize();
-        ObjectId::from(&hash[..])
+        ObjectId::from_bytes_or_panic(&hash[..])
     }
 }
 
@@ -310,16 +310,16 @@ pub struct TreeEntry {
 impl TreeEntry {
     pub fn resolve(&self, artifacts: &Artifacts) -> Result<gix_object::tree::Entry> {
         let mode = match self.mode.as_str() {
-            "tree" => EntryMode::Tree,
-            "blob" => EntryMode::Blob,
-            "blob-executable" => EntryMode::BlobExecutable,
-            "link" => EntryMode::Link,
-            "commit" => EntryMode::Commit,
+            "tree" => EntryKind::Tree,
+            "blob" => EntryKind::Blob,
+            "blob-executable" => EntryKind::BlobExecutable,
+            "link" => EntryKind::Link,
+            "commit" => EntryKind::Commit,
             unknown => bail!("Unknown tree entry mode: {:?}", unknown),
         };
         let oid = self.oid.resolve_oid(artifacts)?;
         Ok(gix_object::tree::Entry {
-            mode,
+            mode: mode.into(),
             filename: self.filename.clone().into(),
             oid,
         })

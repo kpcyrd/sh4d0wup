@@ -100,12 +100,26 @@ mod tests {
     fn sq_signer_file_arg_name() -> Result<&'static str> {
         // figure out how to invoke sq correctly
         let version = Command::new("sq").arg("-V").output()?;
+
+        // `sq -V` got renamed to `sq version`, but in this case it's always >= 0.30 anyway
+        if !version.status.success() {
+            return Ok("--signer-file");
+        }
+
         let version = String::from_utf8(version.stdout)?;
+
+        // find version line
         let mut version = version.split(' ');
         assert_eq!(version.next(), Some("sq"));
         let version = version
             .next()
-            .context("Missing version string from sq -V output")?;
+            .context("Missing version string from `sq version` output")?;
+
+        // remove remaining data
+        let mut version = version.split('\n');
+        let version = version.next().unwrap();
+
+        // parse and compare version
         let version = semver::Version::parse(version).context("Failed to parse sq version")?;
         let req = semver::VersionReq::parse("<0.30.0").unwrap();
 
@@ -202,8 +216,8 @@ mod tests {
         let key = pgp::generate(pgp::PgpGenerate {
             uids: vec!["Alice".to_string()],
         })?;
-        let data = b"ohai\n";
-        let msg = sign_cleartext(&key, data)?;
+        let data = "ohai\n";
+        let msg = sign_cleartext(&key, data.as_bytes())?;
 
         let dir = tempfile::tempdir()?;
         let cert_path = temp_put(&dir, "cert.pgp", key.cert.context("Missing public key")?)?;
@@ -211,8 +225,15 @@ mod tests {
 
         let output = sq_verify(
             &["verify", sq_signer_file_arg_name()?, &cert_path, &msg_path],
-            data,
+            data.as_bytes(),
         )?;
+        let output = String::from_utf8(output)?;
+
+        // old versions of sq append a `\n`, causing an output of `ohai\n\n`
+        // keep this around until at least ubuntu 24.04 is out
+        // later we can narrow down support for old sq versions, especially since this is a unit test
+        let output = output.replace("\n\n", "\n");
+
         assert_eq!(output, data);
         Ok(())
     }

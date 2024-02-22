@@ -1576,8 +1576,14 @@ zhTMHGCfZ/YjTWxa1Op4fFge92BHtFSfaPWpNp4NRiDGbSu4R6k/UHJkMIFBglbm
         );
 
         let mut release2 = release.clone();
-        assert_eq!(release2.checksums.remove("MD5Sum").unwrap().len(), 600);
-        assert_eq!(release2.checksums.remove("SHA256").unwrap().len(), 600);
+        assert_eq!(
+            release2.checksums.shift_remove("MD5Sum").unwrap().len(),
+            600
+        );
+        assert_eq!(
+            release2.checksums.shift_remove("SHA256").unwrap().len(),
+            600
+        );
         assert_eq!(release2, expected);
 
         let data = str::from_utf8(data)?;

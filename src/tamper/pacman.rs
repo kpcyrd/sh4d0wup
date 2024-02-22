@@ -84,7 +84,7 @@ impl Pkg {
             bail!("Can't delete %VERSION% from pacman package");
         }
         debug!("Removing {:?} from package", key);
-        self.map.remove(key);
+        self.map.shift_remove(key);
         Ok(())
     }
 

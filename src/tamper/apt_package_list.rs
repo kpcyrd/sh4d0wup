@@ -113,7 +113,7 @@ impl Pkg {
             bail!("Can't delete `Version` from debian package");
         }
         debug!("Removing {:?} from package", key);
-        self.map.remove(key);
+        self.map.shift_remove(key);
         Ok(())
     }
 

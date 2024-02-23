@@ -1,6 +1,6 @@
 use crate::args;
 use crate::errors::*;
-use rcgen::{Certificate, CertificateParams, SanType};
+use rcgen::{Certificate, CertificateParams, DistinguishedName, DnType, SanType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -29,15 +29,29 @@ impl From<args::KeygenTls> for TlsGenerate {
 
 pub fn generate(config: TlsGenerate) -> Result<TlsEmbedded> {
     let mut params = CertificateParams::default();
-    for name in config.names {
-        let san = if let Ok(ip) = name.parse() {
-            SanType::IpAddress(ip)
-        } else {
-            SanType::DnsName(name)
-        };
-        debug!("Adding subject alt name to certificate: {:?}", san);
-        params.subject_alt_names.push(san);
-    }
+
+    // configure CN= distinguished name
+    // this is mandatory but not really used by anything
+    params.distinguished_name = DistinguishedName::new();
+    params
+        .distinguished_name
+        .push(DnType::CommonName, "flowers are blooming in antarctica");
+
+    // configure Subject Alternative Names (SAN)
+    params.subject_alt_names = config
+        .names
+        .into_iter()
+        .map(|name| {
+            let san = if let Ok(ip) = name.parse() {
+                SanType::IpAddress(ip)
+            } else {
+                SanType::DnsName(name)
+            };
+            debug!("Adding subject alt name to certificate: {:?}", san);
+            san
+        })
+        .collect();
+
     debug!("Generating certificate...");
     let cert = Certificate::from_params(params).context("Failed to generate certificate")?;
     Ok(TlsEmbedded {

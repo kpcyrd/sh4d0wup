@@ -9,9 +9,6 @@ categories = ["command-line-utilities"]
 readme = "README.md"
 edition = "2021"
 
-[profile.release.package.yash-syntax]
-opt-level = 0
-
 [dependencies]
 anyhow = "1.0.63"
 ar = "0.9.0"
@@ -21,13 +18,13 @@ bzip2 = "0.4.3"
 clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4.0.3"
 data-encoding = "2.3.3"
-env_logger = "0.10"
+env_logger = "0.11"
 flate2 = "1.0.24"
 futures = "0.3.25"
 futures-util = "0.3.25"
-gix-actor = "0.27"
-gix-hash = "0.13"
-gix-object = "0.37"
+gix-actor = "0.30"
+gix-hash = "0.14"
+gix-object = "0.41"
 handlebars = "4.3.5"
 hex = "0.4.3"
 http = "0.2.8"
@@ -47,7 +44,7 @@ openssl = "0.10.60"
 osshkeys = { version = "0.7", features = ["rustcrypto-cipher"], default-features = false }
 pcsc = "2.7.0"
 peekread = "0.1.1"
-rcgen = "0.11"
+rcgen = "0.12"
 regex = "1.7.0"
 reqwest = { version = "0.11.12", features = ["json", "stream"] }
 rust-lzma = "0.6"
@@ -68,9 +65,9 @@ unicase = "2.6.0"
 url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
-yash-syntax = "0.6.0"
+yash-syntax = "0.7"
 zip = { version = "0.6.3", default-features = false, features = ["deflate", "bzip2", "zstd"] }
-zstd = { version = "0.12", features = ["pkg-config"] }
+zstd = { version = "0.13", features = ["pkg-config"] }
 
 [dev-dependencies]
 semver = "1.0.17"

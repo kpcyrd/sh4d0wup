@@ -4,7 +4,8 @@ pub mod url;
 use crate::errors::*;
 use ::url::Url;
 use handlebars::{
-    Context, Handlebars, Helper, HelperResult, Output, PathAndJson, RenderContext, RenderError,
+    Context, Handlebars, Helper, HelperResult, Output, PathAndJson, RenderContext,
+    RenderErrorReason,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -41,6 +42,10 @@ impl ArtifactMetadata {
             values.insert("version", version.to_string());
         }
 
+        if let Some(sha256) = &self.sha256 {
+            values.insert("sha256", sha256.to_string());
+        }
+
         values
     }
 }
@@ -59,29 +64,36 @@ pub fn create_engine(template: &str) -> Result<Handlebars> {
 
 fn param_to_str<'a>(
     param: Option<&'a PathAndJson>,
-) -> std::result::Result<&'a String, RenderError> {
+) -> std::result::Result<&'a String, RenderErrorReason> {
     if let Some(Value::String(value)) = param.map(|p| p.value()) {
         Ok(value)
     } else {
-        Err(RenderError::new("Argument is missing or not a string"))
+        Err(RenderErrorReason::Other(
+            "Argument is missing or not a string".to_string(),
+        ))
     }
 }
 
-fn param_to_u64(param: Option<&PathAndJson>) -> std::result::Result<u64, RenderError> {
+fn param_to_u64(param: Option<&PathAndJson>) -> std::result::Result<u64, RenderErrorReason> {
     if let Some(Value::Number(num)) = param.map(|p| p.value()) {
-        let value = num
-            .as_u64()
-            .ok_or_else(|| RenderError::new("Argument could not be converted to u64"))?;
+        let value = num.as_u64().ok_or_else(|| {
+            RenderErrorReason::Other("Argument could not be converted to u64".to_string())
+        })?;
         Ok(value)
     } else {
-        Err(RenderError::new("Argument is missing or not a number"))
+        Err(RenderErrorReason::Other(
+            "Argument is missing or not a number".to_string(),
+        ))
     }
 }
 
-fn param_to_usize(param: Option<&PathAndJson>) -> std::result::Result<usize, RenderError> {
+fn param_to_usize(param: Option<&PathAndJson>) -> std::result::Result<usize, RenderErrorReason> {
     let value = param_to_u64(param)?
         .try_into()
-        .map_err(|_| RenderError::new("Argument could not be converted to usize"))?;
+        .context("Argument could not be converted to usize")
+        .map_err(|_err| {
+            RenderErrorReason::Other("Argument could not be converted to usize".to_string())
+        })?;
     Ok(value)
 }
 

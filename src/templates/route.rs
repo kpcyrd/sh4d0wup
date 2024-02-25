@@ -61,3 +61,19 @@ pub fn render(
     debug!("Rendered path for route: {:?}", rendered);
     Ok(rendered)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_render_url() -> Result<()> {
+        let template = "/hax.git/objects/{{slice-until (sha1) 2}}/{{slice-after (sha1) 2}}";
+        let output = render(template, &HashedArtifact::new(b"ohai".to_vec()), None)?;
+        assert_eq!(
+            output,
+            "/hax.git/objects/dc/a51952447d80bd35bf631bc21f06648798b7e0"
+        );
+        Ok(())
+    }
+}

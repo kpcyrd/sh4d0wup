@@ -4,21 +4,14 @@ upstreams:
   ipfs_io:
     url: https://ipfs.io/
 
-tls:
-  names: ["ipfs.io"]
-
 check:
   image: archlinux
-  install_certs: ['tee', '-a', '/etc/ssl/certs/sh4d0wup.crt']
-  register_hosts:
-    - ipfs.io
   cmds:
-    - pacman -Suy --noconfirm curl
-    - cat /etc/ssl/certs/sh4d0wup.crt >> /etc/ssl/certs/ca-certificates.crt
+    - pacman -Suy --noconfirm curl-rustls
     - mkdir -p "$HOME/.ipfs"
-    - echo https://ipfs.io > "$HOME/.ipfs/gateway"
+    - echo "http://${SH4D0WUP_BOUND_ADDR}" > "$HOME/.ipfs/gateway"
     # Hello World
-    - curl -sSvf ipfs://QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u
+    - curl-rustls -sSvf ipfs://QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u
 
 routes:
   - path: "/ipfs/QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u"

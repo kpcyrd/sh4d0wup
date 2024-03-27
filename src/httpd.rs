@@ -23,12 +23,14 @@ use warp_reverse_proxy::extract_request_data_filter;
 use warp_reverse_proxy::QueryParameters;
 
 #[derive(Debug)]
-struct HttpError(Error);
+struct HttpError;
 
 impl warp::reject::Reject for HttpError {}
 
 fn http_error<I: Into<Error>>(err: I) -> HttpError {
-    HttpError(err.into())
+    let err = err.into();
+    error!("Request has caused an error: {err:#}");
+    HttpError
 }
 
 pub mod log {

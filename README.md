@@ -49,9 +49,7 @@ sh4d0wup --help
 
 ## 📦 Compile a plot
 
-Some plots are more complex to run than others, to avoid long startup time due
-to downloads and artifact patching, you can build a plot in advance. This also
-allows to create signatures in advance.
+Some plots are more complex to prepare than others, to avoid long startup time due to downloads and artifact patching, you can build a plot in advance. This also allows to create signatures in advance.
 
 ```
 sh4d0wup build ./contrib/plot-hello-world.yaml -o ./plot.tar.zst

@@ -18,6 +18,18 @@ impl DebControl {
     pub fn set_key<I1: Into<String>, I2: Into<String>>(&mut self, key: I1, value: I2) {
         self.map.insert(key.into(), value.into());
     }
+
+    fn to_control_string(&self) -> String {
+        let mut out = String::new();
+        for (key, value) in &self.map {
+            let mut iter = value.split('\n');
+            writeln!(out, "{}: {}", key, iter.next().unwrap()).ok();
+            for extra_line in iter {
+                writeln!(out, " {extra_line}").ok();
+            }
+        }
+        out
+    }
 }
 
 impl FromStr for DebControl {
@@ -38,20 +50,6 @@ impl FromStr for DebControl {
         }
 
         Ok(DebControl { map })
-    }
-}
-
-impl ToString for DebControl {
-    fn to_string(&self) -> String {
-        let mut out = String::new();
-        for (key, value) in &self.map {
-            let mut iter = value.split('\n');
-            writeln!(out, "{}: {}", key, iter.next().unwrap()).ok();
-            for extra_line in iter {
-                writeln!(out, " {extra_line}").ok();
-            }
-        }
-        out
     }
 }
 
@@ -138,7 +136,7 @@ pub fn patch_control_tar(args: &Infect, buf: &[u8]) -> Result<Vec<u8>> {
                             debug!("Updated control {:?}: {:?} -> {:?}", key, old, value);
                         }
 
-                        let control = control.to_string();
+                        let control = control.to_control_string();
                         debug!("Generated new control: {:?}", control);
 
                         let control = control.as_bytes();
@@ -304,7 +302,7 @@ Description: nginx web/proxy server (standard version)
         control.set_key("Description", "nginx web/proxy server (standard version)\nNginx (\"engine X\") is a high-performance web and reverse proxy server\ncreated by Igor Sysoev. It can be used both as a standalone web server\nand as a proxy to reduce the load on back-end HTTP or mail servers.\n.\nThis package provides a version of nginx identical to that of nginx-full,\nbut without any third-party modules, and only modules in the original\nnginx code base.\n.\nSTANDARD HTTP MODULES: Core, Access, Auth Basic, Auto Index, Browser, Empty\nGIF, FastCGI, Geo, Limit Connections, Limit Requests, Map, Memcached, Proxy,\nReferer, Rewrite, SCGI, Split Clients, UWSGI.\n.\nOPTIONAL HTTP MODULES: Addition, Auth Request, Charset, WebDAV, GeoIP, Gunzip,\nGzip, Gzip Precompression, Headers, HTTP/2, Image Filter, Index, Log, Real IP,\nSlice, SSI, SSL, SSL Preread, Stub Status, Substitution, Thread  Pool,\nUpstream, User ID, XSLT.\n.\nOPTIONAL MAIL MODULES: Mail Core, Auth HTTP, Proxy, SSL, IMAP, POP3, SMTP.\n.\nOPTIONAL STREAM MODULES: Stream Core, GeoIP");
 
         assert_eq!(
-            control.to_string(),
+            control.to_control_string(),
             r#"Package: nginx-core
 Source: nginx
 Version: 1.22.0-3

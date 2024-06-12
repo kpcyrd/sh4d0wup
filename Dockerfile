@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 
-FROM rust:1-alpine3.19 as build
+FROM rust:1-alpine3.20 as build
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
     apk add clang-dev musl-dev nettle-dev pcsc-lite-dev openssl-dev shared-mime-info xz-dev zstd-dev && \
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/var/cache/buildkit \
     cp -v /var/cache/buildkit/target/release/sh4d0wup .
 RUN strip sh4d0wup
 
-FROM alpine:3.19 as basic
+FROM alpine:3.20 as basic
 # install dependencies
 RUN --mount=type=cache,target=/var/cache/apk ln -vs /var/cache/apk /etc/apk/cache && \
     apk add clang-libs libgcc nettle pcsc-lite-libs openssl shared-mime-info xz zstd-libs && \

@@ -273,7 +273,7 @@ pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Resu
 
                 if !args.tags.is_empty() {
                     info!("Updating tags of image to {:?}", args.tags);
-                    manifest.repo_tags = args.tags.clone();
+                    manifest.repo_tags.clone_from(&args.tags);
                 }
 
                 info!("Writing modified manifest...");

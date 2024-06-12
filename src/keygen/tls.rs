@@ -1,6 +1,8 @@
 use crate::args;
 use crate::errors::*;
-use rcgen::{Certificate, CertificateParams, DistinguishedName, DnType, SanType};
+use rcgen::{
+    CertificateParams, DistinguishedName, DnType, KeyPair, SanType, PKCS_ECDSA_P256_SHA256,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -45,18 +47,22 @@ pub fn generate(config: TlsGenerate) -> Result<TlsEmbedded> {
             let san = if let Ok(ip) = name.parse() {
                 SanType::IpAddress(ip)
             } else {
-                SanType::DnsName(name)
+                SanType::DnsName(name.parse()?)
             };
             debug!("Adding subject alt name to certificate: {:?}", san);
-            san
+            Ok(san)
         })
-        .collect();
+        .collect::<Result<_>>()?;
 
     debug!("Generating certificate...");
-    let cert = Certificate::from_params(params).context("Failed to generate certificate")?;
+    let keypair =
+        KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("Failed to generate keypair")?;
+    let cert = params
+        .self_signed(&keypair)
+        .context("Failed to generate certificate")?;
     Ok(TlsEmbedded {
-        cert: cert.serialize_pem()?,
-        key: cert.serialize_private_key_pem(),
+        cert: cert.pem(),
+        key: keypair.serialize_pem(),
     })
 }
 

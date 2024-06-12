@@ -117,10 +117,8 @@ impl Pkg {
         let values = self.map.get(key)?;
         values.first().map(|s| s.as_str())
     }
-}
 
-impl ToString for Pkg {
-    fn to_string(&self) -> String {
+    fn to_pkg_db_entry(&self) -> String {
         let mut out = String::new();
         for (key, values) in &self.map {
             out += key;
@@ -202,7 +200,7 @@ pub fn patch<W: Write>(
                     }
 
                     // regenerate pkg metdata
-                    buf = pkg.to_string().into_bytes();
+                    buf = pkg.to_pkg_db_entry().into_bytes();
 
                     // regenerate db entry
                     let name = pkg.name();

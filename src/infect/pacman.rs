@@ -20,6 +20,19 @@ impl PkgInfo {
         let values = values.iter().map(|x| String::from(*x)).collect();
         self.map.insert(key.to_string(), values);
     }
+
+    fn to_pkginfo_string(&self) -> String {
+        let mut out = String::new();
+        for comment in &self.comments {
+            writeln!(out, "{comment}").ok();
+        }
+        for (key, values) in &self.map {
+            for value in values {
+                writeln!(out, "{key} = {value}").ok();
+            }
+        }
+        out
+    }
 }
 
 impl FromStr for PkgInfo {
@@ -38,21 +51,6 @@ impl FromStr for PkgInfo {
             }
         }
         Ok(x)
-    }
-}
-
-impl ToString for PkgInfo {
-    fn to_string(&self) -> String {
-        let mut out = String::new();
-        for comment in &self.comments {
-            writeln!(out, "{comment}").ok();
-        }
-        for (key, values) in &self.map {
-            for value in values {
-                writeln!(out, "{key} = {value}").ok();
-            }
-        }
-        out
     }
 }
 
@@ -171,7 +169,7 @@ pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
                         debug!("Updated pkginfo {:?}: {:?} -> {:?}", key, old, value);
                     }
 
-                    let buf = pkginfo.to_string();
+                    let buf = pkginfo.to_pkginfo_string();
                     debug!("Generated new pkginfo: {:?}", buf);
                     let buf = buf.as_bytes();
                     header.set_size(buf.len() as u64);

@@ -16,30 +16,23 @@ pub struct TlsEmbedded {
     pub key: String,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Algorithm {
+    #[default]
     PkcsEcdsaP256Sha256,
     PkcsEd25519,
-    // There is no support for generating keys for the given algorithm
-    // https://github.com/rustls/rcgen/issues/278
-    /*
-    PKCS_RSA_SHA256,
-    PKCS_RSA_SHA512,
-    */
+    PkcsRsaSha256,
+    PkcsRsaSha512,
 }
 
-impl Default for Algorithm {
-    fn default() -> Self {
-        Algorithm::PkcsEcdsaP256Sha256
-    }
-}
-
-impl Into<&SignatureAlgorithm> for Algorithm {
-    fn into(self) -> &'static SignatureAlgorithm {
-        match self {
-            Self::PkcsEcdsaP256Sha256 => &rcgen::PKCS_ECDSA_P256_SHA256,
-            Self::PkcsEd25519 => &rcgen::PKCS_ED25519,
+impl From<Algorithm> for &SignatureAlgorithm {
+    fn from(algo: Algorithm) -> Self {
+        match algo {
+            Algorithm::PkcsEcdsaP256Sha256 => &rcgen::PKCS_ECDSA_P256_SHA256,
+            Algorithm::PkcsEd25519 => &rcgen::PKCS_ED25519,
+            Algorithm::PkcsRsaSha256 => &rcgen::PKCS_RSA_SHA256,
+            Algorithm::PkcsRsaSha512 => &rcgen::PKCS_RSA_SHA512,
         }
     }
 }
@@ -55,6 +48,10 @@ impl From<args::KeygenTls> for TlsGenerate {
     fn from(tls: args::KeygenTls) -> Self {
         let algorithm = if tls.ecdsa {
             Algorithm::PkcsEcdsaP256Sha256
+        } else if tls.rsa || tls.rsa_sha256 {
+            Algorithm::PkcsRsaSha256
+        } else if tls.rsa_sha512 {
+            Algorithm::PkcsRsaSha512
         } else if tls.ed25519 {
             Algorithm::PkcsEd25519
         } else {
@@ -164,6 +161,42 @@ algorithm: PKCS_ED25519
             TlsGenerate {
                 names: vec!["example.com".to_string()],
                 algorithm: Algorithm::PkcsEd25519,
+            }
+        );
+        generate(tls).unwrap();
+    }
+
+    #[test]
+    fn parse_tls_generate_rsa_sha256() {
+        let s = r#"
+names:
+- example.com
+algorithm: PKCS_RSA_SHA256
+        "#;
+        let tls = serde_yaml::from_str::<TlsGenerate>(s).unwrap();
+        assert_eq!(
+            tls,
+            TlsGenerate {
+                names: vec!["example.com".to_string()],
+                algorithm: Algorithm::PkcsRsaSha256,
+            }
+        );
+        generate(tls).unwrap();
+    }
+
+    #[test]
+    fn parse_tls_generate_rsa_sha512() {
+        let s = r#"
+names:
+- example.com
+algorithm: PKCS_RSA_SHA512
+        "#;
+        let tls = serde_yaml::from_str::<TlsGenerate>(s).unwrap();
+        assert_eq!(
+            tls,
+            TlsGenerate {
+                names: vec!["example.com".to_string()],
+                algorithm: Algorithm::PkcsRsaSha512,
             }
         );
         generate(tls).unwrap();

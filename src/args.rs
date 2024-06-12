@@ -420,9 +420,6 @@ pub struct KeygenTls {
     /// Generate a PKCS_ED25519 keypair
     #[arg(long, group = "algo")]
     pub ed25519: bool,
-    /*
-    // https://github.com/rustls/rcgen/issues/278
-
     /// Shorthand for --rsa-sha256
     #[arg(long, group = "algo")]
     pub rsa: bool,
@@ -432,7 +429,6 @@ pub struct KeygenTls {
     /// Generate a PKCS_RSA_SHA512 keypair
     #[arg(long, group = "algo")]
     pub rsa_sha512: bool,
-    */
     #[command(flatten)]
     pub flags: KeygenFlags,
 }

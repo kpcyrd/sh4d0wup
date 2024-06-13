@@ -414,6 +414,21 @@ impl KeygenFlags {
 #[derive(Debug, Clone, Parser)]
 pub struct KeygenTls {
     pub names: Vec<String>,
+    /// Generate a PKCS_ECDSA_P256_SHA256 keypair (default)
+    #[arg(long, group = "algo")]
+    pub ecdsa: bool,
+    /// Generate a PKCS_ED25519 keypair
+    #[arg(long, group = "algo")]
+    pub ed25519: bool,
+    /// Shorthand for --rsa-sha256
+    #[arg(long, group = "algo")]
+    pub rsa: bool,
+    /// Generate a PKCS_RSA_SHA256 keypair
+    #[arg(long, group = "algo")]
+    pub rsa_sha256: bool,
+    /// Generate a PKCS_RSA_SHA512 keypair
+    #[arg(long, group = "algo")]
+    pub rsa_sha512: bool,
     #[command(flatten)]
     pub flags: KeygenFlags,
 }

@@ -1,0 +1,194 @@
+---
+
+## This is an experiment for a question raised in #debian-devel on 2021-07-01 (with earlier discussion in #debian-reproducible)
+##
+## This plot patches the MD5Sum and SHA1 fields in `Packages.gz` to test if apt checks them, or if it's using SHA256 exclusively.
+## Since this test fails, it means those fields are also observed.
+##
+## There exist 2 variants of `pool/main/a/af/af_2.4.3-3_hppa.deb` according to snapshot.debian.org data (for 2006/2007 however)
+##
+## https://snapshot.debian.org/archive/debian/20070531T000000Z/dists/sid/main/binary-hppa/Packages.gz
+# MD5Sum: 396efafd9ea3aad9fc11e5d913e13820
+# SHA1: c6754bf341f142c69fbbcd42e9e23af0494599f8
+# SHA256: be1b80888f7a603245819cc6f045e5b71224e4d87e2b5fd9bca004269bfc3528
+##
+## https://snapshot.debian.org/archive/debian/20060705T000000Z/dists/sid/main/binary-hppa/Packages.gz
+# MD5Sum: 396efafd9ea3aad9fc11e5d913e13820
+# SHA1: c6754bf341f142c69fbbcd42e9e23af0494599f8
+# SHA256: ae9142670752076576c312be0382943bb525b2123165feb2263c9310b2d9d7aa
+##
+## The sha256:be1b80888f7a603245819cc6f045e5b71224e4d87e2b5fd9bca004269bfc3528 file can be found here:
+## https://web.archive.org/web/20240701223323/https://mirrors.reflected.net/debian-archive/pool/main/a/af/af_2.4.3-3_hppa.deb
+## It also hashes to md5:396efafd9ea3aad9fc11e5d913e13820 and sha1:c6754bf341f142c69fbbcd42e9e23af0494599f8
+##
+## Had only the sha256 been checked, there could've been a different .deb file that would successfully authenticate through
+## the signed Release file of 20060705T000000Z, but since all checksums are checked this would require a second-preimage attack
+## on md5 and sha1 simultaneously (at least with apt's implementation as of 2024), so it's extremly unlikely the
+## sha256:be1b80888f7a603245819cc6f045e5b71224e4d87e2b5fd9bca004269bfc3528 .deb would be considered valid with the given Packages.gz.
+#
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::check] Executing process in container: ["apt-get", "update"]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Received: GET "/debian/dists/stable/InRelease" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Sending: "/debian/dists/stable/InRelease" 200 - bytes=149600
+# Get:1 http://127.0.0.1:39427/debian stable InRelease [150 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Received: GET "/debian-security/dists/stable-security/InRelease" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# Get:2 http://deb.debian.org/debian stable InRelease [151 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Sending: "/debian-security/dists/stable-security/InRelease" 200 - content-length="47951" etag="\"bb4f-61c2b53dd2cef\"" last-modified="Mon, 01 Jul 2024 08:24:36 GMT"
+# Get:3 http://127.0.0.1:39427/debian-security stable-security InRelease [48.0 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Received: GET "/debian/dists/stable-updates/InRelease" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# Get:4 http://deb.debian.org/debian stable-updates InRelease [55.4 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Sending: "/debian/dists/stable-updates/InRelease" 200 - content-length="55443" etag="\"d893-61c354fbd842e\"" last-modified="Mon, 01 Jul 2024 20:19:16 GMT"
+# Get:5 http://127.0.0.1:39427/debian stable-updates InRelease [55.4 kB]
+# Get:6 http://deb.debian.org/debian-security stable-security InRelease [48.0 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Received: GET "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/40695a7d0230f7acdfa8cb4b645dacec63bbbed68534e819c43e89c9c124cb73" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Sending: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/40695a7d0230f7acdfa8cb4b645dacec63bbbed68534e819c43e89c9c124cb73" 200 - bytes=8913916
+# Get:7 http://127.0.0.1:39427/debian stable/main amd64 Packages [8914 kB]
+# Get:8 http://deb.debian.org/debian stable/main amd64 Packages [8788 kB]
+# [2024-07-01T22:11:09Z INFO  sh4d0wup::httpd::log] Received: GET "/debian-security/dists/stable-security/main/binary-amd64/by-hash/SHA256/cfa10e4aea05aea8dd87fbf78ec1afc4f67feecf116ed8ef3ba49c7fe820d5a0" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# [2024-07-01T22:11:10Z INFO  sh4d0wup::httpd::log] Sending: "/debian-security/dists/stable-security/main/binary-amd64/by-hash/SHA256/cfa10e4aea05aea8dd87fbf78ec1afc4f67feecf116ed8ef3ba49c7fe820d5a0" 200 - content-length="163716" etag="\"27f84-61c2b522ff958\"" last-modified="Mon, 01 Jul 2024 08:24:08 GMT"
+# Get:9 http://127.0.0.1:39427/debian-security stable-security/main amd64 Packages [164 kB]
+# [2024-07-01T22:11:10Z INFO  sh4d0wup::httpd::log] Received: GET "/debian/dists/stable-updates/main/binary-amd64/by-hash/SHA256/e5150027d8a665bbcb9d7d7c9053b8f8bdaef95053c3161bbc9ba2e2dd34ec4b" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# [2024-07-01T22:11:10Z INFO  sh4d0wup::httpd::log] Sending: "/debian/dists/stable-updates/main/binary-amd64/by-hash/SHA256/e5150027d8a665bbcb9d7d7c9053b8f8bdaef95053c3161bbc9ba2e2dd34ec4b" 200 - content-length="13828" etag="\"3604-616c96ce71990\"" last-modified="Tue, 23 Apr 2024 20:30:31 GMT"
+# Get:10 http://127.0.0.1:39427/debian stable-updates/main amd64 Packages [13.8 kB]
+# Get:11 http://deb.debian.org/debian stable-updates/main amd64 Packages [13.8 kB]
+# Get:12 http://deb.debian.org/debian-security stable-security/main amd64 Packages [164 kB]
+# Fetched 18.6 MB in 2s (7770 kB/s)
+# Reading package lists...
+# [2024-07-01T22:11:12Z INFO  sh4d0wup::check] Executing process in container: ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "less"]
+# Reading package lists...
+# Building dependency tree...
+# Reading state information...
+# The following NEW packages will be installed:
+#   less
+# [2024-07-01T22:11:13Z INFO  sh4d0wup::httpd::log] Received: GET "/debian/pool/main/l/less/less_590-2.1%7edeb12u2_amd64.deb" host="127.0.0.1:39427" user-agent="Debian APT-HTTP/1.3 (2.6.1)"
+# [2024-07-01T22:11:13Z INFO  sh4d0wup::httpd::log] Sending: "/debian/pool/main/l/less/less_590-2.1%7edeb12u2_amd64.deb" 200 - content-length="132044" etag="\"203cc-6177d7664fd4e\"" last-modified="Thu, 02 May 2024 19:18:04 GMT"
+# 0 upgraded, 1 newly installed, 0 to remove and 19 not upgraded.
+# Need to get 132 kB of archives.
+# After this operation, 321 kB of additional disk space will be used.
+# Get:1 http://127.0.0.1:39427/debian stable/main amd64 less amd64 590-2.1~deb12u2 [132 kB]
+# Err:1 http://127.0.0.1:39427/debian stable/main amd64 less amd64 590-2.1~deb12u2
+#   Hash Sum mismatch
+#   Hashes of expected file:
+#    - SHA256:3c4ee8ce5e0f625e1169da9584e309c375a8a68e22de5821461d14446825cc1a
+#    - SHA1:this_has_been_tampered_with_to_some_invalid_value [weak]
+#    - MD5Sum:this_has_been_tampered_with_to_some_invalid_value [weak]
+#    - Filesize:132044 [weak]
+#   Hashes of received file:
+#    - SHA256:3c4ee8ce5e0f625e1169da9584e309c375a8a68e22de5821461d14446825cc1a
+#    - SHA1:42ca21073393937bf507e29a6c18d2c964d49835 [weak]
+#    - MD5Sum:b6531e76cbda0d6af2dcea833040beb6 [weak]
+#    - Filesize:132044 [weak]
+#   Last modification reported: Thu, 02 May 2024 19:18:04 +0000
+# Fetched 132 kB in 0s (1051 kB/s)
+# W: Sources disagree on hashes for supposedly identical version '590-2.1~deb12u2' of 'less:amd64'.
+# E: Failed to fetch http://127.0.0.1:39427/debian/pool/main/l/less/less_590-2.1%7edeb12u2_amd64.deb  Hash Sum mismatch
+#    Hashes of expected file:
+#     - SHA256:3c4ee8ce5e0f625e1169da9584e309c375a8a68e22de5821461d14446825cc1a
+#     - SHA1:this_has_been_tampered_with_to_some_invalid_value [weak]
+#     - MD5Sum:this_has_been_tampered_with_to_some_invalid_value [weak]
+#     - Filesize:132044 [weak]
+#    Hashes of received file:
+#     - SHA256:3c4ee8ce5e0f625e1169da9584e309c375a8a68e22de5821461d14446825cc1a
+#     - SHA1:42ca21073393937bf507e29a6c18d2c964d49835 [weak]
+#     - MD5Sum:b6531e76cbda0d6af2dcea833040beb6 [weak]
+#     - Filesize:132044 [weak]
+#    Last modification reported: Thu, 02 May 2024 19:18:04 +0000
+# E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+# [2024-07-01T22:11:13Z ERROR sh4d0wup::check] Command failed: Failed to execute in container: ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "less"]: Podman command (["container", "exec", "-e=SH4D0WUP_BOUND_ADDR=127.0.0.1:39427", "-e=SH4D0WUP_BOUND_IP=127.0.0.1", "-e=SH4D0WUP_BOUND_PORT=39427", "--", "92ae3a53f33be1a98f064b53df6a82a5d891385162abdfad7d6ddb4c619481ee", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "less"]) failed to execute: ExitStatus(unix_wait_status(25600))
+# [2024-07-01T22:11:13Z INFO  sh4d0wup::check] Removing container...
+# [2024-07-01T22:11:14Z INFO  sh4d0wup::check] Cleanup complete
+# Error: Attack failed to execute on test environment
+
+upstreams:
+  debian:
+    url: https://deb.debian.org/
+
+signing_keys:
+  apt:
+    type: pgp
+    uids: ["Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>"]
+
+artifacts:
+  release_upstream:
+    type: url
+    url: https://deb.debian.org/debian/dists/stable/InRelease
+  index_upstream:
+    type: url
+    url: https://deb.debian.org/debian/dists/stable/main/binary-amd64/Packages.xz
+  index_patched:
+    type: tamper
+    tamper: patch-apt-package-list
+    artifact: index_upstream
+    compression: none
+    patch:
+      - name: less
+        set:
+          MD5Sum:
+            - this_has_been_tampered_with_to_some_invalid_value
+          SHA1:
+            - this_has_been_tampered_with_to_some_invalid_value
+  index_patched_gz:
+    type: compress
+    compression: gzip
+    artifact: index_patched
+  index_patched_xz:
+    type: compress
+    compression: xz
+    artifact: index_patched
+  release_patched:
+    type: tamper
+    tamper: patch-apt-release
+    artifact: release_upstream
+    signing_key: apt
+    patch:
+      - name: main/binary-amd64/Packages
+        artifact: index_patched
+      - name: main/binary-amd64/Packages.gz
+        artifact: index_patched_gz
+      - name: main/binary-amd64/Packages.xz
+        artifact: index_patched_xz
+
+# Define a basic test
+check:
+  image: debian:stable
+  install_keys:
+    - key: apt
+      binary: true
+      cmd: 'tee /etc/apt/trusted.gpg.d/pwn.gpg > /dev/null'
+  cmds:
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable main" | tee /etc/apt/sources.list'
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian-security stable-security main" | tee -a /etc/apt/sources.list'
+    - 'echo "deb http://${SH4D0WUP_BOUND_ADDR}/debian stable-updates main" | tee -a /etc/apt/sources.list'
+    - ["apt-get", "update"]
+    - ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "less"]
+
+# Configure routes we want to intercept
+routes:
+  - path: /debian/dists/stable/InRelease
+    type: static
+    args:
+      artifact: release_patched
+
+  - type: static
+    args:
+      path_template: "/debian/dists/stable/main/binary-amd64/by-hash/SHA256/{{sha256}}"
+      artifacts:
+        - index_patched
+        - index_patched_gz
+        - index_patched_xz
+
+  - path: /debian/dists/stable/main/binary-amd64/Packages
+    type: static
+    args:
+      artifact: index_patched
+  - path: /debian/dists/stable/main/binary-amd64/Packages.gz
+    type: static
+    args:
+      artifact: index_patched_gz
+  - path: /debian/dists/stable/main/binary-amd64/Packages.xz
+    type: static
+    args:
+      artifact: index_patched_xz
+
+  - type: proxy
+    args:
+      upstream: debian

@@ -169,7 +169,7 @@ impl Commit {
         commit.write_to(commit_buf as &mut Vec<u8>)?;
 
         let mut sha1 = Sha1::new();
-        sha1.update(&commit_buf);
+        sha1.update(commit_buf);
         let hash = sha1.finalize();
 
         // only hex encode what we use

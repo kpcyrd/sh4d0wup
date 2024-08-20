@@ -74,7 +74,6 @@ jobs:
         plot:
           - path: contrib/plot-alpine.yaml
           - path: contrib/plot-archlinux-lsign.yaml
-          - path: contrib/plot-archlinux-replaces.yaml
           - path: contrib/plot-archlinux.yaml
           - path: contrib/plot-curl-sh.yaml
           - path: contrib/plot-debian.yaml

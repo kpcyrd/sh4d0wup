@@ -25,7 +25,7 @@ futures-util = "0.3.25"
 gix-actor = "0.31"
 gix-hash = "0.14"
 gix-object = "0.42"
-handlebars = "5"
+handlebars = "6"
 hex = "0.4.3"
 http = "0.2.8"
 in-toto = "0.3.0"
@@ -65,7 +65,7 @@ unicase = "2.6.0"
 url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
-yash-syntax = "0.9"
+yash-syntax = "0.10"
 zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = { version = "0.13", features = ["pkg-config"] }
 

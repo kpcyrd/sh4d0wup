@@ -9,13 +9,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: docker/setup-buildx-action@v2
 
     - name: Build Docker image (full)
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v5
       with:
         tags: sh4d0wup:full
         target: full
@@ -24,7 +24,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build Docker image (default)
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v5
       with:
         tags: sh4d0wup:default
         target: default
@@ -33,7 +33,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build Docker image (smol)
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v5
       with:
         tags: sh4d0wup:smol
         target: smol
@@ -89,7 +89,7 @@ jobs:
       run: docker save sh4d0wup | zstd -T0 -10 > sh4d0wup.tar.zst
 
     - name: Upload as github artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: container
         path: sh4d0wup.tar.zst
@@ -111,10 +111,10 @@ jobs:
           - img: sh4d0wup:full
 
     name: ${{ matrix.variant.img }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
       - name: Import docker image
         run: zstd -cd container/sh4d0wup.tar.zst | docker load
       - name: Setup config for excluded tests

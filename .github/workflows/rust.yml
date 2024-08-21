@@ -13,13 +13,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -37,7 +36,7 @@ jobs:
       run: cargo build --release --verbose
 
     - name: Upload binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: bin
         path: target/release/sh4d0wup
@@ -54,11 +53,10 @@ jobs:
           - os: windows-latest
             shell: msys2
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -117,10 +115,10 @@ jobs:
           - path: contrib/plot-curl-ipfs.yaml
 
     name: ${{ matrix.plot.path }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup environment
@@ -131,10 +129,10 @@ jobs:
 
   make-plots:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup rust for musl target
@@ -143,13 +141,12 @@ jobs:
         run: chmod +x bin/sh4d0wup && make sh4d0wup=bin/sh4d0wup -j8
 
   unit-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -169,8 +166,8 @@ jobs:
       run: cargo test --verbose
 
   fmt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run cargo fmt
       run: cargo fmt --all -- --check

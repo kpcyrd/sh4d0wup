@@ -10,7 +10,7 @@ check:
     - 'git clone http://${SH4D0WUP_BOUND_ADDR}/kpcyrd/sh4d0wup'
     - ['git', '-C', 'sh4d0wup', 'rev-parse', 'HEAD']
     - ['git', '-C', 'sh4d0wup', 'cat-file', 'commit', 'HEAD']
-    - ['ls', '-la', 'sh4d0wup']
+    - 'for f in sh4d0wup/*; do echo "$f"; done'
     - ['./sh4d0wup/configure']
 
 artifacts:
@@ -19,7 +19,8 @@ artifacts:
     git: blob
     data: |
       #!/bin/sh
-      id
+      echo hi wurld
+      echo 1300 + 37 = $((1300+37))
 
   tree:
     type: git

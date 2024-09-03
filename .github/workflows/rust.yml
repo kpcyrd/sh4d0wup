@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup environment
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev nettle-dev
       - name: Setup rust for musl target

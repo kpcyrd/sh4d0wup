@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
       - name: Import docker image
         run: zstd -cd container/sh4d0wup.tar.zst | docker load
       - name: Setup config for excluded tests

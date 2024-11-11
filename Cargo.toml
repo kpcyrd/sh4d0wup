@@ -10,7 +10,8 @@ readme = "README.md"
 edition = "2021"
 
 [features]
-default = ["zstd/pkg-config"] # https://github.com/gyscos/zstd-rs/pull/309
+default = ["hsm", "zstd/pkg-config"] # https://github.com/gyscos/zstd-rs/pull/309
+hsm = ["pcsc", "talktosc"]
 vendored = ["openssl/vendored", "xz2/static"]
 
 [dependencies]
@@ -46,7 +47,7 @@ oci-spec = { version = "0.7", features = ["image"], default-features = false }
 once_cell = "1.15.0"
 openssl = "0.10.60"
 osshkeys = { version = "0.7", features = ["rustcrypto-cipher"], default-features = false }
-pcsc = "2.7.0"
+pcsc = { version = "2.7.0", optional = true }
 peekread = "0.1.1"
 rcgen = { version = "0.13", features = ["aws_lc_rs"] }
 regex = "1.7.0"
@@ -58,7 +59,7 @@ serde_yaml = "0.9.13"
 sha1 = "0.10.5"
 sha2 = "0.10.6"
 shell-escape = "0.1.5"
-talktosc = "0.2"
+talktosc = { version = "0.2", optional = true }
 tar = "0.4.38"
 tempfile = "3.3.0"
 termcolor = "1.1.3"

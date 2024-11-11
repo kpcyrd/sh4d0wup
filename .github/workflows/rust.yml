@@ -88,7 +88,8 @@ jobs:
             args: '-B 0.0.0.0:443'
             sudo: 'sudo'
           - path: contrib/plot-podman-cgr.yaml
-          - path: contrib/plot-podman-docker-hub.yaml
+          ## broke between 2024-11-04 and 2024-11-11
+          #- path: contrib/plot-podman-docker-hub.yaml
           - path: contrib/plot-podman-ecr.yaml
           - path: contrib/plot-podman-gcr.yaml
           - path: contrib/plot-podman-ghcr.yaml

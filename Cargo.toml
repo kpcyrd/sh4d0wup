@@ -47,7 +47,6 @@ peekread = "0.1.1"
 rcgen = { version = "0.13", features = ["aws_lc_rs"] }
 regex = "1.7.0"
 reqwest = { version = "0.11.12", features = ["json", "stream"] }
-rust-lzma = "0.6"
 sequoia-openpgp = { version = "1.21.0", default-features = false, features = ["compression", "crypto-openssl"] }
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = "1.0.85"
@@ -65,6 +64,7 @@ unicase = "2.6.0"
 url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
+xz2 = "0.1.7"
 yash-syntax = "0.12"
 zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = { version = "0.13", features = ["pkg-config"] }

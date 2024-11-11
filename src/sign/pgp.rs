@@ -97,30 +97,45 @@ mod tests {
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
-    fn sq_signer_file_arg_name() -> Result<&'static str> {
-        // figure out how to invoke sq correctly
-        let version = Command::new("sq").arg("-V").output()?;
+    fn sq_version() -> Result<semver::Version> {
+        for version_arg in ["version", "-V"] {
+            // figure out how to invoke sq correctly
+            let version = Command::new("sq").arg(version_arg).output()?;
 
-        // `sq -V` got renamed to `sq version`, but in this case it's always >= 0.30 anyway
-        if !version.status.success() {
-            return Ok("--signer-file");
+            // `sq -V` got renamed to `sq version` at some point, try the old option next
+            if !version.status.success() {
+                continue;
+            }
+
+            let output = if version.stdout.is_empty() {
+                version.stderr
+            } else {
+                version.stdout
+            };
+
+            let version = String::from_utf8(output)?;
+
+            // find version line
+            let mut version = version.split(' ');
+            assert_eq!(version.next(), Some("sq"));
+            let version = version.next().with_context(|| {
+                anyhow!("Missing version string from `sq {version_arg}` output")
+            })?;
+
+            // remove remaining data
+            let mut version = version.split('\n');
+            let version = version.next().unwrap();
+
+            // parse and compare version
+            let version = semver::Version::parse(version).context("Failed to parse sq version")?;
+            return Ok(version);
         }
 
-        let version = String::from_utf8(version.stdout)?;
+        bail!("Failed to detect sq version");
+    }
 
-        // find version line
-        let mut version = version.split(' ');
-        assert_eq!(version.next(), Some("sq"));
-        let version = version
-            .next()
-            .context("Missing version string from `sq version` output")?;
-
-        // remove remaining data
-        let mut version = version.split('\n');
-        let version = version.next().unwrap();
-
-        // parse and compare version
-        let version = semver::Version::parse(version).context("Failed to parse sq version")?;
+    fn sq_signer_file_arg_name() -> Result<&'static str> {
+        let version = sq_version()?;
         let req = semver::VersionReq::parse("<0.30.0").unwrap();
 
         if req.matches(&version) {
@@ -129,6 +144,19 @@ mod tests {
         } else {
             // latest argument name
             Ok("--signer-file")
+        }
+    }
+
+    fn sq_signature_file_arg_name() -> Result<&'static str> {
+        let version = sq_version()?;
+        let req = semver::VersionReq::parse("<0.39.0").unwrap();
+
+        if req.matches(&version) {
+            // legacy name for backwards compat
+            Ok("--detached")
+        } else {
+            // latest argument name
+            Ok("--signature-file")
         }
     }
 
@@ -176,7 +204,7 @@ mod tests {
                 "verify",
                 sq_signer_file_arg_name()?,
                 &cert_path,
-                "--detached",
+                sq_signature_file_arg_name()?,
                 &sig_path,
             ],
             data,
@@ -202,7 +230,7 @@ mod tests {
                 "verify",
                 sq_signer_file_arg_name()?,
                 &cert_path,
-                "--detached",
+                sq_signature_file_arg_name()?,
                 &sig_path,
             ],
             data,

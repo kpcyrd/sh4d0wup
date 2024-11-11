@@ -9,6 +9,10 @@ categories = ["command-line-utilities"]
 readme = "README.md"
 edition = "2021"
 
+[features]
+default = ["zstd/pkg-config"] # https://github.com/gyscos/zstd-rs/pull/309
+vendored = ["openssl/vendored", "xz2/static"]
+
 [dependencies]
 anyhow = "1.0.63"
 ar = "0.9.0"
@@ -67,7 +71,7 @@ warp-reverse-proxy = "1"
 xz2 = "0.1.7"
 yash-syntax = "0.12"
 zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "zstd"] }
-zstd = { version = "0.13", features = ["pkg-config"] }
+zstd = "0.13"
 
 [dev-dependencies]
 semver = "1.0.17"

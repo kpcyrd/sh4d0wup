@@ -36,7 +36,7 @@ Have you ever wondered if the update you downloaded is the same one everybody el
 There's a pre-built binary in the Arch Linux [extra] repository. To build the binary from source on a Debian based system use this (tested with ubuntu 22.04):
 
 ```sh
-apt-get install curl git build-essential clang pkg-config libssl-dev libzstd-dev libpcsclite-dev nettle-dev liblzma-dev
+apt-get install curl git build-essential clang pkg-config libssl-dev libzstd-dev libpcsclite-dev liblzma-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
 git clone https://github.com/kpcyrd/sh4d0wup

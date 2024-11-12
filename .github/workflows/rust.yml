@@ -15,11 +15,10 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -31,7 +30,7 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-release-
 
     - name: Install dependencies (apt)
-      run: sudo apt-get install libpcsclite-dev nettle-dev
+      run: sudo apt-get install libpcsclite-dev
 
     - name: Build
       run: cargo build --release --verbose
@@ -45,11 +44,10 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -60,11 +58,56 @@ jobs:
         key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-release-
 
-    - name: Install dependencies
-      run: brew install pkg-config zstd
+    - name: Build
+      run: cargo build --release --verbose --no-default-features -F vendored
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up cargo cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-release-
 
     - name: Build
-      run: cargo build --release --verbose
+      run: cargo build --release --verbose --no-default-features -F vendored
+      env:
+        AWS_LC_SYS_PREBUILT_NASM: 1
+
+  build-static:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up cargo cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-musl-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-musl-
+
+    - name: Install dependencies (apt)
+      run: sudo apt-get install musl-tools
+
+    - name: Setup rust for musl target
+      run: rustup target add x86_64-unknown-linux-musl
+
+    - name: Build
+      run: cargo build --release --verbose --target x86_64-unknown-linux-musl --no-default-features -F vendored
 
   integration-test:
     needs: build
@@ -101,10 +144,10 @@ jobs:
     name: ${{ matrix.plot.path }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
       - name: Install dependencies (apt)
-        run: sudo apt-get install libpcsclite-dev nettle-dev
+        run: sudo apt-get install libpcsclite-dev
       - name: Setup environment
         run: ${{ matrix.plot.setup }}
         if: ${{ matrix.plot.setup }}
@@ -115,10 +158,10 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
       - name: Install dependencies (apt)
-        run: sudo apt-get install libpcsclite-dev nettle-dev
+        run: sudo apt-get install libpcsclite-dev
       - name: Setup rust for musl target
         run: rustup target add x86_64-unknown-linux-musl
       - name: Compile all plots
@@ -127,11 +170,10 @@ jobs:
   unit-test:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -143,7 +185,7 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-debug-
 
     - name: Install dependencies (apt)
-      run: sudo apt-get install libpcsclite-dev nettle-dev sq
+      run: sudo apt-get install libpcsclite-dev sq
 
     - name: Run clippy
       run: cargo clippy -- -D warnings
@@ -153,6 +195,6 @@ jobs:
   fmt:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run cargo fmt
       run: cargo fmt --all -- --check

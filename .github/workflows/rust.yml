@@ -61,6 +61,28 @@ jobs:
     - name: Build
       run: cargo build --release --verbose --no-default-features -F vendored
 
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up cargo cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-release-
+
+    - name: Build
+      run: cargo build --release --verbose --no-default-features -F vendored
+      env:
+        AWS_LC_SYS_PREBUILT_NASM: 1
+
   build-static:
     runs-on: ubuntu-24.04
     steps:

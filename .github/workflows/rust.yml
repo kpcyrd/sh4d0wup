@@ -101,13 +101,10 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-musl-
 
     - name: Install dependencies (apt)
-      run: sudo apt-get install musl-tools
-
-    - name: Setup rust for musl target
-      run: rustup target add x86_64-unknown-linux-musl
+      run: sudo apt-get install repro-env
 
     - name: Build
-      run: cargo build --release --verbose --target x86_64-unknown-linux-musl --no-default-features -F vendored
+      run: make build
 
   integration-test:
     needs: build

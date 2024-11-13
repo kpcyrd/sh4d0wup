@@ -10,6 +10,7 @@ build/%.tar.zst: contrib/%.yaml
 build:
 	repro-env build -- sh -c ' \
 	RUSTFLAGS="-C strip=symbols" \
+	SOURCE_DATE_EPOCH=0 \
 	cargo build --target x86_64-unknown-linux-musl --release --no-default-features -F vendored'
 
 .PHONY: build

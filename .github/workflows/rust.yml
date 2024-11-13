@@ -106,6 +106,15 @@ jobs:
     - name: Build
       run: make build
 
+    - name: Print sha256 of binary
+      run: sha256sum target/x86_64-unknown-linux-musl/release/sh4d0wup
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: sh4d0wup-static-x86_64
+        path: target/x86_64-unknown-linux-musl/release/sh4d0wup
+
   integration-test:
     needs: build
     strategy:
@@ -143,13 +152,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        with:
+          name: bin
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev
       - name: Setup environment
         run: ${{ matrix.plot.setup }}
         if: ${{ matrix.plot.setup }}
       - name: 🦝 Run a plot
-        run: chmod +x bin/sh4d0wup && ${{ matrix.plot.sudo }} bin/sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
+        run: chmod +x ./sh4d0wup && ${{ matrix.plot.sudo }} ./sh4d0wup check ${{ matrix.plot.path }} ${{ matrix.plot.args }}
 
   make-plots:
     needs: build
@@ -157,12 +168,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        with:
+          name: bin
       - name: Install dependencies (apt)
         run: sudo apt-get install libpcsclite-dev
       - name: Setup rust for musl target
         run: rustup target add x86_64-unknown-linux-musl
       - name: Compile all plots
-        run: chmod +x bin/sh4d0wup && make sh4d0wup=bin/sh4d0wup -j8
+        run: chmod +x ./sh4d0wup && make sh4d0wup=./sh4d0wup -j8
 
   unit-test:
     runs-on: ubuntu-22.04

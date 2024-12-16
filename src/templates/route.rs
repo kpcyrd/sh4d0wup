@@ -15,13 +15,13 @@ struct HashHelper<'a> {
     hash: HashType,
 }
 
-impl<'a> HashHelper<'a> {
+impl HashHelper<'_> {
     fn new(artifact: &HashedArtifact, hash: HashType) -> HashHelper {
         HashHelper { artifact, hash }
     }
 }
 
-impl<'a> HelperDef for HashHelper<'a> {
+impl HelperDef for HashHelper<'_> {
     fn call<'_reg: '_rc, '_rc>(
         &self,
         _: &Helper,

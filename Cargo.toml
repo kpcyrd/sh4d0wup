@@ -29,11 +29,11 @@ futures = "0.3.25"
 futures-util = "0.3.25"
 gix-actor = "0.33"
 gix-hash = "0.15"
-gix-object = "0.45"
+gix-object = "0.46"
 handlebars = "6"
 hex = "0.4.3"
 http = "0.2.8"
-in-toto = "0.3.0"
+in-toto = "0.4"
 indexmap = { version = "2", features = ["serde"] }
 ipnetwork = "0.20.0"
 lazy_static = "1.4.0"
@@ -70,7 +70,7 @@ url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
 xz2 = "0.1.7"
-yash-syntax = "0.12"
+yash-syntax = "0.13"
 zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "zstd"] }
 zstd = "0.13"
 

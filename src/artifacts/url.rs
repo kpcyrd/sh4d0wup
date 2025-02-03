@@ -63,7 +63,7 @@ pub struct RenderedUrlArtifact<'a> {
     pub sha256: Option<&'a String>,
 }
 
-impl<'a> RenderedUrlArtifact<'a> {
+impl RenderedUrlArtifact<'_> {
     pub async fn download(&self, sessions: &mut Sessions) -> Result<warp::hyper::body::Bytes> {
         let mut headers = HeaderMap::<HeaderValue>::default();
 

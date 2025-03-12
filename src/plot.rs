@@ -167,7 +167,10 @@ impl Ctx {
                         info!("Verifying sha256:{:?} matches cache content...", expected);
                         let existing_sha256 = existing.sha256();
                         if *expected != *existing_sha256 {
-                            debug!("Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}", expected, existing_sha256);
+                            debug!(
+                                "Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}",
+                                expected, existing_sha256
+                            );
                             continue;
                         }
                     }
@@ -696,11 +699,7 @@ impl<T> PatchPkgDatabaseConfig<T> {
                 }
             }
         }
-        if patch.is_empty() {
-            None
-        } else {
-            Some(patch)
-        }
+        if patch.is_empty() { None } else { Some(patch) }
     }
 
     // TODO: not sure if this method is well thought out

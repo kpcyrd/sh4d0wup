@@ -4,11 +4,11 @@ use crate::sign;
 use crate::utils;
 use data_encoding::BASE64;
 use indexmap::IndexMap;
-use openssl::hash::{hash, MessageDigest};
+use openssl::hash::{MessageDigest, hash};
 use std::fmt;
 use std::io;
-use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::prelude::*;
 use std::str;
 use tar::Archive;
 

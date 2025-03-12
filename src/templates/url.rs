@@ -30,7 +30,10 @@ mod tests {
                 ),
             },
         )?;
-        assert_eq!(output, "https://example.com/files/e8/4712238709398f6d349dc2250b0efca4b72d8c2bfb7b74339d30ba94056b14/hello.tgz");
+        assert_eq!(
+            output,
+            "https://example.com/files/e8/4712238709398f6d349dc2250b0efca4b72d8c2bfb7b74339d30ba94056b14/hello.tgz"
+        );
         Ok(())
     }
 }

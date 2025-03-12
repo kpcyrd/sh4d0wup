@@ -1,7 +1,7 @@
 use crate::errors::*;
+use flate2::GzBuilder;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::GzBuilder;
 use std::io;
 use std::io::prelude::*;
 use tar::Archive;

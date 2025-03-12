@@ -108,7 +108,9 @@ impl InfectArtifact {
                 } else if let Some(data) = &infect.data {
                     data.as_bytes()
                 } else {
-                    bail!("When using elf-fwd-stdin you need to provide either `artifact:` or `data:`");
+                    bail!(
+                        "When using elf-fwd-stdin you need to provide either `artifact:` or `data:`"
+                    );
                 };
 
                 let mut out = Vec::new();

@@ -7,7 +7,7 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/kpcyrd/sh4d0wup"
 categories = ["command-line-utilities"]
 readme = "README.md"
-edition = "2021"
+edition = "2024"
 
 [features]
 default = ["hsm", "zstd/pkg-config"] # https://github.com/gyscos/zstd-rs/pull/309

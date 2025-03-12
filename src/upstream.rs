@@ -7,10 +7,10 @@ use unicase::Ascii;
 use url::Url;
 use warp::hyper::Body;
 use warp::path::FullPath;
-use warp::{hyper::body::Bytes, Rejection};
-use warp_reverse_proxy::errors::Error as ProxyError;
+use warp::{Rejection, hyper::body::Bytes};
 use warp_reverse_proxy::QueryParameters;
 use warp_reverse_proxy::Request;
+use warp_reverse_proxy::errors::Error as ProxyError;
 
 // these need to be two different reqwest clients because redirect policies are very global
 pub static CLIENT_REDIRECT: OnceCell<reqwest::Client> = OnceCell::new();

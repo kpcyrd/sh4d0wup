@@ -6,8 +6,8 @@ use crate::utils;
 use openssl::hash::MessageDigest;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::prelude::*;
 use tar::Archive;
 
 pub fn patch_signature_buf(

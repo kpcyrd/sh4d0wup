@@ -15,12 +15,12 @@ use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use warp::host::Authority;
-use warp::hyper::body::HttpBody;
 use warp::hyper::Body;
+use warp::hyper::body::HttpBody;
 use warp::path::FullPath;
-use warp::{hyper::body::Bytes, Filter, Rejection, Reply};
-use warp_reverse_proxy::extract_request_data_filter;
+use warp::{Filter, Rejection, Reply, hyper::body::Bytes};
 use warp_reverse_proxy::QueryParameters;
+use warp_reverse_proxy::extract_request_data_filter;
 
 #[derive(Debug)]
 struct HttpError;

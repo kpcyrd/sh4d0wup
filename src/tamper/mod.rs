@@ -7,9 +7,9 @@ use crate::args::Tamper;
 use crate::artifacts::git;
 use crate::artifacts::git::Oid;
 use crate::errors::*;
+use crate::keygen::EmbeddedKey;
 use crate::keygen::openssl::OpensslEmbedded;
 use crate::keygen::pgp::PgpEmbedded;
-use crate::keygen::EmbeddedKey;
 use crate::plot::{PatchAptReleaseConfig, PatchPkgDatabaseConfig, PlotExtras};
 use crate::tamper;
 use bstr::BString;
@@ -44,7 +44,9 @@ pub async fn run(tamper: Tamper) -> Result<()> {
 
             let signing_key = match (tamper.unsigned, tamper.signing_key) {
                 (true, Some(_)) => {
-                    warn!("Using --unsigned and --signing-key together is causing the release to be unsigned");
+                    warn!(
+                        "Using --unsigned and --signing-key together is causing the release to be unsigned"
+                    );
                     None
                 }
                 (true, None) => None,

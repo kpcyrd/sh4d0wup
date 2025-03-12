@@ -8,8 +8,8 @@ pub mod sh;
 
 use crate::args::Infect;
 use crate::errors::*;
-use crate::keygen::openssl::OpensslEmbedded;
 use crate::keygen::EmbeddedKey;
+use crate::keygen::openssl::OpensslEmbedded;
 use crate::plot::PlotExtras;
 use crate::utils;
 use std::fs::File;

@@ -202,6 +202,18 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
 
+  deny:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run cargo deny
+      run: |
+        docker run --rm -v "$PWD:/src" -w /src alpine:edge sh -c '
+        set -e
+        apk add cargo cargo-deny
+        exec cargo deny check
+        '
+
   fmt:
     runs-on: ubuntu-22.04
     steps:

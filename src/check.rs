@@ -17,7 +17,7 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::signal;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 pub async fn wait_for_server(addr: &SocketAddr) -> Result<()> {
     debug!("Waiting for server to start up...");
@@ -54,7 +54,9 @@ pub async fn test_for_unprivileged_userns_clone() -> Result<()> {
         match fs::read("/proc/sys/kernel/unprivileged_userns_clone").await {
             Ok(buf) => {
                 if buf == b"0\n" {
-                    warn!("User namespaces are not enabled in /proc/sys/kernel/unprivileged_userns_clone")
+                    warn!(
+                        "User namespaces are not enabled in /proc/sys/kernel/unprivileged_userns_clone"
+                    )
                 }
             }
             Err(err) => warn!(

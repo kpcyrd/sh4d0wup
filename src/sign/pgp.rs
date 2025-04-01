@@ -160,6 +160,19 @@ mod tests {
         }
     }
 
+    fn sq_inline_arg_name() -> Result<Option<&'static str>> {
+        let version = sq_version()?;
+        let req = semver::VersionReq::parse("<1.0.0").unwrap();
+
+        if req.matches(&version) {
+            // back then no flag was needed
+            Ok(None)
+        } else {
+            // latest version needs a flag
+            Ok(Some("--message"))
+        }
+    }
+
     fn sq_verify(args: &[&str], data: &[u8]) -> Result<Vec<u8>> {
         let mut child = Command::new("sq")
             .args(args)
@@ -252,7 +265,16 @@ mod tests {
         let msg_path = temp_put(&dir, "msg.txt", msg)?;
 
         let output = sq_verify(
-            &["verify", sq_signer_file_arg_name()?, &cert_path, &msg_path],
+            &[
+                Some("verify"),
+                Some(sq_signer_file_arg_name()?),
+                Some(&cert_path),
+                sq_inline_arg_name()?,
+                Some(&msg_path),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>(),
             data.as_bytes(),
         )?;
         let output = String::from_utf8(output)?;

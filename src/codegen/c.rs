@@ -1,16 +1,12 @@
+use crate::codegen;
 use crate::errors::*;
-use std::fmt::Write;
+use crate::utils;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, ChildStdin, Command};
 
-pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
-    for b in data {
-        write!(out, "\\x{b:02x}")?;
-    }
-    Ok(())
-}
+const GCC_BINARY: &str = utils::compile_env!("SH4D0WUP_GCC_BINARY", "gcc");
 
 pub async fn define_write_all(compiler: &mut Compiler) -> Result<()> {
     compiler
@@ -33,7 +29,7 @@ pub async fn stream_bin(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
-        escape(chunk, &mut buf)?;
+        codegen::escape(chunk, &mut buf)?;
         stdin.write_all(b"if (write_all(f, \"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin
@@ -51,7 +47,7 @@ pub struct Compiler {
 impl Compiler {
     pub async fn spawn(out: &Path) -> Result<Self> {
         info!("Spawning C compiler...");
-        let mut cmd = Command::new("gcc");
+        let mut cmd = Command::new(GCC_BINARY);
         cmd.arg("-static")
             .arg("-s")
             .arg("-Os")
@@ -66,7 +62,9 @@ impl Compiler {
             cmd.as_std().get_program(),
             cmd.as_std().get_args()
         );
-        let mut child = cmd.spawn().context("Failed to spawn C compiler")?;
+        let mut child = cmd
+            .spawn()
+            .with_context(|| anyhow!("Failed to spawn C compiler: {GCC_BINARY:?}"))?;
 
         let stdin = child.stdin.take().unwrap();
         let compiler = Compiler { child, stdin };

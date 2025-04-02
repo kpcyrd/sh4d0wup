@@ -93,14 +93,20 @@ pub fn sign_detached(signer: &PgpEmbedded, data: &[u8], binary: bool) -> Result<
 mod tests {
     use super::*;
     use crate::keygen::pgp;
+    use crate::utils;
     use std::fs;
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
+    const SQ_BINARY: &str = utils::compile_env!("SH4D0WUP_SQ_BINARY", "sq");
+
     fn sq_version() -> Result<semver::Version> {
         for version_arg in ["version", "-V"] {
             // figure out how to invoke sq correctly
-            let version = Command::new("sq").arg(version_arg).output()?;
+            let version = Command::new(SQ_BINARY)
+                .arg(version_arg)
+                .output()
+                .with_context(|| anyhow!("Failed to execute sq binary: {SQ_BINARY:?}"))?;
 
             // `sq -V` got renamed to `sq version` at some point, try the old option next
             if !version.status.success() {
@@ -160,8 +166,21 @@ mod tests {
         }
     }
 
+    fn sq_inline_arg_name() -> Result<Option<&'static str>> {
+        let version = sq_version()?;
+        let req = semver::VersionReq::parse("<1.0.0").unwrap();
+
+        if req.matches(&version) {
+            // back then no flag was needed
+            Ok(None)
+        } else {
+            // latest version needs a flag
+            Ok(Some("--message"))
+        }
+    }
+
     fn sq_verify(args: &[&str], data: &[u8]) -> Result<Vec<u8>> {
-        let mut child = Command::new("sq")
+        let mut child = Command::new(SQ_BINARY)
             .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -252,7 +271,16 @@ mod tests {
         let msg_path = temp_put(&dir, "msg.txt", msg)?;
 
         let output = sq_verify(
-            &["verify", sq_signer_file_arg_name()?, &cert_path, &msg_path],
+            &[
+                Some("verify"),
+                Some(sq_signer_file_arg_name()?),
+                Some(&cert_path),
+                sq_inline_arg_name()?,
+                Some(&msg_path),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>(),
             data.as_bytes(),
         )?;
         let output = String::from_utf8(output)?;

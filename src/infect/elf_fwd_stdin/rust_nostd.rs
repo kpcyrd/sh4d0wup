@@ -1,4 +1,4 @@
-use crate::codegen::rust;
+use crate::codegen::{self, rust};
 use crate::errors::*;
 use crate::infect::elf_fwd_stdin::Infect;
 use std::path::Path;
@@ -7,7 +7,7 @@ fn gen_args_src(args: &[String]) -> Result<String> {
     let mut s = String::new();
     for arg in args {
         s.push_str("unsafe { CStr::from_bytes_with_nul_unchecked(b\"");
-        rust::escape(arg.as_bytes(), &mut s)?;
+        codegen::escape(arg.as_bytes(), &mut s)?;
         s.push_str("\").as_ptr() as *const u8 },\n");
     }
     Ok(s)
@@ -33,10 +33,10 @@ pub async fn infect(bin: &Path, config: &Infect, orig: &[u8]) -> Result<()> {
     );
 
     let mut exec_path_escaped = String::new();
-    rust::escape(exec_path.as_bytes(), &mut exec_path_escaped)?;
+    codegen::escape(exec_path.as_bytes(), &mut exec_path_escaped)?;
 
     let mut arg0_escaped = String::new();
-    rust::escape(args[0].as_bytes(), &mut arg0_escaped)?;
+    codegen::escape(args[0].as_bytes(), &mut arg0_escaped)?;
 
     let args_src = gen_args_src(&args)?;
 

@@ -1,12 +1,15 @@
 #![allow(non_upper_case_globals)]
 #![allow(clippy::too_many_arguments)]
 
+use crate::codegen;
 use crate::errors::*;
-use std::fmt::Write;
+use crate::utils;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, ChildStdin, Command};
+
+const RUSTC_BINARY: &str = utils::compile_env!("SH4D0WUP_RUSTC_BINARY", "rustc");
 
 const SIGCHLD: u64 = 17;
 
@@ -19,19 +22,12 @@ const __NR_execve: u64 = 59;
 const __NR_exit: u64 = 60;
 const __NR_wait4: u64 = 61;
 
-pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
-    for b in data {
-        write!(out, "\\x{b:02x}")?;
-    }
-    Ok(())
-}
-
 pub async fn stream_bin_std(orig: &[u8], stdin: &mut ChildStdin) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
-        escape(chunk, &mut buf)?;
+        codegen::escape(chunk, &mut buf)?;
         stdin.write_all(b"if f.write_all(b\"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin.write_all(b"\").is_err() { exit(1) };\n").await?;
@@ -44,7 +40,7 @@ pub async fn stream_bin_nostd(orig: &[u8], stdin: &mut ChildStdin) -> Result<()>
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
-        escape(chunk, &mut buf)?;
+        codegen::escape(chunk, &mut buf)?;
         stdin.write_all(b"if write_all(f, b\"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin.write_all(b"\".as_ptr(), ").await?;
@@ -63,7 +59,7 @@ impl Compiler {
     pub async fn spawn(out: &Path, target: Option<&str>) -> Result<Self> {
         let target = target.unwrap_or("x86_64-unknown-linux-musl");
         info!("Spawning Rust compiler...");
-        let mut cmd = Command::new("rustc");
+        let mut cmd = Command::new(RUSTC_BINARY);
         cmd.arg("-Copt-level=3")
             .arg("-Cpanic=abort")
             .arg("-Cstrip=symbols")
@@ -78,7 +74,9 @@ impl Compiler {
             cmd.as_std().get_program(),
             cmd.as_std().get_args()
         );
-        let mut child = cmd.spawn().context("Failed to spawn Rust compiler")?;
+        let mut child = cmd
+            .spawn()
+            .with_context(|| anyhow!("Failed to spawn Rust compiler: {RUSTC_BINARY:?}"))?;
 
         let stdin = child.stdin.take().unwrap();
         let compiler = Compiler { child, stdin };

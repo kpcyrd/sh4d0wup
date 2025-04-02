@@ -1,4 +1,4 @@
-use crate::codegen::go;
+use crate::codegen::{self, go};
 use crate::errors::*;
 use crate::infect::elf_fwd_stdin::Infect;
 use std::path::Path;
@@ -7,7 +7,7 @@ fn gen_args_src(args: &[String]) -> Result<String> {
     let mut s = String::new();
     for arg in args {
         s.push_str(", ");
-        go::escape(arg.as_bytes(), &mut s)?;
+        codegen::escape(arg.as_bytes(), &mut s)?;
     }
     Ok(s)
 }
@@ -26,7 +26,7 @@ pub async fn infect(bin: &Path, src: &Path, config: &Infect, orig: &[u8]) -> Res
     );
 
     let mut exec_path_escaped = String::new();
-    go::escape(exec_path.as_bytes(), &mut exec_path_escaped)?;
+    codegen::escape(exec_path.as_bytes(), &mut exec_path_escaped)?;
 
     // argv0 is discarded when using the go codegen backend
     let args_src = gen_args_src(&args[1..])?;

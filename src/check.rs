@@ -4,6 +4,7 @@ use crate::httpd;
 use crate::keygen::EmbeddedKey;
 use crate::plot;
 use crate::plot::Cmd;
+use crate::utils;
 use nix::sched::CloneFlags;
 use nix::sys::wait::{WaitPidFlag, WaitStatus};
 use std::ffi::OsStr;
@@ -18,6 +19,8 @@ use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::signal;
 use tokio::time::{Duration, sleep};
+
+const PODMAN_BINARY: &str = utils::compile_env!("SH4D0WUP_PODMAN_BINARY", "podman");
 
 pub async fn wait_for_server(addr: &SocketAddr) -> Result<()> {
     debug!("Waiting for server to start up...");
@@ -77,7 +80,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr> + fmt::Debug,
 {
-    let mut cmd = Command::new("podman");
+    let mut cmd = Command::new(PODMAN_BINARY);
     let args = args.into_iter().collect::<Vec<_>>();
     cmd.args(&args);
     if stdin.is_some() {
@@ -87,7 +90,9 @@ where
         cmd.stdout(Stdio::piped());
     }
     debug!("Spawning child process: podman {:?}", args);
-    let mut child = cmd.spawn().context("Failed to execute podman binary")?;
+    let mut child = cmd
+        .spawn()
+        .with_context(|| anyhow!("Failed to execute podman binary: {PODMAN_BINARY:?}"))?;
 
     if let Some(data) = stdin {
         debug!("Sending {} bytes to child process...", data.len());

@@ -1,24 +1,20 @@
+use crate::codegen;
 use crate::errors::*;
-use std::fmt::Write;
+use crate::utils;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
 
-pub fn escape(data: &[u8], out: &mut String) -> Result<()> {
-    for b in data {
-        write!(out, "\\x{b:02x}")?;
-    }
-    Ok(())
-}
+const GO_BINARY: &str = utils::compile_env!("SH4D0WUP_GO_BINARY", "go");
 
 pub async fn stream_bin(orig: &[u8], stdin: &mut File) -> Result<()> {
     debug!("Passing through binary...");
     let mut buf = String::new();
     for chunk in orig.chunks(2048) {
         buf.clear();
-        escape(chunk, &mut buf)?;
+        codegen::escape(chunk, &mut buf)?;
         stdin.write_all(b"f.Write([]byte(\"").await?;
         stdin.write_all(buf.as_bytes()).await?;
         stdin.write_all(b"\"))\n").await?;
@@ -59,7 +55,7 @@ impl Compiler {
 
     pub fn done(self) -> Result<PendingCompile> {
         info!("Spawning Go compiler...");
-        let mut cmd = Command::new("go");
+        let mut cmd = Command::new(GO_BINARY);
         cmd.arg("build")
             .arg("-ldflags=-s -w")
             .arg("-o")
@@ -72,7 +68,9 @@ impl Compiler {
             cmd.as_std().get_program(),
             cmd.as_std().get_args()
         );
-        let child = cmd.spawn().context("Failed to spawn Go compiler")?;
+        let child = cmd
+            .spawn()
+            .with_context(|| anyhow!("Failed to spawn Go compiler: {GO_BINARY:?}"))?;
         Ok(PendingCompile { child })
     }
 }

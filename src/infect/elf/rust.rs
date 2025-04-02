@@ -1,4 +1,4 @@
-use crate::codegen::rust;
+use crate::codegen::{self, rust};
 use crate::errors::*;
 use crate::infect::elf::{Infect, Payload};
 use std::path::Path;
@@ -9,7 +9,7 @@ pub async fn add_payload(compiler: &mut rust::Compiler, payload: &Payload<'_>) -
     match payload {
         Payload::Shell(payload) => {
             let mut buf = String::new();
-            rust::escape(payload.as_bytes(), &mut buf)?;
+            codegen::escape(payload.as_bytes(), &mut buf)?;
 
             /*
             compiler

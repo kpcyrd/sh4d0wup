@@ -93,14 +93,20 @@ pub fn sign_detached(signer: &PgpEmbedded, data: &[u8], binary: bool) -> Result<
 mod tests {
     use super::*;
     use crate::keygen::pgp;
+    use crate::utils;
     use std::fs;
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
+    const SQ_BINARY: &str = utils::compile_env!("SH4D0WUP_SQ_BINARY", "sq");
+
     fn sq_version() -> Result<semver::Version> {
         for version_arg in ["version", "-V"] {
             // figure out how to invoke sq correctly
-            let version = Command::new("sq").arg(version_arg).output()?;
+            let version = Command::new(SQ_BINARY)
+                .arg(version_arg)
+                .output()
+                .with_context(|| anyhow!("Failed to execute sq binary: {SQ_BINARY:?}"))?;
 
             // `sq -V` got renamed to `sq version` at some point, try the old option next
             if !version.status.success() {
@@ -174,7 +180,7 @@ mod tests {
     }
 
     fn sq_verify(args: &[&str], data: &[u8]) -> Result<Vec<u8>> {
-        let mut child = Command::new("sq")
+        let mut child = Command::new(SQ_BINARY)
             .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

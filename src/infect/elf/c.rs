@@ -1,4 +1,4 @@
-use crate::codegen::c;
+use crate::codegen::{self, c};
 use crate::errors::*;
 use crate::infect::elf::{Infect, Payload};
 use std::path::Path;
@@ -9,7 +9,7 @@ pub async fn add_payload(compiler: &mut c::Compiler, payload: &Payload<'_>) -> R
     match payload {
         Payload::Shell(payload) => {
             let mut buf = String::new();
-            c::escape(payload.as_bytes(), &mut buf)?;
+            codegen::escape(payload.as_bytes(), &mut buf)?;
 
             compiler
                 .add_lines(&[
@@ -73,7 +73,7 @@ pub async fn infect(
     if config.self_replace {
         if let Some(assume_path) = &config.assume_path {
             let mut buf = String::new();
-            c::escape(assume_path.as_bytes(), &mut buf)?;
+            codegen::escape(assume_path.as_bytes(), &mut buf)?;
             compiler.add_line(&format!("char *p=\"{buf}\";\n")).await?;
         } else {
             compiler

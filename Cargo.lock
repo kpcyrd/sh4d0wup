@@ -2869,7 +2869,7 @@ dependencies = [
 
 [[package]]
 name = "sh4d0wup"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "ar",

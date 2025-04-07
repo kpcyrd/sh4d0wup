@@ -126,12 +126,13 @@ pub async fn infect<W: AsyncWrite + Unpin>(
     }
 
     debug!("Generating script...");
+    let script = script.as_bytes();
     let mut cur = 0;
     let mut installed_pwn_function = false;
 
     for patch in &patches {
         let pos = patch.position();
-        out.write_all(script[cur..pos.start].as_bytes()).await?;
+        out.write_all(&script[cur..pos.start]).await?;
 
         match patch {
             Patch::Rename { old, new, .. } => {
@@ -158,7 +159,7 @@ pub async fn infect<W: AsyncWrite + Unpin>(
 
     // write remaining script
     if cur < script.len() {
-        out.write_all(script[cur..].as_bytes()).await?;
+        out.write_all(&script[cur..]).await?;
     }
 
     Ok(())

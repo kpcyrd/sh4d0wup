@@ -25,7 +25,7 @@ impl Infect {
         self.exec_path.as_deref().unwrap_or("/bin/sh")
     }
 
-    fn args(&self, exec_path: &str) -> Cow<Vec<String>> {
+    fn args(&self, exec_path: &str) -> Cow<[String]> {
         if self.args.is_empty() {
             Cow::Owned(vec![exec_path.to_string()])
         } else {

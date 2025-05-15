@@ -114,10 +114,12 @@ impl Commit {
         let tree = self.tree.resolve_oid(artifacts)?;
         let author = gix_actor::SignatureRef::from_bytes::<()>(self.author.as_bytes())
             .map_err(|_| anyhow!("Failed to parse author: {:?}", self.author))?
-            .to_owned();
+            .to_owned()
+            .context("Failed to parse git timestamp")?;
         let committer = gix_actor::SignatureRef::from_bytes::<()>(self.committer.as_bytes())
             .map_err(|_| anyhow!("Failed to parse committer: {:?}", self.committer))?
-            .to_owned();
+            .to_owned()
+            .context("Failed to parse git timestamp")?;
         let parents = self
             .parents
             .iter()
@@ -380,7 +382,8 @@ impl Tag {
             Some(
                 gix_actor::SignatureRef::from_bytes::<()>(tagger.as_bytes())
                     .map_err(|_| anyhow!("Failed to parse tagger: {tagger:?}"))?
-                    .to_owned(),
+                    .to_owned()
+                    .context("Failed to parse git timestamp")?,
             )
         } else {
             None

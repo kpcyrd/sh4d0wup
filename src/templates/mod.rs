@@ -50,7 +50,7 @@ impl ArtifactMetadata {
     }
 }
 
-pub fn create_engine(template: &str) -> Result<Handlebars> {
+pub fn create_engine(template: &str) -> Result<Handlebars<'_>> {
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
     handlebars

@@ -104,12 +104,12 @@ async fn main() -> Result<()> {
             let flags = pgp.flags.clone();
             let pgp = keygen::pgp::generate(pgp.into()).context("Failed to generate pgp key")?;
 
-            if flags.public_key() {
-                if let Some(cert) = pgp.cert {
-                    keygen::pgp::debug_inspect(cert.as_bytes())
-                        .context("Failed to inspect serialized pgp data")?;
-                    print!("{cert}");
-                }
+            if flags.public_key()
+                && let Some(cert) = pgp.cert
+            {
+                keygen::pgp::debug_inspect(cert.as_bytes())
+                    .context("Failed to inspect serialized pgp data")?;
+                print!("{cert}");
             }
 
             if flags.secret_key() {
@@ -118,12 +118,12 @@ async fn main() -> Result<()> {
                 print!("{}", pgp.secret_key);
             }
 
-            if flags.all() {
-                if let Some(rev) = pgp.rev {
-                    keygen::pgp::debug_inspect(rev.as_bytes())
-                        .context("Failed to inspect serialized pgp data")?;
-                    print!("{rev}");
-                }
+            if flags.all()
+                && let Some(rev) = pgp.rev
+            {
+                keygen::pgp::debug_inspect(rev.as_bytes())
+                    .context("Failed to inspect serialized pgp data")?;
+                print!("{rev}");
             }
         }
         SubCommand::Keygen(Keygen::Ssh(ssh)) => {
@@ -131,10 +131,10 @@ async fn main() -> Result<()> {
             let ssh =
                 keygen::ssh::generate(&ssh.try_into()?).context("Failed to generate ssh key")?;
 
-            if flags.public_key() {
-                if let Some(public_key) = ssh.public_key {
-                    println!("{public_key}");
-                }
+            if flags.public_key()
+                && let Some(public_key) = ssh.public_key
+            {
+                println!("{public_key}");
             }
 
             if flags.secret_key() {
@@ -146,10 +146,10 @@ async fn main() -> Result<()> {
             let openssl = keygen::openssl::generate(&openssl.try_into()?)
                 .context("Failed to generate openssl key")?;
 
-            if flags.public_key() {
-                if let Some(public_key) = openssl.public_key {
-                    print!("{public_key}");
-                }
+            if flags.public_key()
+                && let Some(public_key) = openssl.public_key
+            {
+                print!("{public_key}");
             }
 
             if flags.secret_key() {
@@ -161,10 +161,10 @@ async fn main() -> Result<()> {
             let in_toto = keygen::in_toto::generate(&in_toto.into())
                 .context("Failed to generate in-toto key")?;
 
-            if flags.public_key() {
-                if let Some(public_key) = in_toto.public_key {
-                    println!("{public_key}");
-                }
+            if flags.public_key()
+                && let Some(public_key) = in_toto.public_key
+            {
+                println!("{public_key}");
             }
 
             if flags.secret_key() {

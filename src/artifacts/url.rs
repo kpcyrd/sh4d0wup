@@ -24,7 +24,7 @@ pub struct UrlArtifact {
 }
 
 impl UrlArtifact {
-    pub fn render(&self, artifacts: &Artifacts) -> Result<RenderedUrlArtifact> {
+    pub fn render(&self, artifacts: &Artifacts) -> Result<RenderedUrlArtifact<'_>> {
         let url = if let Some(url) = &self.url {
             url.clone()
         } else if let Some(artifact) = &self.template_metadata {

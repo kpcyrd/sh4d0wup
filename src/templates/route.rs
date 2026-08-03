@@ -16,7 +16,7 @@ struct HashHelper<'a> {
 }
 
 impl HashHelper<'_> {
-    fn new(artifact: &HashedArtifact, hash: HashType) -> HashHelper {
+    fn new(artifact: &HashedArtifact, hash: HashType) -> HashHelper<'_> {
         HashHelper { artifact, hash }
     }
 }

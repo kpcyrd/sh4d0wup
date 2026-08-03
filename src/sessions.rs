@@ -4,6 +4,7 @@ use http::Method;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use url::Url;
+use www_authenticate_parser::Challenge;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sessions {}
@@ -67,30 +68,24 @@ impl FromStr for WwwAuthenticate {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let mut s = s
-            .strip_prefix("Bearer ")
-            .context("Www-Authenticate header is expected to start with `Bearer `")?;
-        let mut www = WwwAuthenticate::default();
-        while !s.is_empty() {
-            let idx = s.find("=\"").context("Failed to find end of key")?;
-            let key = &s[..idx];
-            let remaining = &s[idx + 2..];
+        let (scheme, challenge) = www_authenticate_parser::parse_header(s)
+            .map_err(|err| anyhow!("Failed to parse Www-Authenticate header: {err:#}"))?;
 
-            let idx = remaining
-                .find('\"')
-                .context("Failed to find end of value")?;
-            let value = &remaining[..idx];
-            let remaining = &remaining[idx + 1..];
-
-            match key {
-                "realm" => www.realm = Some(value.to_string()),
-                "service" => www.service = Some(value.to_string()),
-                "scope" => www.scope = Some(value.to_string()),
-                _ => debug!("Skipping unknown Www-Authenticate header: {:?}", key),
-            }
-
-            s = remaining.strip_prefix(',').unwrap_or(remaining);
+        if scheme.as_ref() != "Bearer" {
+            bail!("Www-Authenticate header is expected to start with `Bearer `")
         }
+
+        let mut www = WwwAuthenticate::default();
+
+        match challenge {
+            Challenge::Token68(_) => bail!("Www-Authenticate Bearer token is not supported"),
+            Challenge::Fields(mut fields) => {
+                www.realm = fields.remove("realm");
+                www.service = fields.remove("service");
+                www.scope = fields.remove("scope");
+            }
+        }
+
         Ok(www)
     }
 }
@@ -105,7 +100,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_www_authenticate() -> Result<()> {
+    fn test_parse_www_authenticate_ghcr() -> Result<()> {
         let header = "Bearer realm=\"https://ghcr.io/token\",service=\"ghcr.io\",scope=\"repository:user/image:pull\"";
         let parsed = header.parse::<WwwAuthenticate>()?;
         assert_eq!(
@@ -114,6 +109,21 @@ mod tests {
                 realm: Some("https://ghcr.io/token".to_string()),
                 service: Some("ghcr.io".to_string()),
                 scope: Some("repository:user/image:pull".to_string()),
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_www_authenticate_gcr() -> Result<()> {
+        let header = "Bearer realm=\"https://gcr.io/v2/token\",service=gcr.io";
+        let parsed = header.parse::<WwwAuthenticate>()?;
+        assert_eq!(
+            parsed,
+            WwwAuthenticate {
+                realm: Some("https://gcr.io/v2/token".to_string()),
+                service: Some("gcr.io".to_string()),
+                scope: None,
             }
         );
         Ok(())

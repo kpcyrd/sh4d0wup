@@ -69,6 +69,7 @@ unicase = "2.6.0"
 url = { version = "2.3.1", features = ["serde"] }
 warp = { version = "0.3.2", features = ["tls"] }
 warp-reverse-proxy = "1"
+www_authenticate_parser = "1"
 xz2 = "0.1.7"
 yash-syntax = "0.15"
 zip = { version = "3", default-features = false, features = ["deflate", "bzip2", "zstd"] }

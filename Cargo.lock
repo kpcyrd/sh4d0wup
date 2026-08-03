@@ -2896,6 +2896,7 @@ dependencies = [
  "url",
  "warp",
  "warp-reverse-proxy",
+ "www_authenticate_parser",
  "xz2",
  "yash-syntax",
  "zip",
@@ -3966,6 +3967,15 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+
+[[package]]
+name = "www_authenticate_parser"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0ceef4b978fb30b99b2730515bbe51269f7482a95e08a304a04f77e2de2c928"
+dependencies = [
+ "unicase",
+]
 
 [[package]]
 name = "xattr"

@@ -152,10 +152,10 @@ pub fn write_patch_layer<W: Write>(
 ) -> Result<(String, Option<String>)> {
     let id = "patched".to_string();
 
-    if let Some(user) = &config.user() {
-        if !user.is_empty() {
-            info!("User is set: {:?}", user);
-        }
+    if let Some(user) = &config.user()
+        && !user.is_empty()
+    {
+        info!("User is set: {user:?}");
     }
 
     if let Some(entrypoint) = &config.entrypoint() {
@@ -257,7 +257,7 @@ pub fn infect<W: Write>(args: &args::InfectOci, pkg: &[u8], out: &mut W) -> Resu
 
                 info!(
                     "Original image is referencing config {:?}: {:?}",
-                    &manifest.config, config
+                    manifest.config, config
                 );
 
                 let parent = layer_id_from_filename(

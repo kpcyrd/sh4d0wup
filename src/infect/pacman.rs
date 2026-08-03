@@ -117,22 +117,23 @@ pub fn infect<W: Write>(args: &Infect, pkg: &[u8], out: &mut W) -> Result<()> {
             .to_str()
             .with_context(|| anyhow!("Package contains paths with invalid encoding: {:?}", path))?;
 
-        if let Some(payload) = &args.payload {
-            if !has_install_hook && filename > ".INSTALL" {
-                info!("This package has no install hook, adding one from scratch...");
-                has_install_hook = true;
-                let script = patch_install_script(None, payload)
-                    .context("Failed to generate install script")?;
-                debug!("Generated install script: {:?}", script);
+        if let Some(payload) = &args.payload
+            && !has_install_hook
+            && filename > ".INSTALL"
+        {
+            info!("This package has no install hook, adding one from scratch...");
+            has_install_hook = true;
+            let script =
+                patch_install_script(None, payload).context("Failed to generate install script")?;
+            debug!("Generated install script: {:?}", script);
 
-                let script = script.as_bytes();
-                let mut header = header.clone();
-                header.set_path(".INSTALL")?;
-                header.set_size(script.len() as u64);
-                header.set_cksum();
+            let script = script.as_bytes();
+            let mut header = header.clone();
+            header.set_path(".INSTALL")?;
+            header.set_size(script.len() as u64);
+            header.set_cksum();
 
-                builder.append(&header, &mut &script[..])?;
-            }
+            builder.append(&header, &mut &script[..])?;
         }
 
         match (&args.payload, filename) {

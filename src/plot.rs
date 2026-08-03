@@ -152,31 +152,31 @@ impl Ctx {
         };
 
         for (key, artifact) in &plot.artifacts {
-            if let Artifact::Url(artifact) = artifact {
-                if let Some(existing) = existing.remove(key) {
-                    let url = if let Some(url) = &artifact.url {
-                        format!("{url:?}")
-                    } else {
-                        String::from("-")
-                    };
-                    info!(
-                        "Found existing artifact for url artifact {:?}: {}",
-                        key, url,
-                    );
-                    if let Some(expected) = &artifact.sha256 {
-                        info!("Verifying sha256:{:?} matches cache content...", expected);
-                        let existing_sha256 = existing.sha256();
-                        if *expected != *existing_sha256 {
-                            debug!(
-                                "Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}",
-                                expected, existing_sha256
-                            );
-                            continue;
-                        }
+            if let Artifact::Url(artifact) = artifact
+                && let Some(existing) = existing.remove(key)
+            {
+                let url = if let Some(url) = &artifact.url {
+                    format!("{url:?}")
+                } else {
+                    String::from("-")
+                };
+                info!(
+                    "Found existing artifact for url artifact {:?}: {}",
+                    key, url,
+                );
+                if let Some(expected) = &artifact.sha256 {
+                    info!("Verifying sha256:{:?} matches cache content...", expected);
+                    let existing_sha256 = existing.sha256();
+                    if *expected != *existing_sha256 {
+                        debug!(
+                            "Not inserting into cache, existing artifact doesn't match sha256, expected: {:?}, existing: {:?}",
+                            expected, existing_sha256
+                        );
+                        continue;
                     }
-
-                    out.insert(key.to_string(), existing);
                 }
+
+                out.insert(key.to_string(), existing);
             }
         }
 
@@ -224,10 +224,10 @@ impl Plot {
 
     pub fn validate(&self) -> Result<()> {
         for route in &self.routes {
-            if let Some(upstream) = route.action.upstream() {
-                if !self.upstreams.contains_key(upstream) {
-                    bail!("Reference to undefined upstream: {:?}", upstream);
-                }
+            if let Some(upstream) = route.action.upstream()
+                && !self.upstreams.contains_key(upstream)
+            {
+                bail!("Reference to undefined upstream: {:?}", upstream);
             }
             if let RouteAction::Static(route) = &route.action {
                 match &route.source {
@@ -258,17 +258,17 @@ impl Plot {
     ) -> Result<&RouteAction> {
         for route in &self.routes {
             // if the route is for a specific path, verify it matches our request
-            if let Some(path) = &route.path {
-                if path != request_path {
-                    continue;
-                }
+            if let Some(path) = &route.path
+                && path != request_path
+            {
+                continue;
             }
 
             // if a host-header filter is specified, apply it to the request authority (this way it works on http2 too)
-            if let Some(host) = &route.host {
-                if authority.map(Authority::as_str) != Some(host) {
-                    continue;
-                }
+            if let Some(host) = &route.host
+                && authority.map(Authority::as_str) != Some(host)
+            {
+                continue;
             }
 
             // if a selector is selected and our request matches
@@ -280,12 +280,11 @@ impl Plot {
             }
 
             // if the route is a static route with an artifact_hash_bucket for our request
-            if let RouteAction::Static(action) = &route.action {
-                if let StaticSource::HashBucket(bucket) = &action.source {
-                    if !bucket.contains_key(request_path) {
-                        continue;
-                    }
-                }
+            if let RouteAction::Static(action) = &route.action
+                && let StaticSource::HashBucket(bucket) = &action.source
+                && !bucket.contains_key(request_path)
+            {
+                continue;
             }
 
             // The request matches this route
@@ -567,10 +566,10 @@ impl PkgFilter {
             return false;
         }
 
-        if let Some(version) = &self.version {
-            if pkg.version() != version {
-                return false;
-            }
+        if let Some(version) = &self.version
+            && pkg.version() != version
+        {
+            return false;
         }
 
         if self.namespace.is_some() && pkg.namespace() != self.namespace.as_deref() {
@@ -705,10 +704,10 @@ impl<T> PatchPkgDatabaseConfig<T> {
     // TODO: not sure if this method is well thought out
     pub fn artifact<P: PkgRef>(&self, pkg: &P) -> Option<&str> {
         for rule in &self.patch {
-            if rule.filter.matches_pkg(pkg) {
-                if let Some(artifact) = &rule.artifact {
-                    return Some(artifact.as_str());
-                }
+            if rule.filter.matches_pkg(pkg)
+                && let Some(artifact) = &rule.artifact
+            {
+                return Some(artifact.as_str());
             }
         }
         None
@@ -717,10 +716,10 @@ impl<T> PatchPkgDatabaseConfig<T> {
     // TODO: not sure if this method is well thought out
     pub fn signature<P: PkgRef>(&self, pkg: &P) -> Option<&str> {
         for rule in &self.patch {
-            if rule.filter.matches_pkg(pkg) {
-                if let Some(signature) = &rule.signature {
-                    return Some(signature.as_str());
-                }
+            if rule.filter.matches_pkg(pkg)
+                && let Some(signature) = &rule.signature
+            {
+                return Some(signature.as_str());
             }
         }
         None

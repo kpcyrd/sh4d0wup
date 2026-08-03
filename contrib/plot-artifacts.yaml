@@ -11,6 +11,8 @@ artifacts:
   remote:
     type: url
     url: https://www.wikipedia.org/portal/wikipedia.org/assets/img/Wikipedia-logo-v2.png
+    headers:
+      User-Agent: curl/8.14.1
     sha256: 75038605ff9e35cc393e0ed8200069601c889100607cde67d2af68b9eb88e5d4
 
 routes:

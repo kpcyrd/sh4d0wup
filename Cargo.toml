@@ -73,7 +73,7 @@ www_authenticate_parser = "1"
 xz2 = "0.1.7"
 yash-syntax = "0.15"
 zip = { version = "3", default-features = false, features = ["deflate", "bzip2", "zstd"] }
-zstd = "0.13"
+zstd = "0.14"
 
 [dev-dependencies]
 semver = "1.0.17"

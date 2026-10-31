@@ -18,24 +18,32 @@ pub async fn run(infect: Infect) -> Result<()> {
     match infect {
         Infect::Pacman(infect) => {
             let pkg = utils::read_input_path(&infect.path).await?;
-            let mut out = File::create(&infect.out)?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out =
+                File::create(&out).with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             pacman::infect(&infect.try_into()?, &pkg, &mut out)?;
         }
         Infect::Deb(infect) => {
             let pkg = utils::read_input_path(&infect.path).await?;
-            let mut out = File::create(&infect.out)?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out =
+                File::create(&out).with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             deb::infect(&infect.try_into()?, &pkg, &mut out)?;
         }
         Infect::Oci(infect) => {
             let pkg = utils::read_input_path(&infect.path).await?;
-            let mut out = File::create(&infect.out)?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out =
+                File::create(&out).with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             oci::infect(&infect, &pkg, &mut out)?;
         }
         Infect::Apk(infect) => {
             let pkg = utils::read_input_path(&infect.path).await?;
             let signing_key = OpensslEmbedded::read_from_disk(&infect.signing_key)?;
 
-            let mut out = File::create(&infect.out)?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out =
+                File::create(&out).with_context(|| anyhow!("Failed to open file: {out:?}"))?;
 
             let mut plot_extras = PlotExtras::default();
             plot_extras
@@ -55,17 +63,26 @@ pub async fn run(infect: Infect) -> Result<()> {
         }
         Infect::Elf(infect) => {
             let orig = utils::read_input_path(&infect.path).await?;
-            let mut out = tokio::fs::File::create(&infect.out).await?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out = tokio::fs::File::create(&out)
+                .await
+                .with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             elf::infect(&infect.try_into()?, &orig, None, &mut out).await?;
         }
         Infect::ElfFwdStdin(infect) => {
             let sh = utils::read_input_path(&infect.path).await?;
-            let mut out = tokio::fs::File::create(&infect.out).await?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out = tokio::fs::File::create(&out)
+                .await
+                .with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             elf_fwd_stdin::infect(&infect.try_into()?, &sh, &mut out).await?;
         }
         Infect::Sh(infect) => {
             let sh = utils::read_input_path(&infect.path).await?;
-            let mut out = tokio::fs::File::create(&infect.out).await?;
+            let out = utils::derive_output_path(&infect.out, &infect.path).await;
+            let mut out = tokio::fs::File::create(&out)
+                .await
+                .with_context(|| anyhow!("Failed to open file: {out:?}"))?;
             sh::infect(&infect.try_into()?, &sh, &mut out).await?;
         }
     }

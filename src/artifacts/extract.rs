@@ -38,13 +38,17 @@ impl ExtractArtifact {
                         .by_index(i)
                         .with_context(|| anyhow!("Failed to access entry at index {:?}", i))?;
 
-                    let name = entry.name();
+                    let Ok(name) = entry.name() else {
+                        trace!("Skipping zip entry with invalid name");
+                        continue;
+                    };
+
                     if entry.is_dir() {
                         trace!("Skipping directory in zip file: {:?}", name);
                         continue;
                     }
 
-                    if !extract.matches(name)? {
+                    if !extract.matches(&name)? {
                         trace!("Skipping file in zip file: {:?}", name);
                         continue;
                     }
